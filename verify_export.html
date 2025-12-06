@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Verify Export</title>
+</head>
+
+<body>
+    <div id="result">Running...</div>
+    <script src="js/export.js"></script>
+    <script>
+        const mockData = {
+            hallazgos: [],
+            astillas: [],
+            routes: [
+                {
+                    name: "Test Route",
+                    timestamp: new Date().toISOString(),
+                    content: `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <Placemark>
+      <name>Path</name>
+      <LineString>
+        <coordinates>
+          -65.1,-43.3,0 -65.2,-43.4,0
+        </coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>`
+                }
+            ]
+        };
+
+        try {
+            const kml = Exporter.generateKML(mockData);
+            console.log(kml);
+
+            // Check if coordinates are present in the output
+            if (kml.includes('-65.1,-43.3,0') && kml.includes('<LineString>')) {
+                document.getElementById('result').textContent = "SUCCESS: Coordinates found in export.";
+            } else {
+                document.getElementById('result').textContent = "FAILURE: Coordinates NOT found in export.";
+            }
+        } catch (e) {
+            document.getElementById('result').textContent = "ERROR: " + e.message;
+        }
+    </script>
+</body>
+
+</html>

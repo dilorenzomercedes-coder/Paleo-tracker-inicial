@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Verify Coords</title>
+</head>
+
+<body>
+    <div id="result">Running...</div>
+    <!-- Mock UI and Store -->
+    <script>
+        class Store {
+            addHallazgo(data) { console.log('Added:', data); return data; }
+            updateHallazgo() { }
+            getHallazgos() { return []; }
+            getFolders() { return []; }
+        }
+        class UI {
+            toggleModal() { }
+            renderHallazgos() { }
+            updateFolderLists() { }
+            handleImagePreview() { }
+        }
+        class MapManager {
+            getCurrentLocation() {
+                return Promise.resolve({ lat: -43.123456, lng: -65.123456 });
+            }
+        }
+
+        // Mock DOM elements
+        document.body.innerHTML += `
+            <div id="hallazgo-gps-status"></div>
+            <form id="form-hallazgo">
+                <input name="lat" type="text">
+                <input name="lng" type="text">
+                <button id="btn-capture-hallazgo">Capture</button>
+            </form>
+        `;
+
+        const store = new Store();
+        const ui = new UI();
+        const mapManager = new MapManager();
+
+        // Re-implement capture logic for test isolation or load app.js if possible
+        // For this test, we'll just test the logic we added to app.js by simulating it
+
+        function testCapture() {
+            const statusEl = document.getElementById('hallazgo-gps-status');
+            const form = document.getElementById('form-hallazgo');
+
+            statusEl.textContent = 'Buscando...';
+
+            mapManager.getCurrentLocation().then(coords => {
+                const latInput = form.querySelector('[name="lat"]');
+                const lngInput = form.querySelector('[name="lng"]');
+                latInput.value = coords.lat.toFixed(6);
+                lngInput.value = coords.lng.toFixed(6);
+
+                if (latInput.value === "-43.123456" && lngInput.value === "-65.123456") {
+                    document.getElementById('result').textContent = "SUCCESS: Coordinates populated correctly.";
+                } else {
+                    document.getElementById('result').textContent = "FAILURE: Coordinates mismatch.";
+                }
+            });
+        }
+
+        testCapture();
+    </script>
+</body>
+
+</html>

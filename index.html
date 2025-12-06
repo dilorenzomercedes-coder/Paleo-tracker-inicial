@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paleo Heritage</title>
+  <meta name="description" content="Aplicación de registro paleontológico">
+
+  <script>
+    window.onerror = function (msg, url, line, col, error) {
+      if (msg === 'Script error.') return; // Ignore generic cross-origin errors
+      const log = document.getElementById('debug-log');
+      if (log) {
+        log.innerHTML += `<div style="color:red; border-bottom:1px solid #ccc; padding:4px;">
+          <strong>Error:</strong> ${msg}<br>
+          <small>${url}:${line}</small>
+        </div>`;
+      }
+      console.error(msg, url, line);
+    };
+    window.onunhandledrejection = function (event) {
+      const log = document.getElementById('debug-log');
+      if (log) {
+        log.innerHTML += `<div style="color:orange; border-bottom:1px solid #ccc; padding:4px;">
+          <strong>Promise Rejection:</strong> ${event.reason}
+        </div>`;
+      }
+      console.error(event.reason);
+    };
+  </script>
+
+  <!-- PWA -->
+  <link rel="manifest" href="public/manifest.json">
+  <meta name="theme-color" content="#4A5D23">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Paleo Heritage">
+  <link rel="apple-touch-icon" href="public/logo paleo heritage.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <img src="public/logo paleo heritage.png" alt="Paleo Heritage Logo" class="app-logo">
+        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v1.4</small></h1>
+      </div>
+      <div class="user-controls">
+        <button id="btn-backup" class="btn-secondary" style="margin-right: 5px; display: none;">💾 Backup</button>
+        <button id="btn-restore" class="btn-secondary" style="margin-right: 5px; display: none;">📂 Importar</button>
+        <input type="file" id="restore-file-input" accept=".json" style="display: none;">
+
+        <button id="btn-export" class="btn-secondary" style="margin-right: 10px; display: none;">⬇️ Exportar
+          KML</button>
+        <select id="role-selector" class="role-select">
+          <option value="admin">Administrador</option>
+          <option value="collector">Colector</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-content">
+
+      <!-- Tab: Hallazgos -->
+      <section id="tab-hallazgos" class="tab-content active">
+        <div class="section-header">
+          <h2>Registro de Hallazgos</h2>
+          <button class="btn-primary" id="btn-new-hallazgo">+ Nuevo Hallazgo</button>
+        </div>
+
+        <!-- List View -->
+        <div id="hallazgos-list" class="data-list">
+          <!-- Items will be injected here -->
+          <div class="empty-state">No hay hallazgos registrados.</div>
+        </div>
+
+        <!-- Form View (Hidden by default) -->
+        <div id="hallazgos-form-container" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>Nuevo Hallazgo</h3>
+              <button class="btn-close" id="btn-close-hallazgo">&times;</button>
+            </div>
+            <form id="form-hallazgo">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Localidad</label>
+                <input type="text" name="localidad" placeholder="Ej. Cañadón Asfalto" required>
+              </div>
+              <div class="form-group">
+                <label>Carpeta / Lugar</label>
+                <input type="text" name="folder" placeholder="Nombre de carpeta para agrupar" list="folder-list">
+                <datalist id="folder-list"></datalist>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Tipo de Material</label>
+                  <select name="tipo_material">
+                    <option value="VS">VS</option>
+                    <option value="VS-F">VS-F</option>
+                    <option value="VR">VR</option>
+                    <option value="VR-F">VR-F</option>
+                    <option value="IS">IS</option>
+                    <option value="IS-F">IS-F</option>
+                    <option value="IR">IR</option>
+                    <option value="XS">XS</option>
+                    <option value="XR">XR</option>
+                    <option value="PI">PI</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Código</label>
+                  <input type="text" name="codigo" placeholder="Ej. PV-001">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Formación Geológica</label>
+                <input type="text" name="formacion">
+              </div>
+              <div class="form-group">
+                <label>Coordinador</label>
+                <input type="text" value="Porfiri-Dos Santos" readonly class="readonly-input">
+              </div>
+              <div class="form-group">
+                <label>Colector</label>
+                <input type="text" name="colector">
+              </div>
+              <div class="form-group">
+                <label>Consolidante</label>
+                <select name="consolidante">
+                  <option value="nada">Nada</option>
+                  <option value="laca">Laca</option>
+                  <option value="cianoacrilato">Cianoacrilato</option>
+                  <option value="poxipol">Poxipol</option>
+                  <option value="b72">B72</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Acción</label>
+                <div class="radio-group">
+                  <label><input type="radio" name="accion" value="picking"> Picking</label>
+                  <label><input type="radio" name="accion" value="bochon"> Bochon</label>
+                  <label><input type="radio" name="accion" value="rescate"> Rescate pendiente</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Clasificación Taxonómica</label>
+                <input type="text" name="taxonomia">
+              </div>
+              <div class="form-group">
+                <label>Foto</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto" accept="image/*" capture="environment" id="hallazgo-foto">
+                  <label for="hallazgo-foto" class="file-upload-label">
+                    <span class="icon">📷</span> Tomar/Subir Foto
+                  </label>
+                </div>
+                <div id="hallazgo-foto-preview" class="image-preview"></div>
+              </div>
+              <div class="form-group">
+                <label>Ubicación (GPS)</label>
+                <div class="gps-controls">
+                  <button type="button" class="btn-secondary btn-small" id="btn-capture-hallazgo">📍 Capturar
+                    GPS</button>
+                  <span class="gps-status" id="hallazgo-gps-status"></span>
+                </div>
+                <div class="coords-row">
+                  <div class="coord-input">
+                    <label>Latitud</label>
+                    <input type="number" step="any" name="lat" placeholder="-43.xxx">
+                  </div>
+                  <div class="coord-input">
+                    <label>Longitud</label>
+                    <input type="number" step="any" name="lng" placeholder="-65.xxx">
+                  </div>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">Guardar Hallazgo</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Astillas -->
+      <section id="tab-astillas" class="tab-content">
+        <div class="section-header">
+          <h2>Registro de Astillas</h2>
+          <button class="btn-primary" id="btn-new-astilla">+ Nueva Astilla</button>
+        </div>
+
+        <div id="astillas-list" class="data-list">
+          <div class="empty-state">No hay astillas registradas.</div>
+        </div>
+
+        <div id="astillas-form-container" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>Nueva Astilla</h3>
+              <button class="btn-close" id="btn-close-astilla">&times;</button>
+            </div>
+            <form id="form-astilla">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Localidad</label>
+                <input type="text" name="localidad" required>
+              </div>
+              <div class="form-group">
+                <label>Carpeta / Lugar</label>
+                <input type="text" name="folder" list="folder-list">
+              </div>
+              <div class="form-group">
+                <label>Foto</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto" accept="image/*" capture="environment" id="astilla-foto">
+                  <label for="astilla-foto" class="file-upload-label">
+                    <span class="icon">📷</span> Tomar/Subir Foto
+                  </label>
+                </div>
+                <div id="astilla-foto-preview" class="image-preview"></div>
+              </div>
+              <div class="form-group">
+                <label>Ubicación (GPS)</label>
+                <div class="gps-controls">
+                  <button type="button" class="btn-secondary btn-small" id="btn-capture-astilla">📍 Capturar
+                    GPS</button>
+                  <span class="gps-status" id="astilla-gps-status"></span>
+                </div>
+                <div class="coords-row">
+                  <div class="coord-input">
+                    <label>Latitud</label>
+                    <input type="number" step="any" name="lat" placeholder="-43.xxx">
+                  </div>
+                  <div class="coord-input">
+                    <label>Longitud</label>
+                    <input type="number" step="any" name="lng" placeholder="-65.xxx">
+                  </div>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">Guardar Astilla</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Caminos -->
+      <section id="tab-caminos" class="tab-content">
+        <div class="section-header">
+          <h2>Caminos y Rutas</h2>
+          <div class="actions">
+            <label for="kml-upload" class="btn-secondary">📂 Cargar KML/GPX</label>
+            <input type="file" id="kml-upload" accept=".kml,.gpx,.kmz" hidden>
+          </div>
+        </div>
+
+        <!-- Map Filters Panel -->
+        <div class="map-filters-panel">
+          <div class="filter-header">
+            <h4>Filtros de Visualización</h4>
+            <button id="toggle-filters" class="btn-icon" aria-label="Toggle filters">▼</button>
+          </div>
+          <div class="filter-content" id="map-filters-content">
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-routes" checked>
+                <span class="icon" style="color: #FF5722;">━━</span> Rutas
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-hallazgos" checked>
+                <span class="icon">📍</span> Hallazgos
+              </label>
+              <select id="filter-hallazgos-folder" class="folder-select">
+                <option value="all">Todas las carpetas</option>
+              </select>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-astillas" checked>
+                <span class="icon">🦴</span> Astillas
+              </label>
+              <select id="filter-astillas-folder" class="folder-select">
+                <option value="all">Todas las carpetas</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="map-container" class="map-view"></div>
+
+        <!-- Map Legend -->
+        <div class="map-legend">
+          <h4>Leyenda</h4>
+          <div class="legend-item">
+            <span class="legend-icon">📍</span>
+            <span>Hallazgos</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-icon">🦴</span>
+            <span>Astillas</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-icon" style="color: #FF5722;">━━</span>
+            <span>Caminos cargados</span>
+          </div>
+        </div>
+
+        <div id="routes-list" class="routes-list">
+          <h4>Rutas Cargadas</h4>
+          <div id="routes-items"></div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Detail View Modal -->
+    <div id="detail-modal" class="form-overlay hidden">
+      <div class="form-card">
+        <div class="form-header">
+          <h3 id="detail-title">Detalle</h3>
+          <button class="btn-close" id="btn-close-detail">&times;</button>
+        </div>
+        <div id="detail-content" class="detail-content">
+          <!-- Content will be injected here -->
+        </div>
+        <div class="form-actions">
+          <button id="btn-delete-item" class="btn-danger">🗑️ Eliminar</button>
+          <button id="btn-edit-item" class="btn-secondary">✏️ Editar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Export Options Modal -->
+    <div id="export-modal" class="form-overlay hidden">
+      <div class="form-card">
+        <div class="form-header">
+          <h3>Opciones de Exportación</h3>
+          <button class="btn-close" id="btn-close-export">&times;</button>
+        </div>
+        <div class="export-options">
+          <p>Selecciona las carpetas que deseas exportar:</p>
+          <label class="checkbox-label select-all">
+            <input type="checkbox" id="export-select-all" checked>
+            Seleccionar Todo
+          </label>
+          <div id="export-folder-list" class="folder-checklist">
+            <!-- Folders will be injected here -->
+          </div>
+        </div>
+        <div class="form-actions">
+          <button id="btn-confirm-export" class="btn-primary full-width">⬇️ Exportar KML</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-target="tab-hallazgos">
+        <span class="icon">📍</span>
+        <span class="label">Hallazgos</span>
+      </button>
+      <button class="nav-item" data-target="tab-astillas">
+        <span class="icon">🦴</span>
+        <span class="label">Astillas</span>
+      </button>
+      <button class="nav-item" data-target="tab-caminos">
+        <span class="icon">🗺️</span>
+        <span class="label">Caminos</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
+  <script src="js/store.js?v=1.4"></script>
+  <script src="js/export.js?v=1.4"></script>
+  <script src="js/ui.js?v=1.4"></script>
+  <script src="js/map.js?v=1.4"></script>
+  <script src="js/app.js?v=1.4"></script>
+
+  <!-- Debug Log -->
+  <div id="debug-log" style="
+    display: none; /* Hidden by default, toggle via console or if needed */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    font-family: monospace;
+    font-size: 10px;
+    z-index: 9999;
+    padding: 10px;
+  "></div>
+
+  <script>
+    // Show debug log if on mobile or requested
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      document.getElementById('debug-log').style.display = 'block';
+    }
+  </script>
+</body>
+
+</html>
