@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "homepage": "https://dilorenzomercedes-coder.github.io/Paleo-tracker",
   "dependencies": {
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
