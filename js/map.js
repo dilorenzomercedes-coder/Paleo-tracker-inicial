@@ -299,4 +299,65 @@ class MapManager {
             }
         }
     }
+
+    getPathInfo() {
+        if (!this.pathCoords || this.pathCoords.length === 0) {
+            return { points: 0, distance: 0 };
+        }
+
+        // Calculate total distance
+        let totalDistance = 0;
+        for (let i = 1; i < this.pathCoords.length; i++) {
+            const from = L.latLng(this.pathCoords[i - 1]);
+            const to = L.latLng(this.pathCoords[i]);
+            totalDistance += from.distanceTo(to);
+        }
+
+        return {
+            points: this.pathCoords.length,
+            distance: Math.round(totalDistance) // in meters
+        };
+    }
+
+    saveCurrentPath() {
+        if (!this.pathCoords || this.pathCoords.length < 2) {
+            return { success: false, message: "No hay suficientes puntos para guardar (mínimo 2)" };
+        }
+
+        // Generate KML from current path
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const name = `Recorrido_${timestamp}`;
+
+        // Build KML
+        let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${name}</name>
+    <Placemark>
+      <name>${name}</name>
+      <LineString>
+        <coordinates>`;
+
+        this.pathCoords.forEach(coord => {
+            // KML format is lon,lat,alt
+            kml += `\n          ${coord[1]},${coord[0]},0`;
+        });
+
+        kml += `
+        </coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>`;
+
+        return { success: true, kml: kml, name: name };
+    }
+
+    clearPath() {
+        this.pathCoords = [];
+        if (this.userPath) {
+            this.userPath.setLatLngs([]);
+        }
+        this.isRecordingPath = false;
+    }
 }

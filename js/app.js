@@ -91,26 +91,126 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Tracking ---
     const btnToggleTracking = document.getElementById('btn-toggle-tracking');
+    const pathInfoDiv = document.getElementById('path-info');
+    const pathPointsCount = document.getElementById('path-points-count');
+    const pathDistance = document.getElementById('path-distance');
+    const chkRecordPath = document.getElementById('chk-record-path');
+
+    // Update path info periodically when recording
+    let pathInfoInterval = null;
+
+    const updatePathInfo = () => {
+        if (!mapManager.isRecordingPath) return;
+        const info = mapManager.getPathInfo();
+        if (pathPointsCount) pathPointsCount.textContent = info.points;
+        if (pathDistance) {
+            if (info.distance >= 1000) {
+                pathDistance.textContent = (info.distance / 1000).toFixed(2) + ' km';
+            } else {
+                pathDistance.textContent = info.distance + ' m';
+            }
+        }
+    };
+
     if (btnToggleTracking) {
         btnToggleTracking.addEventListener('click', () => {
             const isTracking = btnToggleTracking.classList.toggle('tracking-active');
 
             if (isTracking) {
+                // Starting tracking - clear any old path from previous session
+                mapManager.clearPath();
+                if (chkRecordPath) chkRecordPath.checked = false;
+                if (pathInfoDiv) pathInfoDiv.style.display = 'none';
+
                 btnToggleTracking.innerHTML = '<span>◉</span> Detener Seguimiento';
                 mapManager.toggleTracking(true);
             } else {
+                // Stopping tracking - keep path visible so user can save it
                 btnToggleTracking.innerHTML = '<span>◎</span> Iniciar Seguimiento';
                 mapManager.toggleTracking(false);
+
+                // Stop recording but keep the path visible
+                mapManager.setRecordingPath(false);
+                if (chkRecordPath) chkRecordPath.checked = false;
+
+                // Stop updating path info but keep it visible if there's a path
+                if (pathInfoInterval) {
+                    clearInterval(pathInfoInterval);
+                    pathInfoInterval = null;
+                }
+
+                // Update path info one last time and keep visible if there are points
+                const info = mapManager.getPathInfo();
+                if (info.points > 0) {
+                    updatePathInfo();
+                    if (pathInfoDiv) pathInfoDiv.style.display = 'block';
+                } else {
+                    if (pathInfoDiv) pathInfoDiv.style.display = 'none';
+                }
             }
         });
     }
 
-    const chkRecordPath = document.getElementById('chk-record-path');
     if (chkRecordPath) {
         chkRecordPath.addEventListener('change', (e) => {
             mapManager.setRecordingPath(e.target.checked);
+
+            if (e.target.checked) {
+                // Show path info and start updating
+                if (pathInfoDiv) pathInfoDiv.style.display = 'block';
+                updatePathInfo();
+                pathInfoInterval = setInterval(updatePathInfo, 2000); // Update every 2 seconds
+            } else {
+                // Stop updating but keep path info visible if there are points to save
+                if (pathInfoInterval) {
+                    clearInterval(pathInfoInterval);
+                    pathInfoInterval = null;
+                }
+
+                // Check if there's a path to save
+                const info = mapManager.getPathInfo();
+                if (info.points > 0) {
+                    updatePathInfo(); // Update one last time
+                    if (pathInfoDiv) pathInfoDiv.style.display = 'block';
+                } else {
+                    if (pathInfoDiv) pathInfoDiv.style.display = 'none';
+                }
+            }
         });
     }
+
+    // Save Path Button
+    const btnSavePath = document.getElementById('btn-save-path');
+    if (btnSavePath) {
+        btnSavePath.addEventListener('click', () => {
+            const result = mapManager.saveCurrentPath();
+
+            if (result.success) {
+                // Save to store
+                store.addRoute({ name: result.name, content: result.kml });
+
+                // Clear the current path
+                mapManager.clearPath();
+                if (chkRecordPath) chkRecordPath.checked = false;
+                if (pathInfoDiv) pathInfoDiv.style.display = 'none';
+
+                // Stop updating
+                if (pathInfoInterval) {
+                    clearInterval(pathInfoInterval);
+                    pathInfoInterval = null;
+                }
+
+                // Refresh map to show the saved route
+                mapManager.refreshMapData();
+                ui.renderRoutesList();
+
+                alert('✅ Recorrido guardado exitosamente: ' + result.name);
+            } else {
+                alert('❌ ' + result.message);
+            }
+        });
+    }
+
 
     // --- Navigation ---
     document.querySelectorAll('.nav-item').forEach(btn => {

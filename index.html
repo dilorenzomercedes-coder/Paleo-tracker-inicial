@@ -57,7 +57,7 @@
     <header class="app-header">
       <div class="logo">
         <img src="public/logo paleo heritage.png" alt="Paleo Heritage Logo" class="app-logo">
-        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v1.4</small></h1>
+        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v1.5</small></h1>
       </div>
       <div class="user-controls">
         <button id="btn-backup" class="btn-secondary" style="margin-right: 5px; display: none;">💾 Backup</button>
@@ -292,6 +292,16 @@
               <input type="checkbox" id="chk-record-path">
               Grabar recorrido (dibujar línea)
             </label>
+            <div id="path-info"
+              style="display: none; margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 0.85em;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span>📍 Puntos: <strong id="path-points-count">0</strong></span>
+                <span>📏 Distancia: <strong id="path-distance">0 m</strong></span>
+              </div>
+              <button id="btn-save-path" class="btn-primary full-width" style="margin-top: 4px; padding: 6px;">
+                💾 Guardar Recorrido
+              </button>
+            </div>
           </div>
           <div class="filter-content" id="map-filters-content">
             <div class="filter-row">
@@ -409,11 +419,11 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
-  <script src="js/store.js?v=1.4"></script>
-  <script src="js/export.js?v=1.4"></script>
-  <script src="js/ui.js?v=1.4"></script>
-  <script src="js/map.js?v=1.4"></script>
-  <script src="js/app.js?v=1.4"></script>
+  <script src="js/store.js?v=1.5"></script>
+  <script src="js/export.js?v=1.5"></script>
+  <script src="js/ui.js?v=1.5"></script>
+  <script src="js/map.js?v=1.5"></script>
+  <script src="js/app.js?v=1.5"></script>
 
   <!-- Debug Log -->
   <div id="debug-log" style="
