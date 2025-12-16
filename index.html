@@ -57,7 +57,10 @@
     <header class="app-header">
       <div class="logo">
         <img src="public/logo paleo heritage.png" alt="Paleo Heritage Logo" class="app-logo">
-        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v1.5</small></h1>
+        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v2.0</small></h1>
+      </div>
+      <div id="offline-indicator" class="offline-indicator" style="display: none;">
+        <span>📵 Sin conexión</span>
       </div>
       <div class="user-controls">
         <button id="btn-backup" class="btn-secondary" style="margin-right: 5px; display: none;">💾 Backup</button>
@@ -166,14 +169,30 @@
                 <input type="text" name="taxonomia">
               </div>
               <div class="form-group">
-                <label>Foto</label>
+                <label>Fotos (hasta 3)</label>
                 <div class="file-upload-wrapper">
-                  <input type="file" name="foto" accept="image/*" capture="environment" id="hallazgo-foto">
-                  <label for="hallazgo-foto" class="file-upload-label">
-                    <span class="icon">📷</span> Tomar/Subir Foto
+                  <input type="file" name="foto1" accept="image/*" capture="environment" id="hallazgo-foto1">
+                  <label for="hallazgo-foto1" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 1
                   </label>
                 </div>
-                <div id="hallazgo-foto-preview" class="image-preview"></div>
+                <div id="hallazgo-foto1-preview" class="image-preview"></div>
+
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto2" accept="image/*" capture="environment" id="hallazgo-foto2">
+                  <label for="hallazgo-foto2" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 2
+                  </label>
+                </div>
+                <div id="hallazgo-foto2-preview" class="image-preview"></div>
+
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto3" accept="image/*" capture="environment" id="hallazgo-foto3">
+                  <label for="hallazgo-foto3" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 3
+                  </label>
+                </div>
+                <div id="hallazgo-foto3-preview" class="image-preview"></div>
               </div>
               <div class="form-group">
                 <label>Ubicación (GPS)</label>
@@ -259,6 +278,10 @@
                   </div>
                 </div>
               </div>
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea name="observaciones" rows="3" placeholder="Notas adicionales (opcional)"></textarea>
+              </div>
               <div class="form-actions">
                 <button type="submit" class="btn-primary full-width">Guardar Astilla</button>
               </div>
@@ -292,13 +315,30 @@
               <input type="checkbox" id="chk-record-path">
               Grabar recorrido (dibujar línea)
             </label>
-            <div id="path-info"
-              style="display: none; margin-top: 8px; padding: 8px; background: #f0f0f0; border-radius: 4px; font-size: 0.85em;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                <span>📍 Puntos: <strong id="path-points-count">0</strong></span>
-                <span>📏 Distancia: <strong id="path-distance">0 m</strong></span>
+
+            <!-- GPS Status Indicator -->
+            <div id="gps-status-indicator"
+              style="display: none; margin-top: 8px; padding: 8px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 8px; color: white;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 0.8em; opacity: 0.8;">📡 Precisión GPS</span>
+                <span id="gps-accuracy-value"
+                  style="font-weight: bold; padding: 2px 8px; border-radius: 12px; background: #2196F3;">--</span>
               </div>
-              <button id="btn-save-path" class="btn-primary full-width" style="margin-top: 4px; padding: 6px;">
+              <div style="display: flex; justify-content: space-between; font-size: 0.85em;">
+                <span>🚶 <span id="gps-speed-value">-- km/h</span></span>
+                <span>🕐 <span id="gps-last-update">--:--:--</span></span>
+              </div>
+            </div>
+
+            <!-- Path Recording Info -->
+            <div id="path-info"
+              style="display: none; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #0d7377 0%, #14919b 100%); border-radius: 8px; color: white;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span>📍 Puntos: <strong id="path-points-count">0</strong></span>
+                <span>📏 <strong id="path-distance">0 m</strong></span>
+              </div>
+              <button id="btn-save-path" class="btn-primary full-width"
+                style="margin-top: 4px; padding: 8px; background: #00E676; color: #000; font-weight: bold;">
                 💾 Guardar Recorrido
               </button>
             </div>
@@ -419,11 +459,11 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
-  <script src="js/store.js?v=1.5"></script>
-  <script src="js/export.js?v=1.5"></script>
-  <script src="js/ui.js?v=1.5"></script>
-  <script src="js/map.js?v=1.5"></script>
-  <script src="js/app.js?v=1.5"></script>
+  <script src="js/store.js?v=2.0"></script>
+  <script src="js/export.js?v=2.0"></script>
+  <script src="js/ui.js?v=2.0"></script>
+  <script src="js/map.js?v=2.0"></script>
+  <script src="js/app.js?v=2.0"></script>
 
   <!-- Debug Log -->
   <div id="debug-log" style="

@@ -50,6 +50,24 @@ class UI {
 
         if (type === 'hallazgo') {
             title.textContent = `Hallazgo: ${item.codigo || 'S/N'}`;
+
+            // Generate photos HTML
+            let photosHtml = '';
+            // Check for modern format (foto1, foto2, foto3) or legacy format (foto)
+            const photos = [];
+            if (item.foto1) photos.push(item.foto1);
+            if (item.foto2) photos.push(item.foto2);
+            if (item.foto3) photos.push(item.foto3);
+            if (item.foto && !item.foto1) photos.push(item.foto); // Backward compatibility
+
+            if (photos.length > 0) {
+                photosHtml = '<div class="detail-row"><div class="detail-label">Fotografías</div><div class="photos-grid">';
+                photos.forEach(photo => {
+                    photosHtml += `<img src="${photo}" class="detail-photo" alt="Foto del hallazgo">`;
+                });
+                photosHtml += '</div></div>';
+            }
+
             content.innerHTML = `
                 <div class="detail-row">
                     <div class="detail-label">Fecha</div>
@@ -99,12 +117,7 @@ class UI {
                     <div class="detail-label">Coordenadas GPS</div>
                     <div class="detail-value">${item.lat && item.lng ? `${item.lat}, ${item.lng}` : 'No disponible'}</div>
                 </div>
-                ${item.foto ? `
-                <div class="detail-row">
-                    <div class="detail-label">Fotografía</div>
-                    <img src="${item.foto}" class="detail-photo" alt="Foto del hallazgo">
-                </div>
-                ` : ''}
+                ${photosHtml}
             `;
         } else if (type === 'astilla') {
             title.textContent = `Astilla - ${item.localidad}`;
@@ -124,6 +137,10 @@ class UI {
                 <div class="detail-row">
                     <div class="detail-label">Coordenadas GPS</div>
                     <div class="detail-value">${item.lat && item.lng ? `${item.lat}, ${item.lng}` : 'No disponible'}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Observaciones</div>
+                    <div class="detail-value">${item.observaciones || '-'}</div>
                 </div>
                 ${item.foto ? `
                 <div class="detail-row">

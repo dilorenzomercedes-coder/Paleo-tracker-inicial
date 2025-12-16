@@ -96,11 +96,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const pathDistance = document.getElementById('path-distance');
     const chkRecordPath = document.getElementById('chk-record-path');
 
+    // GPS Status Elements
+    const gpsStatusIndicator = document.getElementById('gps-status-indicator');
+    const gpsAccuracyValue = document.getElementById('gps-accuracy-value');
+    const gpsSpeedValue = document.getElementById('gps-speed-value');
+    const gpsLastUpdate = document.getElementById('gps-last-update');
+
     // Update path info periodically when recording
     let pathInfoInterval = null;
 
     const updatePathInfo = () => {
-        if (!mapManager.isRecordingPath) return;
         const info = mapManager.getPathInfo();
         if (pathPointsCount) pathPointsCount.textContent = info.points;
         if (pathDistance) {
@@ -109,6 +114,33 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 pathDistance.textContent = info.distance + ' m';
             }
+        }
+    };
+
+    const updateGPSStatus = (data) => {
+        if (gpsAccuracyValue && data.accuracy !== undefined) {
+            gpsAccuracyValue.textContent = data.accuracy + 'm';
+            // Color code by accuracy
+            gpsAccuracyValue.className = '';
+            if (data.accuracy <= 10) {
+                gpsAccuracyValue.classList.add('gps-accuracy-excellent');
+            } else if (data.accuracy <= 30) {
+                gpsAccuracyValue.classList.add('gps-accuracy-good');
+            } else if (data.accuracy <= 50) {
+                gpsAccuracyValue.classList.add('gps-accuracy-fair');
+            } else {
+                gpsAccuracyValue.classList.add('gps-accuracy-poor');
+            }
+        }
+        if (gpsSpeedValue && data.speed !== undefined) {
+            gpsSpeedValue.textContent = data.speed !== null ? data.speed + ' km/h' : '-- km/h';
+        }
+        if (gpsLastUpdate) {
+            gpsLastUpdate.textContent = new Date().toLocaleTimeString();
+        }
+        // Update path info if recording
+        if (mapManager.isRecordingPath) {
+            updatePathInfo();
         }
     };
 
@@ -122,12 +154,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (chkRecordPath) chkRecordPath.checked = false;
                 if (pathInfoDiv) pathInfoDiv.style.display = 'none';
 
+                // Show GPS status indicator
+                if (gpsStatusIndicator) gpsStatusIndicator.style.display = 'block';
+
                 btnToggleTracking.innerHTML = '<span>◉</span> Detener Seguimiento';
-                mapManager.toggleTracking(true);
+                mapManager.toggleTracking(true, updateGPSStatus);
             } else {
                 // Stopping tracking - keep path visible so user can save it
                 btnToggleTracking.innerHTML = '<span>◎</span> Iniciar Seguimiento';
                 mapManager.toggleTracking(false);
+
+                // Hide GPS status indicator
+                if (gpsStatusIndicator) gpsStatusIndicator.style.display = 'none';
 
                 // Stop recording but keep the path visible
                 mapManager.setRecordingPath(false);
@@ -304,10 +342,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
 
-            // Handle image as DataURL
-            const fileInput = document.getElementById('hallazgo-foto');
-            if (fileInput && fileInput.files[0]) {
-                data.foto = await toBase64(fileInput.files[0]);
+            // Handle images as DataURL - support 3 photos
+            const foto1Input = document.getElementById('hallazgo-foto1');
+            if (foto1Input && foto1Input.files[0]) {
+                data.foto1 = await toBase64(foto1Input.files[0]);
+            }
+
+            const foto2Input = document.getElementById('hallazgo-foto2');
+            if (foto2Input && foto2Input.files[0]) {
+                data.foto2 = await toBase64(foto2Input.files[0]);
+            }
+
+            const foto3Input = document.getElementById('hallazgo-foto3');
+            if (foto3Input && foto3Input.files[0]) {
+                data.foto3 = await toBase64(foto3Input.files[0]);
             }
 
             // Check if we're editing
@@ -323,8 +371,15 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.updateFolderLists();
             ui.toggleModal('hallazgos-form-container', false);
             e.target.reset();
-            const preview = document.getElementById('hallazgo-foto-preview');
-            if (preview) preview.innerHTML = '';
+
+            // Clear all photo previews
+            const preview1 = document.getElementById('hallazgo-foto1-preview');
+            const preview2 = document.getElementById('hallazgo-foto2-preview');
+            const preview3 = document.getElementById('hallazgo-foto3-preview');
+            if (preview1) preview1.innerHTML = '';
+            if (preview2) preview2.innerHTML = '';
+            if (preview3) preview3.innerHTML = '';
+
             // Clear GPS status
             document.getElementById('hallazgo-gps-status').textContent = '';
         });
@@ -364,9 +419,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Image Previews ---
-    const hallazgoFotoInput = document.getElementById('hallazgo-foto');
-    if (hallazgoFotoInput) {
-        hallazgoFotoInput.addEventListener('change', (e) => ui.handleImagePreview(e.target, 'hallazgo-foto-preview'));
+    const hallazgoFoto1Input = document.getElementById('hallazgo-foto1');
+    if (hallazgoFoto1Input) {
+        hallazgoFoto1Input.addEventListener('change', (e) => ui.handleImagePreview(e.target, 'hallazgo-foto1-preview'));
+    }
+
+    const hallazgoFoto2Input = document.getElementById('hallazgo-foto2');
+    if (hallazgoFoto2Input) {
+        hallazgoFoto2Input.addEventListener('change', (e) => ui.handleImagePreview(e.target, 'hallazgo-foto2-preview'));
+    }
+
+    const hallazgoFoto3Input = document.getElementById('hallazgo-foto3');
+    if (hallazgoFoto3Input) {
+        hallazgoFoto3Input.addEventListener('change', (e) => ui.handleImagePreview(e.target, 'hallazgo-foto3-preview'));
     }
 
     const astillaFotoInput = document.getElementById('astilla-foto');
@@ -635,13 +700,63 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Tracking State Recovery ---
+    document.addEventListener('tracking-state-found', (event) => {
+        const { pathCoords, wasRecording } = event.detail;
+        if (pathCoords && pathCoords.length > 0) {
+            const confirmRestore = confirm(
+                `Se encontró un recorrido anterior con ${pathCoords.length} puntos.\n\n¿Deseas restaurar el recorrido?`
+            );
+            if (confirmRestore) {
+                mapManager.restorePath(pathCoords);
+                // Update UI to show path info
+                if (pathInfoDiv) pathInfoDiv.style.display = 'block';
+                updatePathInfo();
+            } else {
+                mapManager.clearPath();
+            }
+        }
+    });
+
+    // --- Offline Detection ---
+    const offlineIndicator = document.getElementById('offline-indicator');
+
+    const updateOnlineStatus = () => {
+        if (offlineIndicator) {
+            if (navigator.onLine) {
+                offlineIndicator.style.display = 'none';
+            } else {
+                offlineIndicator.style.display = 'flex';
+            }
+        }
+    };
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    // Check initial status
+    updateOnlineStatus();
+
     // --- PWA Registration ---
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./service-worker.js', { scope: '/Paleo-tracker/' })
+            // Use relative path for service worker
+            const swPath = './public/service-worker.js';
+            navigator.serviceWorker.register(swPath)
                 .then(registration => {
                     console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, err => {
+
+                    // Check for updates
+                    registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // New version available
+                                console.log('New version available! Refresh to update.');
+                            }
+                        });
+                    });
+                })
+                .catch(err => {
                     console.log('ServiceWorker registration failed: ', err);
                 });
         });
