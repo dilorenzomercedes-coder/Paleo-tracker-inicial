@@ -60,7 +60,7 @@
     <header class="app-header">
       <div class="logo">
         <img src="public/logo paleo heritage.png" alt="Paleo Heritage Logo" class="app-logo">
-        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v2.1</small></h1>
+        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v2.2</small></h1>
       </div>
       <div id="offline-indicator" class="offline-indicator" style="display: none;">
         <span>📵 Sin conexión</span>
@@ -317,6 +317,15 @@
               Grabar recorrido (dibujar línea)
             </label>
 
+            <!-- Background Warning Banner -->
+            <div id="background-warning" class="background-warning" style="display: none;">
+              <span class="warning-icon">⚠️</span>
+              <div class="warning-text">
+                <strong>¡Mantén la app abierta!</strong>
+                <span>El GPS no funciona con la pantalla bloqueada</span>
+              </div>
+            </div>
+
             <!-- GPS Status Indicator -->
             <div id="gps-status-indicator"
               style="display: none; margin-top: 8px; padding: 8px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 8px; color: white;">
@@ -460,11 +469,11 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
-  <script src="js/store.js?v=2.1"></script>
-  <script src="js/export.js?v=2.1"></script>
-  <script src="js/ui.js?v=2.1"></script>
-  <script src="js/map.js?v=2.1"></script>
-  <script src="js/app.js?v=2.1"></script>
+  <script src="js/store.js?v=2.2"></script>
+  <script src="js/export.js?v=2.2"></script>
+  <script src="js/ui.js?v=2.2"></script>
+  <script src="js/map.js?v=2.2"></script>
+  <script src="js/app.js?v=2.2"></script>
 
   <!-- Debug Log -->
   <div id="debug-log" style="

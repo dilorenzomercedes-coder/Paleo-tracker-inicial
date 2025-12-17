@@ -761,6 +761,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Tracking Gap Detection ---
+    const backgroundWarning = document.getElementById('background-warning');
+
+    document.addEventListener('tracking-gap-detected', (event) => {
+        const { gapSeconds, pointsRecorded } = event.detail;
+
+        // Format time nicely
+        let timeStr;
+        if (gapSeconds >= 60) {
+            const mins = Math.floor(gapSeconds / 60);
+            const secs = gapSeconds % 60;
+            timeStr = `${mins} min ${secs} seg`;
+        } else {
+            timeStr = `${gapSeconds} segundos`;
+        }
+
+        // Show notification about the gap
+        const message = `⚠️ La app estuvo en segundo plano por ${timeStr}.\n\n` +
+            `El GPS no funciona con la pantalla bloqueada.\n` +
+            `Tienes ${pointsRecorded} puntos guardados.\n\n` +
+            `Mantén la app abierta mientras grabas el recorrido.`;
+
+        alert(message);
+    });
+
+    // --- Show/Hide Recording Warning ---
+    const updateRecordingWarning = (isRecording) => {
+        if (backgroundWarning) {
+            backgroundWarning.style.display = isRecording ? 'flex' : 'none';
+        }
+    };
+
+    // Intercept recording checkbox to show warning
+    if (chkRecordPath) {
+        const originalHandler = chkRecordPath.onchange;
+        chkRecordPath.addEventListener('change', (e) => {
+            updateRecordingWarning(e.target.checked);
+        });
+    }
+
     // --- Offline Detection ---
     const offlineIndicator = document.getElementById('offline-indicator');
 

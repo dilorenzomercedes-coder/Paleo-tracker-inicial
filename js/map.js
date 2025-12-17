@@ -37,6 +37,10 @@ class MapManager {
         this.saveInterval = null;
         this.backgroundSaveIntervalMs = 5000; // Save every 5 seconds when in background
 
+        // Timestamp tracking for gap detection
+        this.lastGPSTimestamp = null;
+        this.wentToBackgroundAt = null;
+
         // Setup visibility change listener for background handling
         this.setupVisibilityHandler();
     }
@@ -44,17 +48,42 @@ class MapManager {
     // Handle app going to background/foreground
     setupVisibilityHandler() {
         document.addEventListener('visibilitychange', () => {
-            if (this.isTracking) {
+            if (this.isTracking || this.isRecordingPath) {
                 if (document.hidden) {
-                    // App went to background - save more frequently
+                    // App went to background - save immediately and start frequent saves
                     console.log('App in background - enabling aggressive save');
+                    this.wentToBackgroundAt = Date.now();
+                    this.saveTrackingState();
                     this.startBackgroundSave();
+
+                    // Re-request wake lock (Android may release it)
+                    this.requestWakeLock();
                 } else {
                     // App came back to foreground
-                    console.log('App in foreground - normal save mode');
+                    console.log('App in foreground - checking for gap');
                     this.stopBackgroundSave();
+
+                    // Check if there was a significant gap (GPS stopped in background)
+                    if (this.wentToBackgroundAt && this.isRecordingPath) {
+                        const gapSeconds = Math.round((Date.now() - this.wentToBackgroundAt) / 1000);
+                        if (gapSeconds > 5) {
+                            // Emit event for UI to show gap notification
+                            const event = new CustomEvent('tracking-gap-detected', {
+                                detail: {
+                                    gapSeconds: gapSeconds,
+                                    pointsRecorded: this.pathCoords.length
+                                }
+                            });
+                            document.dispatchEvent(event);
+                        }
+                    }
+                    this.wentToBackgroundAt = null;
+
                     // Force save current state
                     this.saveTrackingState();
+
+                    // Re-request wake lock
+                    this.requestWakeLock();
                 }
             }
         });
@@ -70,6 +99,14 @@ class MapManager {
         document.addEventListener('freeze', () => {
             if (this.isRecordingPath && this.pathCoords.length > 0) {
                 this.saveTrackingState();
+            }
+        });
+
+        // Handle resume from freeze
+        document.addEventListener('resume', () => {
+            if (this.isTracking) {
+                console.log('App resumed from freeze');
+                this.requestWakeLock();
             }
         });
     }
@@ -775,18 +812,17 @@ class MapManager {
                 }
             }
 
-            // Add point to path
+            // Add point to path with timestamp
             this.pathCoords.push(latLng);
             this.lastPosition = latLng;
+            this.lastGPSTimestamp = Date.now();
 
             if (this.userPath) {
                 this.userPath.setLatLngs(this.pathCoords);
             }
 
-            // Persist path periodically (every 10 points)
-            if (this.pathCoords.length % 10 === 0) {
-                this.saveTrackingState();
-            }
+            // AGGRESSIVE SAVE: Persist every point immediately to prevent data loss
+            this.saveTrackingState();
         }
     }
 
