@@ -31,6 +31,103 @@ class MapManager {
         this.MIN_MOVEMENT_THRESHOLD = 3;
         // Maximum acceptable accuracy in meters
         this.MAX_ACCURACY_THRESHOLD = 50;
+
+        // Background tracking support
+        this.wakeLock = null;
+        this.saveInterval = null;
+        this.backgroundSaveIntervalMs = 5000; // Save every 5 seconds when in background
+
+        // Setup visibility change listener for background handling
+        this.setupVisibilityHandler();
+    }
+
+    // Handle app going to background/foreground
+    setupVisibilityHandler() {
+        document.addEventListener('visibilitychange', () => {
+            if (this.isTracking) {
+                if (document.hidden) {
+                    // App went to background - save more frequently
+                    console.log('App in background - enabling aggressive save');
+                    this.startBackgroundSave();
+                } else {
+                    // App came back to foreground
+                    console.log('App in foreground - normal save mode');
+                    this.stopBackgroundSave();
+                    // Force save current state
+                    this.saveTrackingState();
+                }
+            }
+        });
+
+        // Handle page unload - save everything before closing
+        window.addEventListener('beforeunload', () => {
+            if (this.isRecordingPath && this.pathCoords.length > 0) {
+                this.saveTrackingState();
+            }
+        });
+
+        // Handle page freeze (mobile browsers)
+        document.addEventListener('freeze', () => {
+            if (this.isRecordingPath && this.pathCoords.length > 0) {
+                this.saveTrackingState();
+            }
+        });
+    }
+
+    // Start aggressive background saving
+    startBackgroundSave() {
+        if (this.saveInterval) return;
+        this.saveInterval = setInterval(() => {
+            if (this.isRecordingPath && this.pathCoords.length > 0) {
+                this.saveTrackingState();
+            }
+        }, this.backgroundSaveIntervalMs);
+    }
+
+    // Stop aggressive background saving
+    stopBackgroundSave() {
+        if (this.saveInterval) {
+            clearInterval(this.saveInterval);
+            this.saveInterval = null;
+        }
+    }
+
+    // Request Wake Lock to keep device awake
+    async requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                this.wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock acquired');
+
+                // Re-acquire wake lock if released (e.g., when tab becomes visible again)
+                this.wakeLock.addEventListener('release', () => {
+                    console.log('Wake Lock released');
+                    // Try to re-acquire if still tracking
+                    if (this.isTracking) {
+                        this.requestWakeLock();
+                    }
+                });
+
+                return true;
+            } catch (err) {
+                console.log('Wake Lock failed:', err.message);
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // Release Wake Lock
+    async releaseWakeLock() {
+        if (this.wakeLock) {
+            try {
+                await this.wakeLock.release();
+                this.wakeLock = null;
+                console.log('Wake Lock released manually');
+            } catch (err) {
+                console.log('Error releasing Wake Lock:', err);
+            }
+        }
     }
 
     init(elementId) {
@@ -437,6 +534,9 @@ class MapManager {
             this.pathCoords = []; // Reset path for new session
             this.lastPosition = null;
 
+            // Request Wake Lock to keep device awake for background tracking
+            this.requestWakeLock();
+
             // Create user marker if not exist
             if (!this.userMarker) {
                 this.userMarker = L.circleMarker([0, 0], {
@@ -502,6 +602,12 @@ class MapManager {
                 navigator.geolocation.clearWatch(this.watchId);
                 this.watchId = null;
             }
+
+            // Release Wake Lock
+            this.releaseWakeLock();
+
+            // Stop background save interval
+            this.stopBackgroundSave();
 
             // Remove accuracy circle when stopping
             if (this.accuracyCircle) {
