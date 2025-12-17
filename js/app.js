@@ -559,15 +559,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 backupBtn.textContent = '💾 Backup';
             }
         } else {
-            // Collector Mode
-            if (exportBtn) exportBtn.style.display = 'none';
+            // Collector Mode - Solo exportar KML, sin backup/restore
+            if (exportBtn) exportBtn.style.display = 'inline-block'; // Permitir al colector exportar KML
             if (restoreBtn) restoreBtn.style.display = 'none';
-
-            // Allow collector to "Send Data" (same as backup)
-            if (backupBtn) {
-                backupBtn.style.display = 'inline-block';
-                backupBtn.textContent = '📤 Enviar Datos';
-            }
+            if (backupBtn) backupBtn.style.display = 'none'; // Ocultar backup para colectores
         }
     };
 

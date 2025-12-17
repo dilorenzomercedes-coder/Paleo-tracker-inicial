@@ -36,13 +36,22 @@ class Exporter {
     // Process Hallazgos
     hallazgos.forEach(h => {
       if (h.lat && h.lng) {
+        // Build photos HTML - support up to 3 photos
+        let photosHtml = '';
+        if (h.foto1) photosHtml += `<br><img src="${h.foto1}" width="300" /><br>`;
+        if (h.foto2) photosHtml += `<br><img src="${h.foto2}" width="300" /><br>`;
+        if (h.foto3) photosHtml += `<br><img src="${h.foto3}" width="300" /><br>`;
+        // Fallback for old data with single 'foto' field
+        if (!photosHtml && h.foto) photosHtml = `<br><img src="${h.foto}" width="300" /><br>`;
+
         const desc = `
                     <b>Código:</b> ${h.codigo || ''}<br>
                     <b>Material:</b> ${h.tipo_material}<br>
                     <b>Taxonomía:</b> ${h.taxonomia || ''}<br>
                     <b>Fecha:</b> ${h.fecha}<br>
                     <b>Colector:</b> ${h.colector}<br>
-                    ${h.foto ? `<br><img src="${h.foto}" width="300" /><br>` : ''}
+                    <b>Localidad:</b> ${h.localidad || ''}<br>
+                    ${photosHtml}
                 `;
         const placemark = `
       <Placemark>
