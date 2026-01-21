@@ -1,3 +1,15 @@
+// ============================================
+// FUNCIONES DE EXPORTACIÓN DESHABILITADAS
+// ============================================
+// NOTA: Estas funciones están comentadas porque los COLECTORES
+// NO deben exportar datos localmente. Solo los ADMINISTRADORES
+// pueden exportar datos desde el panel web.
+//
+// Si en el futuro se necesita habilitar exportación para algún
+// usuario específico, descomentar las funciones a continuación.
+// ============================================
+
+/*
 class Exporter {
   static generateKML(data) {
     const { hallazgos, fragmentos, routes } = data;
@@ -100,7 +112,7 @@ class Exporter {
     if (routes.length > 0) {
       kml += `
     <Folder>
-      <name>Caminos Importados</name>`;
+      <name>Rutas y Recorridos</name>`;
 
       routes.forEach(r => {
         const routeName = r.name || 'Ruta sin nombre';
@@ -156,15 +168,6 @@ class Exporter {
 
       // Extract Points (if any, though usually we want lines for routes)
       // Optional: Include points if they are part of the route file
-      /*
-      const points = xmlDoc.getElementsByTagName("Point");
-      for (let i = 0; i < points.length; i++) {
-          const coords = points[i].getElementsByTagName("coordinates")[0];
-          if (coords) {
-              geometries.push(`<Point><coordinates>${coords.textContent}</coordinates></Point>`);
-          }
-      }
-      */
 
       // Fallback: search for any coordinates tag if no LineString found
       if (geometries.length === 0) {
@@ -233,3 +236,21 @@ class Exporter {
     }
   }
 }
+*/
+
+// Clase exportadora DESHABILITADA
+// Los colectores NO deben exportar datos localmente
+class Exporter {
+  static generateKML() {
+    console.warn('⚠️ Exportación KML deshabilitada para colectores. Solo administradores pueden exportar desde el panel web.');
+    alert('⚠️ La exportación de datos está deshabilitada en la app móvil.\n\nLos administradores pueden exportar todos los datos desde el panel web de administración.');
+    return null;
+  }
+
+  static async download() {
+    console.warn('⚠️ Descarga deshabilitada para colectores');
+    alert('⚠️ La descarga de archivos está deshabilitada en la app móvil.\n\nLos administradores pueden descargar datos desde el panel web de administración.');
+    return false;
+  }
+}
+

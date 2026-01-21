@@ -1,9 +1,14 @@
 // window.onerror removed to use the one in index.html
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const store = new Store();
+
+    // Wait for Dexie to initialize and load cache
+    await store.ready();
+
     const ui = new UI(store);
     const mapManager = new MapManager(store);
+    const documentationManager = new DocumentationManager(store);
 
     ui.init();
 
@@ -265,6 +270,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetId = targetBtn.dataset.target;
             ui.switchTab(targetId);
 
+            if (targetId === 'tab-documentacion' && documentationManager) {
+                documentationManager.refresh();
+            }
+
             if (targetId === 'tab-caminos') {
                 setTimeout(() => {
                     if (mapManager.map) {
@@ -344,6 +353,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
 
+            // Initialize photo fields as null (not empty objects)
+            data.foto1 = null;
+            data.foto2 = null;
+            data.foto3 = null;
+
             // Handle images as DataURL - support 3 photos with compression
             const foto1Input = document.getElementById('hallazgo-foto1');
             if (foto1Input && foto1Input.files[0]) {
@@ -398,6 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(e.target);
             const data = Object.fromEntries(formData.entries());
 
+            // Initialize photo field as null (not empty object)
+            data.foto = null;
+
             const fileInput = document.getElementById('fragmento-foto');
             if (fileInput && fileInput.files[0]) {
                 const base64 = await toBase64(fileInput.files[0]);
@@ -443,48 +460,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const fragmentoFotoInput = document.getElementById('fragmento-foto');
     if (fragmentoFotoInput) {
         fragmentoFotoInput.addEventListener('change', (e) => ui.handleImagePreview(e.target, 'fragmento-foto-preview'));
-    }
-
-    // --- Documents ---
-    const closeDocBtn = document.getElementById('btn-close-doc');
-    if (closeDocBtn) {
-        closeDocBtn.addEventListener('click', () => ui.toggleModal('doc-form-container', false));
-    }
-
-    const docFileInput = document.getElementById('doc-file-input');
-    if (docFileInput) {
-        docFileInput.addEventListener('change', (e) => ui.handleImagePreview(e.target, 'doc-file-preview'));
-    }
-
-    const formDoc = document.getElementById('form-doc');
-    if (formDoc) {
-        formDoc.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-
-            // Process file
-            const fileInput = document.getElementById('doc-file-input');
-            if (fileInput && fileInput.files[0]) {
-                const processed = await store.processFile(fileInput.files[0]);
-                if (processed) {
-                    data.fileType = processed.type;
-                    data.fileData = processed.data;
-                }
-            } else {
-                alert("Por favor selecciona un archivo.");
-                return;
-            }
-
-            store.addDocument(data);
-
-            // Refresh
-            ui.renderDocumentList(data.category);
-            ui.renderDocumentFolders(); // update counts
-            ui.toggleModal('doc-form-container', false);
-            e.target.reset();
-            document.getElementById('doc-file-preview').innerHTML = '';
-        });
     }
 
     // --- GPS Helper ---
@@ -567,16 +542,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = mapManager.parseAndShowKML(kmlContent, true);
 
                 if (result.success) {
-                    store.addRoute({ name: file.name, content: kmlContent });
+                    await store.addRoute({ name: file.name, content: kmlContent });
                     ui.renderRoutesList();
-                    alert(`✅ ${result.message}`);
+                    alert(`✅ ${result.message} `);
                 } else {
-                    alert(`❌ ${result.message}`);
+                    alert(`❌ ${result.message} `);
                 }
 
             } catch (error) {
                 console.error('Error processing KML/KMZ:', error);
-                alert(`Error al procesar el archivo: ${error.message}`);
+                alert(`Error al procesar el archivo: ${error.message} `);
             }
 
             // Reset input so same file can be selected again
@@ -593,136 +568,68 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
-    // --- Role Selector ---
-    const updateRoleUI = (role) => {
-        const exportBtn = document.getElementById('btn-export');
-        const backupBtn = document.getElementById('btn-backup');
-        const restoreBtn = document.getElementById('btn-restore');
+    // --- Sync Manager Initialization ---
+    let syncManager;
 
-        if (role === 'admin') {
-            if (exportBtn) exportBtn.style.display = 'inline-block';
-            if (restoreBtn) restoreBtn.style.display = 'inline-block';
-            if (backupBtn) {
-                backupBtn.style.display = 'inline-block';
-                backupBtn.textContent = '💾 Backup';
-            }
-        } else {
-            // Collector Mode - Solo exportar KML, sin backup/restore
-            if (exportBtn) exportBtn.style.display = 'inline-block'; // Permitir al colector exportar KML
-            if (restoreBtn) restoreBtn.style.display = 'none';
-            if (backupBtn) backupBtn.style.display = 'none'; // Ocultar backup para colectores
-        }
-    };
+    // Inicializar SyncManager cuando store esté listo
+    store.ready().then(() => {
+        syncManager = new SyncManager(store);
+        syncManager.startAutoSync();
+        console.log('SyncManager inicializado - Collector ID:', store.collectorId);
+    });
 
-    const roleSelector = document.getElementById('role-selector');
-    if (roleSelector) {
-        roleSelector.addEventListener('change', (e) => {
-            const selectedRole = e.target.value;
-
-            if (selectedRole === 'admin') {
-                const password = prompt("Ingrese la contraseña de administrador:");
-                if (password === 'admin123') {
-                    updateRoleUI('admin');
-                } else {
-                    alert("Contraseña incorrecta.");
-                    roleSelector.value = 'collector';
-                    updateRoleUI('collector');
-                }
+    // --- Sync Button ---
+    const btnSync = document.getElementById('btn-sync');
+    if (btnSync) {
+        btnSync.addEventListener('click', async () => {
+            if (!syncManager) return alert('SyncManager no inicializado');
+            btnSync.disabled = true;
+            btnSync.textContent = '🔄 Sincronizando...';
+            const result = await syncManager.syncNow();
+            btnSync.disabled = false;
+            btnSync.textContent = '🔄 Sincronizar';
+            if (result.success) {
+                alert(result.totalSynced > 0 ? `✅ ${result.totalSynced} registros sincronizados` : '✅ Todo sincronizado');
             } else {
-                updateRoleUI('collector');
+                alert(`❌ Error: ${result.error || 'No se pudo sincronizar'}`);
             }
         });
     }
 
-    // Init role UI
-    updateRoleUI('collector'); // Default to collector for security
-    if (roleSelector) roleSelector.value = 'collector';
+    // --- Configuration Modal ---
+    const btnConfig = document.getElementById('btn-config');
+    const configModal = document.getElementById('config-modal');
+    const btnConfigSave = document.getElementById('btn-config-save');
+    const btnConfigCancel = document.getElementById('btn-config-cancel');
 
-    // --- Export ---
-    // --- Export ---
-    const exportBtn = document.getElementById('btn-export');
-    const exportModal = document.getElementById('export-modal');
-    const closeExportBtn = document.getElementById('btn-close-export');
-    const confirmExportBtn = document.getElementById('btn-confirm-export');
-    const exportSelectAll = document.getElementById('export-select-all');
-    const exportFolderList = document.getElementById('export-folder-list');
-
-    if (exportBtn) {
-        exportBtn.addEventListener('click', () => {
-            renderExportOptions();
-            ui.toggleModal('export-modal', true);
+    if (btnConfig && configModal) {
+        btnConfig.addEventListener('click', () => {
+            const info = store.getCollectorInfo();
+            document.getElementById('config-collector-id').value = info.id;
+            document.getElementById('config-collector-name').value = info.name;
+            document.getElementById('config-backend-url').value = info.backendUrl;
+            configModal.style.display = 'flex';
         });
     }
 
-    if (closeExportBtn) {
-        closeExportBtn.addEventListener('click', () => ui.toggleModal('export-modal', false));
-    }
+    if (btnConfigCancel) btnConfigCancel.addEventListener('click', () => configModal.style.display = 'none');
 
-    if (exportSelectAll) {
-        exportSelectAll.addEventListener('change', (e) => {
-            const checkboxes = exportFolderList.querySelectorAll('input[type="checkbox"]');
-            checkboxes.forEach(cb => cb.checked = e.target.checked);
-        });
-    }
-
-    function renderExportOptions() {
-        if (!exportFolderList) return;
-        exportFolderList.innerHTML = '';
-
-        const folders = store.getFolders();
-        // Always include "Sin Carpeta" option if there are items without folder
-        // But store.getFolders() might not return null/empty string. 
-        // Let's check data directly or just trust getFolders + explicit check.
-
-        // Add "Sin Carpeta" explicitly if needed, or handle empty strings in getFolders
-        // For now, let's iterate what getFolders gives us.
-
-        if (folders.length === 0) {
-            exportFolderList.innerHTML = '<div class="empty-state">No hay carpetas para exportar.</div>';
-            return;
-        }
-
-        folders.forEach(folder => {
-            const label = document.createElement('label');
-            const folderName = folder || 'Sin Carpeta';
-            label.innerHTML = `
-                <input type="checkbox" value="${folder}" checked>
-                ${folderName}
-            `;
-            exportFolderList.appendChild(label);
-        });
-    }
-
-    if (confirmExportBtn) {
-        confirmExportBtn.addEventListener('click', () => {
-            const selectedFolders = Array.from(exportFolderList.querySelectorAll('input[type="checkbox"]:checked'))
-                .map(cb => cb.value);
-
-            if (selectedFolders.length === 0) {
-                alert('Por favor selecciona al menos una carpeta.');
-                return;
+    if (btnConfigSave) {
+        btnConfigSave.addEventListener('click', () => {
+            store.setCollectorName(document.getElementById('config-collector-name').value.trim());
+            store.setBackendUrl(document.getElementById('config-backend-url').value.trim());
+            configModal.style.display = 'none';
+            if (syncManager) {
+                syncManager.stopAutoSync();
+                syncManager.startAutoSync();
             }
-
-            const allData = store.getAllDataForExport();
-
-            // Filter data based on selected folders
-            const filteredData = {
-                hallazgos: allData.hallazgos.filter(h => selectedFolders.includes(h.folder || '')), // Handle null/undefined folder as empty string match if that's how it's stored, or check logic
-                fragmentos: allData.fragmentos.filter(a => selectedFolders.includes(a.folder || '')),
-                routes: allData.routes // Routes don't have folders yet, export all or add logic? For now export all routes.
-            };
-
-            // Fix for "Sin Carpeta" logic: if "Sin Carpeta" is selected, we might need to match null/undefined/empty string
-            // In renderExportOptions we used folder value directly. If folder was null/undefined/empty, we need to ensure value is consistent.
-            // Let's assume store.getFolders() returns empty string for no folder.
-
-            const kml = Exporter.generateKML(filteredData);
-            const filename = `paleo_export_${new Date().toISOString().slice(0, 10)}.kml`;
-            Exporter.download(filename, kml);
-
-            ui.toggleModal('export-modal', false);
+            alert('✅ Configuración guardada');
         });
     }
+
+    if (configModal) configModal.addEventListener('click', (e) => { if (e.target === configModal) configModal.style.display = 'none'; });
+
+
 
     // --- Backup & Restore (JSON) ---
     const btnBackup = document.getElementById('btn-backup');
@@ -730,8 +637,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const restoreInput = document.getElementById('restore-file-input');
 
     if (btnBackup) {
-        btnBackup.addEventListener('click', () => {
-            const data = store.getAllDataForExport();
+        btnBackup.addEventListener('click', async () => {
+            const data = await store.getAllDataForExport();
             const jsonString = JSON.stringify(data, null, 2);
             const filename = `paleo_backup_${new Date().toISOString().slice(0, 10)}.json`;
 
@@ -754,15 +661,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (restoreInput) {
-        restoreInput.addEventListener('change', (e) => {
+        restoreInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 try {
                     const jsonData = JSON.parse(e.target.result);
-                    const result = store.importData(jsonData);
+                    const result = await store.importData(jsonData);
 
                     alert(`Importación completada:\n- Agregados: ${result.added}\n- Omitidos (ya existían): ${result.skipped}`);
 
