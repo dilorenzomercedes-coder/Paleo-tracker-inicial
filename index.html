@@ -66,14 +66,23 @@
         <span>📵 Sin conexión</span>
       </div>
       <div class="user-controls">
-        <button id="btn-export" class="btn-primary" style="margin-right: 5px; display: none;">⬇️ Exportar KML</button>
-        <button id="btn-backup" class="btn-secondary" style="margin-right: 5px; display: none;">💾 Backup</button>
-        <button id="btn-restore" class="btn-secondary" style="margin-right: 5px; display: none;">📂 Importar</button>
-        <button id="btn-repair" class="btn-danger" style="margin-right: 5px;">🛠️ Reparar</button>
-        <select id="role-selector" class="role-select">
-          <option value="admin">Administrador</option>
-          <option value="collector">Colector</option>
-        </select>
+        <!-- Indicador de sincronización -->
+        <div id="sync-status" class="sync-status" style="margin-right: 10px;">
+          <span id="sync-icon">⏳</span>
+          <span id="sync-text">Verificando...</span>
+        </div>
+        <!-- Botón de sincronización manual -->
+        <button id="btn-sync" class="btn-primary" style="margin-right: 5px;">
+          🔄 Sincronizar
+        </button>
+        <!-- Botón de configuración -->
+        <button id="btn-config" class="btn-secondary" style="margin-right: 5px;">
+          ⚙️ Configurar
+        </button>
+        <!-- Botón de reparar (mantener) -->
+        <button id="btn-repair" class="btn-danger">
+          🛠️ Reparar
+        </button>
       </div>
     </header>
 
@@ -412,28 +421,53 @@
           <h2>Documentación</h2>
         </div>
 
-        <!-- Document Folders Grid -->
-        <div class="doc-folders-grid" id="doc-folders-root">
-          <!-- Cards for fixed folders -->
-          <div class="doc-folder-card" data-category="Permisos">
-            <span class="folder-icon">📋</span>
-            <h3>Permisos</h3>
-            <small id="count-permisos">0 archivos</small>
+        <!-- Shared Documents from Admin-->
+        <div class="section" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            <span>📤</span> Documentos Compartidos por Administración
+          </h3>
+          <div id="shared-documents-list" class="data-list">
+            <div class="loading">Cargando documentos compartidos...</div>
           </div>
-          <div class="doc-folder-card" data-category="ATS">
-            <span class="folder-icon">📋</span>
-            <h3>ATS</h3>
-            <small id="count-ats">0 archivos</small>
-          </div>
-          <div class="doc-folder-card" data-category="IPCR">
-            <span class="folder-icon">📋</span>
-            <h3>IPCR</h3>
-            <small id="count-ipcr">0 archivos</small>
-          </div>
-          <div class="doc-folder-card" data-category="Alta Spot">
-            <span class="folder-icon">📋</span>
-            <h3>Alta Spot</h3>
-            <small id="count-altaspot">0 archivos</small>
+        </div>
+
+        <!-- Personal Documents -->
+        <div class="section">
+          <h3 style="margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            <span>📁</span> Mis Documentos
+          </h3>
+
+          <!-- Document Folders Grid -->
+          <div class="doc-folders-grid" id="doc-folders-root">
+            <!-- Cards for fixed folders -->
+            <div class="doc-folder-card" data-category="Permisos">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>Permisos</h3>
+                <small id="count-permisos">0 archivos</small>
+              </div>
+            </div>
+            <div class="doc-folder-card" data-category="ATS">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>ATS</h3>
+                <small id="count-ats">0 archivos</small>
+              </div>
+            </div>
+            <div class="doc-folder-card" data-category="IPCR">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>IPCR</h3>
+                <small id="count-ipcr">0 archivos</small>
+              </div>
+            </div>
+            <div class="doc-folder-card" data-category="Alta Spot">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>Alta Spot</h3>
+                <small id="count-altaspot">0 archivos</small>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -463,14 +497,13 @@
                 <input type="text" name="title" required placeholder="Ej. Permiso 2024">
               </div>
               <div class="form-group">
-                <label>Archivo (Imagen o PDF)</label>
+                <label>Archivo (Solo PDF)</label>
                 <div class="file-upload-wrapper">
-                  <input type="file" name="file" accept=".jpg,.jpeg,.png,.pdf" id="doc-file-input">
+                  <input type="file" name="file" accept=".pdf" id="doc-file-input">
                   <label for="doc-file-input" class="file-upload-label">
-                    <span class="icon">📎</span> Seleccionar Archivo
+                    <span class="icon">📄</span> Seleccionar PDF
                   </label>
                 </div>
-                <div id="doc-file-preview" class="image-preview"></div>
               </div>
               <div class="form-actions">
                 <button type="submit" class="btn-primary full-width">Guardar</button>
@@ -498,60 +531,42 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Export Options Modal -->
-    <div id="export-modal" class="form-overlay hidden">
-      <div class="form-card">
-        <div class="form-header">
-          <h3>Opciones de Exportación</h3>
-          <button class="btn-close" id="btn-close-export">&times;</button>
-        </div>
-        <div class="export-options">
-          <p>Selecciona las carpetas que deseas exportar:</p>
-          <label class="checkbox-label select-all">
-            <input type="checkbox" id="export-select-all" checked>
-            Seleccionar Todo
-          </label>
-          <div id="export-folder-list" class="folder-checklist">
-            <!-- Folders will be injected here -->
-          </div>
-        </div>
-        <div class="form-actions">
-          <button id="btn-confirm-export" class="btn-primary full-width">⬇️ Exportar KML</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav">
-      <button class="nav-item active" data-target="tab-hallazgos">
-        <span class="icon">📍</span>
-        <span class="label">Hallazgos</span>
-      </button>
-      <button class="nav-item" data-target="tab-fragmentos">
-        <span class="icon">🦴</span>
-        <span class="label">Fragmentos</span>
-      </button>
-      <button class="nav-item" data-target="tab-caminos">
-        <span class="icon">🗺️</span>
-        <span class="label">Mapas</span>
-      </button>
-      <button class="nav-item" data-target="tab-documentacion">
-        <span class="icon">📁</span>
-        <span class="label">Docs</span>
-      </button>
-    </nav>
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-target="tab-hallazgos">
+      <span class="icon">📍</span>
+      <span class="label">Hallazgos</span>
+    </button>
+    <button class="nav-item" data-target="tab-fragmentos">
+      <span class="icon">🦴</span>
+      <span class="label">Fragmentos</span>
+    </button>
+    <button class="nav-item" data-target="tab-caminos">
+      <span class="icon">🗺️</span>
+      <span class="label">Mapas</span>
+    </button>
+    <button class="nav-item" data-target="tab-documentacion">
+      <span class="icon">📁</span>
+      <span class="label">Docs</span>
+    </button>
+  </nav>
   </div>
 
   <!-- Scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
-  <script src="js/store.js?v=13"></script>
+  <script src="js/dexie.js"></script>
+  <script src="js/store.js?v=14"></script>
+  <script src="js/sync-manager.js?v=14"></script>
   <script src="js/export.js?v=13"></script>
   <script src="js/ui.js?v=13"></script>
   <script src="js/map.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/documentation.js?v=13"></script>
+  <script src="js/app.js?v=14"></script>
+  <script src="js/migrate.js?v=13"></script>
 
   <script>
     // Repair Button Logic
@@ -617,6 +632,80 @@
       }
     }
   </script>
+
+  <!-- Modal de Configuración -->
+  <div id="config-modal" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+  ">
+    <div style="
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+    ">
+      <h2 style="margin-top: 0;">⚙️ Configuración</h2>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+          ID de Colector:
+        </label>
+        <input type="text" id="config-collector-id" readonly style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          background: #f5f5f5;
+          font-family: monospace;
+          font-size: 12px;
+        ">
+        <small style="color: #666;">Este ID se genera automáticamente</small>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+          Tu Nombre (opcional):
+        </label>
+        <input type="text" id="config-collector-name" placeholder="Ej: Juan Pérez" style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+        ">
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+          URL del Servidor:
+        </label>
+        <input type="text" id="config-backend-url" placeholder="http://localhost:3000" style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+        ">
+        <small style="color: #666;">Cambiar solo si el servidor está en otra dirección</small>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="btn-config-cancel" class="btn-secondary">
+          Cancelar
+        </button>
+        <button id="btn-config-save" class="btn-primary">
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Debug Log -->
   <div id="debug-log" style="

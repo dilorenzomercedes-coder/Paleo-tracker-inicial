@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Migrar Recorridos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #4CAF50;
+        }
+
+        .section {
+            background: #2d2d2d;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .btn-danger {
+            background: #ff5252;
+        }
+
+        .btn-danger:hover {
+            background: #e04848;
+        }
+
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #ff5252;
+            font-weight: bold;
+        }
+
+        .warning {
+            color: #FFC107;
+            font-weight: bold;
+        }
+
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+
+        .info-box {
+            background: #2a4a2a;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔧 Migrar Recorridos Antiguos</h1>
+
+    <div class="section">
+        <h2>Paso 1: Buscar Recorridos</h2>
+        <p>Primero vamos a buscar dónde se guardó tu recorrido antiguo.</p>
+        <button onclick="searchOldRoutes()">🔍 Buscar Recorridos</button>
+        <div id="search-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Paso 2: Migrar Datos</h2>
+        <p>Si encontramos recorridos antiguos, los migraremos al nuevo formato.</p>
+        <button onclick="migrateRoutes()" id="migrate-btn" disabled>⚡ Migrar Recorridos</button>
+        <div id="migrate-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Paso 3: Verificar</h2>
+        <p>Verifica que los recorridos ahora aparezcan en la app.</p>
+        <button onclick="verifyMigration()">✅ Verificar Migración</button>
+        <div id="verify-result"></div>
+    </div>
+
+    <div class="section">
+        <h2>Información del Sistema</h2>
+        <button onclick="showAllLocalStorage()">📊 Mostrar Todo localStorage</button>
+        <div id="storage-info"></div>
+    </div>
+
+    <script>
+        let foundOldRoutes = [];
+
+        function searchOldRoutes() {
+            const resultDiv = document.getElementById('search-result');
+            resultDiv.innerHTML = '<p>Buscando...</p>';
+
+            const possibleKeys = [
+                'paleo_paths',
+                'paleo_recorridos',
+                'paleo_tracks',
+                'savedPaths',
+                'recordedPaths',
+                'paleoTrackingState'
+            ];
+
+            let html = '<h3>Resultados de búsqueda:</h3>';
+            let found = false;
+
+            // Check all possible keys
+            possibleKeys.forEach(key => {
+                const data = localStorage.getItem(key);
+                if (data) {
+                    found = true;
+                    html += `<div class="info-box">`;
+                    html += `<p class="success">✅ Encontrado: <strong>${key}</strong></p>`;
+                    html += `<p>Tamaño: ${data.length} caracteres</p>`;
+                    html += `<details><summary>Ver datos</summary><pre>${escapeHtml(data.substring(0, 500))}...</pre></details>`;
+                    html += `</div>`;
+
+                    try {
+                        const parsed = JSON.parse(data);
+                        foundOldRoutes.push({ key, data: parsed });
+                    } catch (e) {
+                        foundOldRoutes.push({ key, data: data });
+                    }
+                }
+            });
+
+            // Also check current routes
+            const currentRoutes = localStorage.getItem('paleo_routes');
+            if (currentRoutes) {
+                try {
+                    const routes = JSON.parse(currentRoutes);
+                    html += `<div class="info-box">`;
+                    html += `<p class="success">📍 Rutas actuales: ${routes.length}</p>`;
+                    html += `</div>`;
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            if (!found) {
+                html += '<p class="warning">⚠️ No se encontraron recorridos antiguos en las ubicaciones conocidas.</p>';
+                html += '<p>Vamos a mostrar TODO el localStorage para investigar:</p>';
+                showAllLocalStorage();
+            } else {
+                html += '<p class="success">✅ Se encontraron datos antiguos. Puedes migrarlos ahora.</p>';
+                document.getElementById('migrate-btn').disabled = false;
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        function migrateRoutes() {
+            const resultDiv = document.getElementById('migrate-result');
+            resultDiv.innerHTML = '<p>Migrando...</p>';
+
+            if (foundOldRoutes.length === 0) {
+                resultDiv.innerHTML = '<p class="error">❌ No hay datos para migrar. Ejecuta primero "Buscar Recorridos".</p>';
+                return;
+            }
+
+            let migratedCount = 0;
+            let html = '<h3>Proceso de migración:</h3>';
+
+            // Get current routes
+            let currentRoutes = [];
+            try {
+                const existing = localStorage.getItem('paleo_routes');
+                if (existing) {
+                    currentRoutes = JSON.parse(existing);
+                }
+            } catch (e) {
+                console.error('Error loading current routes:', e);
+            }
+
+            // Process each found item
+            foundOldRoutes.forEach(item => {
+                html += `<p>Procesando: <strong>${item.key}</strong></p>`;
+
+                if (item.key === 'paleoTrackingState') {
+                    // This is a tracking state, might have pathCoords
+                    if (item.data.pathCoords && item.data.pathCoords.length > 0) {
+                        const route = createRouteFromCoords(item.data.pathCoords, 'Recorrido Recuperado');
+                        currentRoutes.push(route);
+                        migratedCount++;
+                        html += `<p class="success">✅ Migrado recorrido de tracking state (${item.data.pathCoords.length} puntos)</p>`;
+                    }
+                } else if (Array.isArray(item.data)) {
+                    // Array of routes
+                    item.data.forEach(route => {
+                        if (route.content || route.kml) {
+                            // Already has KML content
+                            const newRoute = {
+                                id: route.id || generateId(),
+                                name: route.name || 'Recorrido Migrado',
+                                content: route.content || route.kml,
+                                timestamp: route.timestamp || new Date().toISOString(),
+                                color: route.color || '#FF5722'
+                            };
+                            currentRoutes.push(newRoute);
+                            migratedCount++;
+                            html += `<p class="success">✅ Migrado: ${newRoute.name}</p>`;
+                        }
+                    });
+                } else if (typeof item.data === 'object') {
+                    // Single route object
+                    if (item.data.content || item.data.kml) {
+                        const newRoute = {
+                            id: item.data.id || generateId(),
+                            name: item.data.name || 'Recorrido Migrado',
+                            content: item.data.content || item.data.kml,
+                            timestamp: item.data.timestamp || new Date().toISOString(),
+                            color: item.data.color || '#FF5722'
+                        };
+                        currentRoutes.push(newRoute);
+                        migratedCount++;
+                        html += `<p class="success">✅ Migrado: ${newRoute.name}</p>`;
+                    }
+                }
+            });
+
+            // Save migrated routes
+            if (migratedCount > 0) {
+                try {
+                    localStorage.setItem('paleo_routes', JSON.stringify(currentRoutes));
+                    html += `<p class="success">🎉 Migración completada: ${migratedCount} recorrido(s) migrado(s)</p>`;
+                    html += `<p>Total de rutas ahora: ${currentRoutes.length}</p>`;
+                    html += `<p><strong>Ahora cierra esta página y abre la app Paleo Heritage.</strong></p>`;
+                } catch (e) {
+                    html += `<p class="error">❌ Error al guardar: ${e.message}</p>`;
+                }
+            } else {
+                html += '<p class="warning">⚠️ No se encontraron recorridos para migrar.</p>';
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        function verifyMigration() {
+            const resultDiv = document.getElementById('verify-result');
+
+            try {
+                const routes = JSON.parse(localStorage.getItem('paleo_routes') || '[]');
+                let html = `<h3>Estado actual:</h3>`;
+                html += `<p class="success">✅ Total de rutas: ${routes.length}</p>`;
+
+                if (routes.length > 0) {
+                    html += '<ul>';
+                    routes.forEach((route, i) => {
+                        html += `<li>${route.name} (${new Date(route.timestamp).toLocaleDateString()})</li>`;
+                    });
+                    html += '</ul>';
+                    html += '<p class="success">🎉 ¡Las rutas deberían aparecer ahora en la app!</p>';
+                } else {
+                    html += '<p class="warning">⚠️ No hay rutas guardadas.</p>';
+                }
+
+                resultDiv.innerHTML = html;
+            } catch (e) {
+                resultDiv.innerHTML = `<p class="error">❌ Error: ${e.message}</p>`;
+            }
+        }
+
+        function showAllLocalStorage() {
+            const resultDiv = document.getElementById('storage-info');
+            let html = '<h3>Todo el localStorage:</h3>';
+
+            const keys = Object.keys(localStorage);
+            if (keys.length === 0) {
+                html += '<p class="warning">⚠️ localStorage está vacío</p>';
+            } else {
+                html += `<p>Total de claves: ${keys.length}</p>`;
+                keys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    html += `<div class="info-box">`;
+                    html += `<p><strong>${key}</strong></p>`;
+                    html += `<p>Tamaño: ${value.length} caracteres</p>`;
+                    html += `<details><summary>Ver datos</summary><pre>${escapeHtml(value.substring(0, 300))}...</pre></details>`;
+                    html += `</div>`;
+                });
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        function createRouteFromCoords(coords, name) {
+            // Generate KML from coordinates
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const routeName = `${name}_${timestamp}`;
+
+            let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${routeName}</name>
+    <description>Recorrido recuperado (${coords.length} puntos)</description>
+    <Style id="trackStyle">
+      <LineStyle>
+        <color>ff00E676</color>
+        <width>4</width>
+      </LineStyle>
+    </Style>
+    <Placemark>
+      <name>${routeName}</name>
+      <styleUrl>#trackStyle</styleUrl>
+      <LineString>
+        <tessellate>1</tessellate>
+        <coordinates>`;
+
+            coords.forEach(coord => {
+                // coord can be [lat, lng] or {lat, lng}
+                const lat = Array.isArray(coord) ? coord[0] : coord.lat;
+                const lng = Array.isArray(coord) ? coord[1] : coord.lng;
+                kml += `\n          ${lng},${lat},0`;
+            });
+
+            kml += `
+        </coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>`;
+
+            return {
+                id: generateId(),
+                name: routeName,
+                content: kml,
+                timestamp: new Date().toISOString(),
+                color: '#FF5722'
+            };
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+
+</html>

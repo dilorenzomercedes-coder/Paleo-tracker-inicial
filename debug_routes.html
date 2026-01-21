@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Rutas Guardadas</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #4CAF50;
+        }
+
+        .section {
+            background: #2d2d2d;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        pre {
+            background: #1a1a1a;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #333;
+        }
+
+        .route-item {
+            background: #252525;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .error {
+            color: #ff5252;
+        }
+
+        .success {
+            color: #4CAF50;
+        }
+
+        .warning {
+            color: #FFC107;
+        }
+
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .btn-danger {
+            background: #ff5252;
+        }
+
+        .btn-danger:hover {
+            background: #e04848;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔍 Diagnóstico de Rutas Guardadas</h1>
+
+        <div class="section">
+            <h2>Resumen</h2>
+            <div id="summary"></div>
+        </div>
+
+        <div class="section">
+            <h2>Rutas en localStorage</h2>
+            <div id="routes-list"></div>
+        </div>
+
+        <div class="section">
+            <h2>Datos Raw (JSON)</h2>
+            <button onclick="copyToClipboard()">📋 Copiar JSON</button>
+            <button onclick="downloadJSON()">💾 Descargar JSON</button>
+            <pre id="raw-data"></pre>
+        </div>
+
+        <div class="section">
+            <h2>Prueba de Exportación</h2>
+            <button onclick="testExport()">🧪 Probar Exportación</button>
+            <div id="export-result"></div>
+        </div>
+
+        <div class="section">
+            <h2>Acciones</h2>
+            <button onclick="location.reload()">🔄 Recargar</button>
+            <button class="btn-danger" onclick="clearRoutes()">🗑️ Borrar TODAS las rutas (cuidado!)</button>
+        </div>
+    </div>
+
+    <script>
+        // Load routes from localStorage
+        function loadRoutes() {
+            try {
+                const routesData = localStorage.getItem('paleo_routes');
+                if (!routesData) {
+                    return [];
+                }
+                return JSON.parse(routesData);
+            } catch (e) {
+                console.error('Error loading routes:', e);
+                return [];
+            }
+        }
+
+        // Display summary
+        function displaySummary() {
+            const routes = loadRoutes();
+            const summaryDiv = document.getElementById('summary');
+
+            let html = `<p><strong>Total de rutas guardadas:</strong> ${routes.length}</p>`;
+
+            if (routes.length === 0) {
+                html += '<p class="warning">⚠️ No hay rutas guardadas en localStorage</p>';
+            } else {
+                html += '<p class="success">✅ Hay rutas guardadas</p>';
+
+                // Check structure
+                const hasContent = routes.filter(r => r.content).length;
+                const hasKml = routes.filter(r => r.kml).length;
+                const hasName = routes.filter(r => r.name).length;
+
+                html += `<ul>`;
+                html += `<li>Rutas con campo 'content': ${hasContent}</li>`;
+                html += `<li>Rutas con campo 'kml': ${hasKml}</li>`;
+                html += `<li>Rutas con campo 'name': ${hasName}</li>`;
+                html += `</ul>`;
+
+                if (hasKml > 0 && hasContent === 0) {
+                    html += '<p class="error">❌ PROBLEMA DETECTADO: Las rutas usan el campo "kml" en lugar de "content"</p>';
+                    html += '<p>Esto significa que son rutas del formato antiguo que necesitan migración.</p>';
+                }
+            }
+
+            summaryDiv.innerHTML = html;
+        }
+
+        // Display routes list
+        function displayRoutes() {
+            const routes = loadRoutes();
+            const listDiv = document.getElementById('routes-list');
+
+            if (routes.length === 0) {
+                listDiv.innerHTML = '<p class="warning">No hay rutas para mostrar</p>';
+                return;
+            }
+
+            let html = '';
+            routes.forEach((route, index) => {
+                const hasContent = !!route.content;
+                const hasKml = !!route.kml;
+                const contentLength = (route.content || route.kml || '').length;
+
+                html += `<div class="route-item">`;
+                html += `<h3>Ruta ${index + 1}: ${route.name || 'Sin nombre'}</h3>`;
+                html += `<p><strong>ID:</strong> ${route.id || 'N/A'}</p>`;
+                html += `<p><strong>Timestamp:</strong> ${route.timestamp ? new Date(route.timestamp).toLocaleString() : 'N/A'}</p>`;
+                html += `<p><strong>Color:</strong> ${route.color || 'N/A'}</p>`;
+                html += `<p><strong>Tiene 'content':</strong> ${hasContent ? '✅' : '❌'}</p>`;
+                html += `<p><strong>Tiene 'kml':</strong> ${hasKml ? '✅' : '❌'}</p>`;
+                html += `<p><strong>Tamaño del KML:</strong> ${contentLength} caracteres</p>`;
+
+                if (contentLength > 0) {
+                    const preview = (route.content || route.kml).substring(0, 200);
+                    html += `<details><summary>Ver preview del KML</summary><pre>${escapeHtml(preview)}...</pre></details>`;
+                }
+
+                html += `</div>`;
+            });
+
+            listDiv.innerHTML = html;
+        }
+
+        // Display raw data
+        function displayRawData() {
+            const routes = loadRoutes();
+            const rawDiv = document.getElementById('raw-data');
+            rawDiv.textContent = JSON.stringify(routes, null, 2);
+        }
+
+        // Test export
+        function testExport() {
+            const routes = loadRoutes();
+            const resultDiv = document.getElementById('export-result');
+
+            if (routes.length === 0) {
+                resultDiv.innerHTML = '<p class="error">❌ No hay rutas para exportar</p>';
+                return;
+            }
+
+            let html = '<h3>Resultado de la prueba:</h3>';
+            html += `<p>Se encontraron ${routes.length} ruta(s) para exportar</p>`;
+
+            // Check if routes would be exported
+            const exportableRoutes = routes.filter(r => r.content || r.kml);
+            html += `<p class="success">✅ Rutas exportables: ${exportableRoutes.length}</p>`;
+
+            if (exportableRoutes.length < routes.length) {
+                html += `<p class="error">❌ Rutas NO exportables: ${routes.length - exportableRoutes.length}</p>`;
+            }
+
+            resultDiv.innerHTML = html;
+        }
+
+        // Copy to clipboard
+        function copyToClipboard() {
+            const routes = loadRoutes();
+            const text = JSON.stringify(routes, null, 2);
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ JSON copiado al portapapeles');
+            }).catch(err => {
+                alert('❌ Error al copiar: ' + err);
+            });
+        }
+
+        // Download JSON
+        function downloadJSON() {
+            const routes = loadRoutes();
+            const text = JSON.stringify(routes, null, 2);
+            const blob = new Blob([text], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'paleo_routes_debug.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Clear routes
+        function clearRoutes() {
+            if (confirm('⚠️ ¿Estás seguro de que quieres BORRAR TODAS las rutas? Esta acción NO se puede deshacer.')) {
+                if (confirm('🚨 ÚLTIMA ADVERTENCIA: Se borrarán TODAS las rutas guardadas. ¿Continuar?')) {
+                    localStorage.removeItem('paleo_routes');
+                    alert('✅ Rutas borradas');
+                    location.reload();
+                }
+            }
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        displaySummary();
+        displayRoutes();
+        displayRawData();
+    </script>
+</body>
+
+</html>
