@@ -338,8 +338,10 @@ class AdminPanel {
             }
 
             tbody.innerHTML = data.data.map(h => {
-                const fotoHTML = h.foto ?
-                    `<img src="${h.foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${h.foto.replace(/'/g, "&apos;")}', '${(h.codigo || 'Hallazgo').replace(/'/g, "&apos;")}')">` :
+                // Check for any of the photo fields (foto1, foto2, foto3)
+                const foto = h.foto1 || h.foto2 || h.foto3;
+                const fotoHTML = foto ?
+                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${foto.replace(/'/g, "&apos;")}', '${(h.codigo || 'Hallazgo').replace(/'/g, "&apos;")}')">` :
                     '<span style="color:#999;">Sin foto</span>';
 
                 return `
