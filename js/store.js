@@ -17,7 +17,7 @@ class Store {
         this.IMAGE_QUALITY = 0.6;
 
         // Backend sync configuration
-        this.BACKEND_URL = localStorage.getItem('backend_url') || 'http://localhost:3000';
+        this.BACKEND_URL = localStorage.getItem('backend_url') || 'https://paleo-tracker-backend.onrender.com';
         this.collectorId = this._getOrCreateCollectorId();
         this.collectorName = localStorage.getItem('collector_name') || '';
 
@@ -519,4 +519,5 @@ class Store {
         }
     }
 }
+
 
