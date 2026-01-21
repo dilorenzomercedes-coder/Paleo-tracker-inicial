@@ -333,12 +333,18 @@ class AdminPanel {
             const tbody = document.getElementById('hallazgos-table-body');
 
             if (data.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7">No hay hallazgos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8">No hay hallazgos</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = data.data.map(h => `
+            tbody.innerHTML = data.data.map(h => {
+                const fotoHTML = h.foto ?
+                    `<img src="${h.foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${h.foto.replace(/'/g, "&apos;")}', '${(h.codigo || 'Hallazgo').replace(/'/g, "&apos;")}')">` :
+                    '<span style="color:#999;">Sin foto</span>';
+
+                return `
         <tr>
+          <td>${fotoHTML}</td>
           <td>${h.fecha || 'N/A'}</td>
           <td>${h.collector?.name || h.collector?.collectorId || 'N/A'}</td>
           <td>${h.localidad || 'N/A'}</td>
@@ -347,7 +353,8 @@ class AdminPanel {
           <td>${h.codigo || 'N/A'}</td>
           <td>${h.lat && h.lng ? `${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}` : 'N/A'}</td>
         </tr>
-      `).join('');
+      `;
+            }).join('');
 
             // Update folder filter
             this.updateFolderFilter(data.data, 'filter-hallazgos-folder');
@@ -555,6 +562,45 @@ class AdminPanel {
         alert('Función de visualización de documento en desarrollo');
     }
 
+    viewPhoto(src, title) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('photo-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'photo-modal';
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="photo-modal-title"></h2>
+                        <button class="btn-close" onclick="window.adminPanel.closeModal('photo-modal')">&times;</button>
+                    </div>
+                    <div style="text-align:center;padding:20px;">
+                        <img id="photo-modal-image" style="max-width:100%;max-height:70vh;border-radius:8px;">
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-primary" id="photo-download-btn">Descargar Foto</button>
+                        <button class="btn btn-secondary" onclick="window.adminPanel.closeModal('photo-modal')">Cerrar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        document.getElementById('photo-modal-title').textContent = title;
+        document.getElementById('photo-modal-image').src = src;
+
+        document.getElementById('photo-download-btn').onclick = () => {
+            const a = document.createElement('a');
+            a.href = src;
+            a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+            a.click();
+        };
+
+        this.openModal('photo-modal');
+    }
+
+
     fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -617,3 +663,4 @@ class AdminPanel {
 
 // Initialize the admin panel
 const adminPanel = new AdminPanel();
+window.adminPanel = adminPanel; // Expose globally for onclick handlers
