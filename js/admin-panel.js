@@ -229,6 +229,9 @@ class AdminPanel {
             case 'routes':
                 this.loadRoutes();
                 break;
+            case 'map':
+                this.loadMap();
+                break;
             case 'documents':
                 this.loadDocuments();
                 break;
@@ -491,6 +494,156 @@ class AdminPanel {
       `).join('');
         } catch (error) {
             console.error('Error loading shared docs:', error);
+        }
+    }
+
+    async loadMap() {
+        try {
+            // Initialize map if not already done
+            if (!this.map) {
+                this.map = L.map('admin-map').setView([-38.95, -68.06], 13);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors'
+                }).addTo(this.map);
+
+                this.mapLayers = {
+                    hallazgos: L.layerGroup().addTo(this.map),
+                    fragmentos: L.layerGroup().addTo(this.map),
+                    routes: L.layerGroup().addTo(this.map)
+                };
+
+                // Setup event listeners for filters
+                document.getElementById('filter-map-collector')?.addEventListener('change', () => this.updateMap());
+                document.getElementById('filter-map-folder')?.addEventListener('change', () => this.updateMap());
+                document.getElementById('map-show-hallazgos')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-fragmentos')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-routes')?.addEventListener('change', () => this.updateMapVisibility());
+            }
+
+            // Force map to resize (fixes Leaflet rendering issue)
+            setTimeout(() => {
+                this.map.invalidateSize();
+            }, 100);
+
+            // Load collector filters
+            await this.loadCollectorFilters();
+
+            // Update map with data
+            await this.updateMap();
+
+        } catch (error) {
+            console.error('Error loading map:', error);
+        }
+    }
+
+    async updateMap() {
+        try {
+            const collector = document.getElementById('filter-map-collector')?.value || '';
+            const folder = document.getElementById('filter-map-folder')?.value || '';
+
+            const params = new URLSearchParams();
+            if (collector) params.append('collector', collector);
+            if (folder) params.append('folder', folder);
+
+            // Clear existing markers
+            this.mapLayers.hallazgos.clearLayers();
+            this.mapLayers.fragmentos.clearLayers();
+            this.mapLayers.routes.clearLayers();
+
+            // Load and display data
+            const [hallazgosData, fragmentosData, routesData] = await Promise.all([
+                this.apiRequest(`/api/admin/hallazgos?${params}`),
+                this.apiRequest(`/api/admin/fragmentos?${params}`),
+                this.apiRequest(`/api/admin/routes?${params}`)
+            ]);
+
+            // Add hallazgos markers
+            hallazgosData.data.forEach(h => {
+                if (h.lat && h.lng) {
+                    const foto = h.foto1 || h.foto2 || h.foto3;
+                    const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:200px;max-height:150px;margin-top:5px;">` : '';
+
+                    const marker = L.marker([h.lat, h.lng], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    });
+
+                    marker.bindPopup(`
+                        <b>${h.codigo || 'Hallazgo'}</b><br/>
+                        Fecha: ${h.fecha}<br/>
+                        Localidad: ${h.localidad}<br/>
+                        Tipo: ${h.tipo_material || 'N/A'}
+                        ${fotoHTML}
+                    `);
+
+                    this.mapLayers.hallazgos.addLayer(marker);
+                }
+            });
+
+            // Add fragmentos markers
+            fragmentosData.data.forEach(f => {
+                if (f.lat && f.lng) {
+                    const marker = L.marker([f.lat, f.lng], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41],
+                            popupAnchor: [1, -34],
+                            shadowSize: [41, 41]
+                        })
+                    });
+
+                    marker.bindPopup(`
+                        <b>Fragmento</b><br/>
+                        Fecha: ${f.fecha}<br/>
+                        Localidad: ${f.localidad}
+                    `);
+
+                    this.mapLayers.fragmentos.addLayer(marker);
+                }
+            });
+
+            // Update folder filter
+            const allData = [...hallazgosData.data, ...fragmentosData.data];
+            this.updateFolderFilter(allData, 'filter-map-folder');
+
+            // Update visibility
+            this.updateMapVisibility();
+
+        } catch (error) {
+            console.error('Error updating map:', error);
+        }
+    }
+
+    updateMapVisibility() {
+        const showHallazgos = document.getElementById('map-show-hallazgos')?.checked;
+        const showFragmentos = document.getElementById('map-show-fragmentos')?.checked;
+        const showRoutes = document.getElementById('map-show-routes')?.checked;
+
+        if (showHallazgos) {
+            this.map.addLayer(this.mapLayers.hallazgos);
+        } else {
+            this.map.removeLayer(this.mapLayers.hallazgos);
+        }
+
+        if (showFragmentos) {
+            this.map.addLayer(this.mapLayers.fragmentos);
+        } else {
+            this.map.removeLayer(this.mapLayers.fragmentos);
+        }
+
+        if (showRoutes) {
+            this.map.addLayer(this.mapLayers.routes);
+        } else {
+            this.map.removeLayer(this.mapLayers.routes);
         }
     }
 
