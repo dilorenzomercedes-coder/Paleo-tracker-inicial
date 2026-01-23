@@ -616,9 +616,9 @@ class AdminPanel {
 
             // Add routes as polylines/polygons
             routesData.data.forEach(route => {
-                if (!route.kml) return;
+                if (!route.content) return; // Campo correcto: content
 
-                const parsed = this.parseRouteKML(route.kml);
+                const parsed = this.parseRouteKML(route.content);
                 if (!parsed || parsed.coordinates.length < 2) return;
 
                 let layer;
