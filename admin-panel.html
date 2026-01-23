@@ -90,6 +90,10 @@
                         <span class="icon">🌍</span>
                         <span>Mapa</span>
                     </a>
+                    <a href="#" class="menu-item" data-view="folders">
+                        <span class="icon">📁</span>
+                        <span>Carpetas</span>
+                    </a>
                     <a href="#" class="menu-item" data-view="documents">
                         <span class="icon">📄</span>
                         <span>Documentos</span>
@@ -302,6 +306,27 @@
                     <div id="admin-map" style="height:600px;width:100%;border-radius:8px;"></div>
                 </div>
 
+                <!-- Folders View -->
+                <div id="view-folders" class="view">
+                    <div class="view-header">
+                        <h1>Carpetas / Sitios</h1>
+                        <div class="filters">
+                            <select id="filter-folders-sort" class="filter-select">
+                                <option value="name">Por Nombre</option>
+                                <option value="count">Por Cantidad</option>
+                                <option value="activity">Por Actividad</option>
+                            </select>
+                            <input type="text" id="filter-folders-search" class="filter-select"
+                                placeholder="Buscar carpeta..." style="width:200px;">
+                        </div>
+                    </div>
+                    <div id="folders-grid" class="folders-grid">
+                        <div style="grid-column: 1/-1; text-align:center; padding:40px; color:#999;">
+                            Cargando carpetas...
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Documents View -->
                 <div id="view-documents" class="view">
                     <div class="view-header">
@@ -453,13 +478,42 @@
             </div>
         </div>
 
+        <!-- Folder Details Modal -->
+        <div id="modal-folder-details" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2 id="folder-modal-title">Carpeta</h2>
+                    <button class="btn-close"
+                        onclick="document.getElementById('modal-folder-details').style.display='none'">×</button>
+                </div>
+                <div id="folder-stats-summary" class="folder-stats-summary">
+                    <!-- Estadísticas dinámicas -->
+                </div>
+                <div class="tabs-container">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="folder-hallazgos">Hallazgos</button>
+                        <button class="tab-btn" data-tab="folder-fragmentos">Fragmentos</button>
+                    </div>
+                    <div id="folder-tab-content" class="tab-content">
+                        <!-- Contenido dinámico de tabs -->
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="btn-export-folder-kml">📥 Exportar KML</button>
+                    <button class="btn btn-secondary" id="btn-view-folder-map">🗺️ Ver en Mapa</button>
+                    <button class="btn btn-secondary"
+                        onclick="document.getElementById('modal-folder-details').style.display='none'">Cerrar</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <script src="js/admin-panel.js?v=3"></script>
+    <script src="js/admin-panel.js?v=4"></script>
 </body>
 
 </html>
