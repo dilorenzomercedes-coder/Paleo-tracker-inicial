@@ -232,6 +232,9 @@ class AdminPanel {
             case 'map':
                 this.loadMap();
                 break;
+            case 'folders':
+                this.loadFolders();
+                break;
             case 'documents':
                 this.loadDocuments();
                 break;
@@ -645,6 +648,283 @@ class AdminPanel {
         } else {
             this.map.removeLayer(this.mapLayers.routes);
         }
+    }
+
+    async loadFolders() {
+        try {
+            // Cargar todos los hallazgos y fragmentos
+            const [hallazgosData, fragmentosData] = await Promise.all([
+                this.apiRequest('/api/admin/hallazgos'),
+                this.apiRequest('/api/admin/fragmentos')
+            ]);
+
+            // Agrupar por carpeta
+            const folderMap = {};
+
+            hallazgosData.data.forEach(h => {
+                const folderName = h.folder || 'Sin Carpeta';
+                if (!folderMap[folderName]) {
+                    folderMap[folderName] = {
+                        name: folderName,
+                        hallazgos: [],
+                        fragmentos: [],
+                        collectors: new Set(),
+                        lastActivity: null
+                    };
+                }
+                folderMap[folderName].hallazgos.push(h);
+                const collectorName = h.collector?.name || h.collector?.collectorId || 'Desconocido';
+                folderMap[folderName].collectors.add(collectorName);
+
+                // Actualizar última actividad
+                const date = new Date(h.createdAt || h.fecha);
+                if (!folderMap[folderName].lastActivity || date > folderMap[folderName].lastActivity) {
+                    folderMap[folderName].lastActivity = date;
+                }
+            });
+
+            // Similar para fragmentos
+            fragmentosData.data.forEach(f => {
+                const folderName = f.folder || 'Sin Carpeta';
+                if (!folderMap[folderName]) {
+                    folderMap[folderName] = {
+                        name: folderName,
+                        hallazgos: [],
+                        fragmentos: [],
+                        collectors: new Set(),
+                        lastActivity: null
+                    };
+                }
+                folderMap[folderName].fragmentos.push(f);
+                const collectorName = f.collector?.name || f.collector?.collectorId || 'Desconocido';
+                folderMap[folderName].collectors.add(collectorName);
+
+                const date = new Date(f.createdAt || f.fecha);
+                if (!folderMap[folderName].lastActivity || date > folderMap[folderName].lastActivity) {
+                    folderMap[folderName].lastActivity = date;
+                }
+            });
+
+            // Convertir Sets a Arrays y guardar datos
+            this.foldersData = Object.values(folderMap).map(folder => ({
+                ...folder,
+                collectors: Array.from(folder.collectors)
+            }));
+
+            // Renderizar cards
+            this.renderFolderCards();
+
+            // Setup event listeners
+            document.getElementById('filter-folders-sort')?.addEventListener('change', () => this.renderFolderCards());
+            document.getElementById('filter-folders-search')?.addEventListener('input', () => this.renderFolderCards());
+
+        } catch (error) {
+            console.error('Error loading folders:', error);
+            document.getElementById('folders-grid').innerHTML =
+                '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#e74c3c;">Error cargando carpetas</div>';
+        }
+    }
+
+    renderFolderCards() {
+        const grid = document.getElementById('folders-grid');
+        if (!this.foldersData) return;
+
+        // Obtener filtros
+        const sortBy = document.getElementById('filter-folders-sort')?.value || 'name';
+        const searchTerm = document.getElementById('filter-folders-search')?.value.toLowerCase() || '';
+
+        // Filtrar
+        let filtered = this.foldersData.filter(folder =>
+            folder.name.toLowerCase().includes(searchTerm)
+        );
+
+        // Ordenar
+        filtered.sort((a, b) => {
+            switch (sortBy) {
+                case 'count':
+                    return (b.hallazgos.length + b.fragmentos.length) - (a.hallazgos.length + a.fragmentos.length);
+                case 'activity':
+                    return (b.lastActivity || 0) - (a.lastActivity || 0);
+                case 'name':
+                default:
+                    return a.name.localeCompare(b.name);
+            }
+        });
+
+        // Renderizar
+        if (filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px; color:#999;">No se encontraron carpetas</div>';
+            return;
+        }
+
+        grid.innerHTML = filtered.map(folder => `
+            <div class="folder-card">
+                <div class="folder-icon">📁</div>
+                <h3>${this.escapeHtml(folder.name)}</h3>
+                <div class="folder-stats-preview">
+                    <span>📍 ${folder.hallazgos.length} hallazgos</span>
+                    <span>🦴 ${folder.fragmentos.length} fragmentos</span>
+                    <span>👥 ${folder.collectors.length} colectores</span>
+                </div>
+                <div class="folder-actions">
+                    <button class="btn btn-sm btn-primary" onclick="window.adminPanel.showFolderDetails('${this.escapeHtml(folder.name)}')">
+                        Ver Detalles
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="window.adminPanel.showFolderOnMap('${this.escapeHtml(folder.name)}')">
+                        Ver en Mapa
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    showFolderDetails(folderName) {
+        const folder = this.foldersData.find(f => f.name === folderName);
+        if (!folder) return;
+
+        // Guardar carpeta actual
+        this.currentFolder = folder;
+
+        // Actualizar título
+        document.getElementById('folder-modal-title').textContent = `📁 ${folderName}`;
+
+        // Mostrar estadísticas
+        const statsDiv = document.getElementById('folder-stats-summary');
+        statsDiv.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value">${folder.hallazgos.length}</div>
+                    <div class="stat-label">Hallazgos</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${folder.fragmentos.length}</div>
+                    <div class="stat-label">Fragmentos</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value">${folder.collectors.length}</div>
+                    <div class="stat-label">Colectores</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Colectores:</div>
+                    <div class="stat-value" style="font-size:14px;">${folder.collectors.join(', ')}</div>
+                </div>
+            </div>
+        `;
+
+        // Mostrar tab de hallazgos por defecto
+        this.showFolderTab('folder-hallazgos');
+
+        // Setup tab buttons
+        document.querySelectorAll('#modal-folder-details .tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#modal-folder-details .tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.showFolderTab(btn.dataset.tab);
+            });
+        });
+
+        // Mostrar modal
+        document.getElementById('modal-folder-details').style.display = 'flex';
+    }
+
+    showFolderTab(tabName) {
+        const content = document.getElementById('folder-tab-content');
+        const folder = this.currentFolder;
+
+        if (tabName === 'folder-hallazgos') {
+            if (folder.hallazgos.length === 0) {
+                content.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No hay hallazgos en esta carpeta</p>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Foto</th>
+                            <th>Fecha</th>
+                            <th>Código</th>
+                            <th>Tipo</th>
+                            <th>Localidad</th>
+                            <th>Colector</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${folder.hallazgos.map(h => {
+                const foto = h.foto1 || h.foto2 || h.foto3;
+                const fotoHTML = foto ?
+                    `<img src="${foto}" alt="Foto" style="width:50px;height:50px;object-fit:cover;border-radius:4px;">` :
+                    '<span style="color:#999;">-</span>';
+                const collectorName = h.collector?.name || h.collector?.collectorId || 'N/A';
+
+                return `
+                                <tr>
+                                    <td>${fotoHTML}</td>
+                                    <td>${h.fecha || 'N/A'}</td>
+                                    <td>${h.codigo || 'N/A'}</td>
+                                    <td>${h.tipo_material || 'N/A'}</td>
+                                    <td>${h.localidad || 'N/A'}</td>
+                                    <td>${collectorName}</td>
+                                </tr>
+                            `;
+            }).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else if (tabName === 'folder-fragmentos') {
+            if (folder.fragmentos.length === 0) {
+                content.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No hay fragmentos en esta carpeta</p>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Localidad</th>
+                            <th>Observaciones</th>
+                            <th>Colector</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${folder.fragmentos.map(f => {
+                const collectorName = f.collector?.name || f.collector?.collectorId || 'N/A';
+
+                return `
+                                <tr>
+                                    <td>${f.fecha || 'N/A'}</td>
+                                    <td>${f.localidad || 'N/A'}</td>
+                                    <td>${f.observaciones || '-'}</td>
+                                    <td>${collectorName}</td>
+                                </tr>
+                            `;
+            }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+    }
+
+    showFolderOnMap(folderName) {
+        // Cambiar a vista de mapa
+        this.loadView('map');
+
+        // Esperar a que el mapa se cargue
+        setTimeout(() => {
+            // Aplicar filtro de carpeta
+            const folderSelect = document.getElementById('filter-map-folder');
+            if (folderSelect) {
+                folderSelect.value = folderName;
+                this.updateMap();
+            }
+        }, 500);
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     updateFolderFilter(data, filterId) {
