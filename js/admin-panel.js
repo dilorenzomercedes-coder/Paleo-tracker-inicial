@@ -614,8 +614,43 @@ class AdminPanel {
                 }
             });
 
+            // Add routes as polylines/polygons
+            routesData.data.forEach(route => {
+                if (!route.kml) return;
+
+                const parsed = this.parseRouteKML(route.kml);
+                if (!parsed || parsed.coordinates.length < 2) return;
+
+                let layer;
+                if (parsed.type === 'LineString') {
+                    layer = L.polyline(parsed.coordinates, {
+                        color: '#3498db',  // Azul
+                        weight: 3,
+                        opacity: 0.7
+                    });
+                } else if (parsed.type === 'Polygon') {
+                    layer = L.polygon(parsed.coordinates, {
+                        color: '#9b59b6',  // Morado
+                        fillColor: '#9b59b6',
+                        fillOpacity: 0.2,
+                        weight: 2
+                    });
+                }
+
+                if (layer) {
+                    layer.bindPopup(`
+                        <b>${parsed.name}</b><br/>
+                        Fecha: ${route.fecha || 'N/A'}<br/>
+                        ${route.folder ? `Carpeta: ${route.folder}<br/>` : ''}
+                        ${parsed.description ? `<br/>${parsed.description}` : ''}
+                    `);
+
+                    this.mapLayers.routes.addLayer(layer);
+                }
+            });
+
             // Update folder filter
-            const allData = [...hallazgosData.data, ...fragmentosData.data];
+            const allData = [...hallazgosData.data, ...fragmentosData.data, ...routesData.data];
             this.updateFolderFilter(allData, 'filter-map-folder');
 
             // Update visibility
@@ -647,6 +682,66 @@ class AdminPanel {
             this.map.addLayer(this.mapLayers.routes);
         } else {
             this.map.removeLayer(this.mapLayers.routes);
+        }
+    }
+
+    parseRouteKML(kmlString) {
+        try {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(kmlString, 'text/xml');
+
+            // Verificar errores de parseo
+            const parseError = xmlDoc.querySelector('parsererror');
+            if (parseError) {
+                console.error('Error parsing KML:', parseError);
+                return null;
+            }
+
+            const name = xmlDoc.querySelector('Placemark name')?.textContent || 'Ruta';
+            const description = xmlDoc.querySelector('Placemark description')?.textContent || '';
+
+            // Intentar LineString (rutas lineales)
+            const lineString = xmlDoc.querySelector('LineString coordinates');
+            if (lineString) {
+                const coordsText = lineString.textContent.trim();
+                const points = coordsText.split(/\s+/).filter(p => p.length > 0);
+
+                const coordinates = [];
+                points.forEach(point => {
+                    const [lng, lat, alt] = point.split(',').map(Number);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        coordinates.push([lat, lng]); // Leaflet usa [lat, lng]
+                    }
+                });
+
+                if (coordinates.length > 0) {
+                    return { name, description, coordinates, type: 'LineString' };
+                }
+            }
+
+            // Intentar Polygon (áreas cerradas)
+            const polygon = xmlDoc.querySelector('Polygon outerBoundaryIs coordinates');
+            if (polygon) {
+                const coordsText = polygon.textContent.trim();
+                const points = coordsText.split(/\s+/).filter(p => p.length > 0);
+
+                const coordinates = [];
+                points.forEach(point => {
+                    const [lng, lat, alt] = point.split(',').map(Number);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        coordinates.push([lat, lng]);
+                    }
+                });
+
+                if (coordinates.length > 0) {
+                    return { name, description, coordinates, type: 'Polygon' };
+                }
+            }
+
+            return null;
+        } catch (error) {
+            console.error('Error parsing route KML:', error);
+            return null;
         }
     }
 
