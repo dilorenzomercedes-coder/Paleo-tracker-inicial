@@ -1,10 +1,124 @@
 // Admin Panel JavaScript
+
+// Filter Manager for advanced filtering
+class FilterManager {
+    constructor() {
+        this.filters = {
+            text: '',
+            dateFrom: null,
+            dateTo: null,
+            collector: '',
+            folder: ''
+        };
+        this.originalData = [];
+    }
+
+    setFilter(key, value) {
+        this.filters[key] = value;
+    }
+
+    clearFilters() {
+        this.filters = {
+            text: '',
+            dateFrom: null,
+            dateTo: null,
+            collector: '',
+            folder: ''
+        };
+    }
+
+    applyFilters(data) {
+        let filtered = [...data];
+
+        // Text search
+        if (this.filters.text) {
+            const term = this.filters.text.toLowerCase();
+            filtered = filtered.filter(item => {
+                const searchableText = [
+                    item.codigo,
+                    item.tipo_material,
+                    item.localidad,
+                    item.formacion,
+                    item.observaciones
+                ].filter(Boolean).join(' ').toLowerCase();
+
+                return searchableText.includes(term);
+            });
+        }
+
+        // Date range filter
+        if (this.filters.dateFrom || this.filters.dateTo) {
+            filtered = filtered.filter(item => {
+                const itemDate = new Date(item.fecha || item.createdAt);
+
+                if (this.filters.dateFrom) {
+                    const fromDate = new Date(this.filters.dateFrom);
+                    if (itemDate < fromDate) return false;
+                }
+
+                if (this.filters.dateTo) {
+                    const toDate = new Date(this.filters.dateTo);
+                    toDate.setHours(23, 59, 59, 999); // Include entire day
+                    if (itemDate > toDate) return false;
+                }
+
+                return true;
+            });
+        }
+
+        // Collector filter
+        if (this.filters.collector) {
+            filtered = filtered.filter(item =>
+                item.collector?.collectorId === this.filters.collector
+            );
+        }
+
+        // Folder filter
+        if (this.filters.folder) {
+            filtered = filtered.filter(item =>
+                item.folder === this.filters.folder
+            );
+        }
+
+        return filtered;
+    }
+
+    getActiveFiltersCount() {
+        return Object.values(this.filters).filter(v => v).length;
+    }
+
+    getActiveFiltersText() {
+        const active = [];
+
+        if (this.filters.text) {
+            active.push(`Texto: "${this.filters.text}"`);
+        }
+        if (this.filters.dateFrom) {
+            active.push(`Desde: ${this.filters.dateFrom}`);
+        }
+        if (this.filters.dateTo) {
+            active.push(`Hasta: ${this.filters.dateTo}`);
+        }
+        if (this.filters.collector) {
+            active.push(`Colector: ${this.filters.collector}`);
+        }
+        if (this.filters.folder) {
+            active.push(`Carpeta: ${this.filters.folder}`);
+        }
+
+        return active;
+    }
+}
+
 class AdminPanel {
     constructor() {
         this.API_URL = localStorage.getItem('admin_api_url') || 'http://localhost:3000';
         this.token = localStorage.getItem('admin_token');
         this.username = localStorage.getItem('admin_username');
         this.currentView = 'overview';
+
+        // Initialize filter manager
+        this.filterManager = new FilterManager();
 
         this.init();
     }
@@ -88,6 +202,30 @@ class AdminPanel {
         document.getElementById('filter-routes-collector')?.addEventListener('change', () => this.loadRoutes());
         document.getElementById('filter-documents-collector')?.addEventListener('change', () => this.loadDocuments());
         document.getElementById('filter-documents-category')?.addEventListener('change', () => this.loadDocuments());
+
+        // Advanced filters for hallazgos
+        let searchDebounce;
+        document.getElementById('filter-hallazgos-search')?.addEventListener('input', (e) => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => {
+                this.filterManager.setFilter('text', e.target.value);
+                this.loadHallazgos();
+            }, 300); // Debounce 300ms
+        });
+
+        document.getElementById('filter-hallazgos-date-from')?.addEventListener('change', (e) => {
+            this.filterManager.setFilter('dateFrom', e.target.value);
+            this.loadHallazgos();
+        });
+
+        document.getElementById('filter-hallazgos-date-to')?.addEventListener('change', (e) => {
+            this.filterManager.setFilter('dateTo', e.target.value);
+            this.loadHallazgos();
+        });
+
+        document.getElementById('btn-clear-hallazgos-filters')?.addEventListener('click', () => {
+            this.clearHallazgosFilters();
+        });
     }
 
     showLogin() {
@@ -335,15 +473,24 @@ class AdminPanel {
             if (collector) params.append('collector', collector);
             if (folder) params.append('folder', folder);
 
-            const data = await this.apiRequest(`/api/admin/hallazgos?${params}`);
+            const rawData = await this.apiRequest(`/api/admin/hallazgos?${params}`);
+
+            // Apply advanced filters
+            this.filterManager.setFilter('collector', collector);
+            this.filterManager.setFilter('folder', folder);
+            const filteredData = this.filterManager.applyFilters(rawData.data);
+
+            // Update filter summary
+            this.updateFilterSummary('hallazgos', filteredData.length, rawData.data.length);
+
             const tbody = document.getElementById('hallazgos-table-body');
 
-            if (data.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8">No hay hallazgos</td></tr>';
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8">No hay hallazgos con los filtros aplicados</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = data.data.map(h => {
+            tbody.innerHTML = filteredData.map(h => {
                 // Check for any of the photo fields (foto1, foto2, foto3)
                 const foto = h.foto1 || h.foto2 || h.foto3;
                 const fotoHTML = foto ?
@@ -365,7 +512,7 @@ class AdminPanel {
             }).join('');
 
             // Update folder filter
-            this.updateFolderFilter(data.data, 'filter-hallazgos-folder');
+            this.updateFolderFilter(rawData.data, 'filter-hallazgos-folder');
         } catch (error) {
             console.error('Error loading hallazgos:', error);
         }
@@ -1188,6 +1335,48 @@ class AdminPanel {
     downloadComplete() {
         const filename = `paleo_completo_${new Date().toISOString().slice(0, 10)}.zip`;
         this.downloadFile('/api/admin/download/complete', filename);
+    }
+
+    updateFilterSummary(view, filteredCount, totalCount) {
+        const summaryElement = document.getElementById(`filter-${view}-summary`);
+        if (!summaryElement) return;
+
+        const activeFilters = this.filterManager.getActiveFiltersText();
+
+        if (activeFilters.length === 0) {
+            summaryElement.innerHTML = '';
+            return;
+        }
+
+        const filtersHTML = activeFilters.map(filter =>
+            `<span class="filter-tag">${filter}</span>`
+        ).join('');
+
+        summaryElement.innerHTML = `
+            <div style="margin-bottom: 8px;">
+                <strong>Filtros activos:</strong> ${filtersHTML}
+            </div>
+            <div>
+                Mostrando <strong>${filteredCount}</strong> de <strong>${totalCount}</strong> resultados
+            </div>
+        `;
+    }
+
+    clearHallazgosFilters() {
+        // Clear filter manager
+        this.filterManager.clearFilters();
+
+        // Clear UI inputs
+        const searchInput = document.getElementById('filter-hallazgos-search');
+        const dateFromInput = document.getElementById('filter-hallazgos-date-from');
+        const dateToInput = document.getElementById('filter-hallazgos-date-to');
+
+        if (searchInput) searchInput.value = '';
+        if (dateFromInput) dateFromInput.value = '';
+        if (dateToInput) dateToInput.value = '';
+
+        // Reload data
+        this.loadHallazgos();
     }
 }
 
