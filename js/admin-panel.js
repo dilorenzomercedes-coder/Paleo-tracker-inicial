@@ -1395,7 +1395,7 @@ class AdminPanel {
     editHallazgo(hallazgoId) {
         try {
             // Buscar hallazgo en los datos actuales
-            const hallazgo = this.currentHallazgos && this.currentHallazgos.find(h => h.id === parseInt(hallazgoId));
+            const hallazgo = this.currentHallazgos && this.currentHallazgos.find(h => String(h.id) === String(hallazgoId));
 
             if (!hallazgo) {
                 alert('Hallazgo no encontrado');
