@@ -237,12 +237,13 @@
                                     <th>Tipo</th>
                                     <th>Código</th>
                                     <th>Coordenadas</th>
+                                    <th>Acciones</th>
                                 </tr>
 
                             </thead>
                             <tbody id="hallazgos-table-body">
                                 <tr>
-                                    <td colspan="8">Cargando...</td>
+                                    <td colspan="9">Cargando...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -539,11 +540,86 @@
 
     </div>
 
+    <!-- Edit Hallazgo Modal -->
+    <div id="modal-edit-hallazgo" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>✏️ Editar Hallazgo</h2>
+                <button class="btn-close"
+                    onclick="document.getElementById('modal-edit-hallazgo').style.display='none'">×</button>
+            </div>
+
+            <form id="form-edit-hallazgo" class="edit-form">
+                <input type="hidden" id="edit-hallazgo-id">
+
+                <div class="form-group">
+                    <label>Código *</label>
+                    <input type="text" id="edit-codigo" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Material *</label>
+                    <select id="edit-tipo-material" required>
+                        <option value="">Seleccionar...</option>
+                        <option value="VS">VS - Vertebrado</option>
+                        <option value="IV">IV - Invertebrado</option>
+                        <option value="VP">VP - Vegetal Petrificado</option>
+                        <option value="Indeterminado">Indeterminado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Localidad *</label>
+                    <input type="text" id="edit-localidad" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Formación</label>
+                    <input type="text" id="edit-formacion">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitud *</label>
+                        <input type="number" id="edit-lat" step="0.000001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Longitud *</label>
+                        <input type="number" id="edit-lng" step="0.000001" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Carpeta/Sitio *</label>
+                    <input type="text" id="edit-folder" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="edit-observaciones" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('modal-edit-hallazgo').style.display='none'">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <script src="js/admin-panel.js?v=7"></script>
+    <script src="js/admin-panel.js?v=8"></script>
 </body>
 
 </html>
