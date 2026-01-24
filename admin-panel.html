@@ -195,6 +195,36 @@
                             <button id="btn-export-hallazgos-kml" class="btn btn-primary btn-sm">⬇️ KML</button>
                         </div>
                     </div>
+
+                    <!-- Advanced Filters -->
+                    <div class="advanced-filters">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>🔍 Buscar</label>
+                                <input type="text" id="filter-hallazgos-search"
+                                    placeholder="Código, tipo, localidad, observaciones...">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>📅 Desde</label>
+                                <input type="date" id="filter-hallazgos-date-from">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>📅 Hasta</label>
+                                <input type="date" id="filter-hallazgos-date-to">
+                            </div>
+
+                            <div class="filter-group">
+                                <button class="btn btn-secondary btn-sm" id="btn-clear-hallazgos-filters">
+                                    × Limpiar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filter-summary" id="filter-hallazgos-summary"></div>
+                    </div>
+
                     <div class="table-container">
                         <table class="data-table">
                             <thead>
@@ -513,7 +543,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <script src="js/admin-panel.js?v=6"></script>
+    <script src="js/admin-panel.js?v=7"></script>
 </body>
 
 </html>
