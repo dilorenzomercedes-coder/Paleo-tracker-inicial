@@ -226,6 +226,11 @@ class AdminPanel {
         document.getElementById('btn-clear-hallazgos-filters')?.addEventListener('click', () => {
             this.clearHallazgosFilters();
         });
+
+        // Edit hallazgo form
+        document.getElementById('form-edit-hallazgo')?.addEventListener('submit', (e) => {
+            this.handleEditHallazgo(e);
+        });
     }
 
     showLogin() {
@@ -486,9 +491,12 @@ class AdminPanel {
             const tbody = document.getElementById('hallazgos-table-body');
 
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8">No hay hallazgos con los filtros aplicados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9">No hay hallazgos con los filtros aplicados</td></tr>';
                 return;
             }
+
+            // Store current data for editing
+            this.currentHallazgos = filteredData;
 
             tbody.innerHTML = filteredData.map(h => {
                 // Check for any of the photo fields (foto1, foto2, foto3)
@@ -507,6 +515,11 @@ class AdminPanel {
           <td>${h.tipo_material || 'N/A'}</td>
           <td>${h.codigo || 'N/A'}</td>
           <td>${h.lat && h.lng ? `${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}` : 'N/A'}</td>
+          <td>
+            <button class="btn-icon" onclick="window.adminPanel.editHallazgo('${h.id}')" title="Editar">
+              ✏️
+            </button>
+          </td>
         </tr>
       `;
             }).join('');
@@ -1377,6 +1390,90 @@ class AdminPanel {
 
         // Reload data
         this.loadHallazgos();
+    }
+
+    editHallazgo(hallazgoId) {
+        try {
+            // Buscar hallazgo en los datos actuales
+            const hallazgo = this.currentHallazgos && this.currentHallazgos.find(h => h.id === parseInt(hallazgoId));
+
+            if (!hallazgo) {
+                alert('Hallazgo no encontrado');
+                return;
+            }
+
+            // Prellenar formulario
+            document.getElementById('edit-hallazgo-id').value = hallazgo.id;
+            document.getElementById('edit-codigo').value = hallazgo.codigo || '';
+            document.getElementById('edit-tipo-material').value = hallazgo.tipo_material || '';
+            document.getElementById('edit-localidad').value = hallazgo.localidad || '';
+            document.getElementById('edit-formacion').value = hallazgo.formacion || '';
+            document.getElementById('edit-lat').value = hallazgo.lat || '';
+            document.getElementById('edit-lng').value = hallazgo.lng || '';
+            document.getElementById('edit-folder').value = hallazgo.folder || '';
+            document.getElementById('edit-observaciones').value = hallazgo.observaciones || '';
+
+            // Abrir modal
+            document.getElementById('modal-edit-hallazgo').style.display = 'flex';
+
+        } catch (error) {
+            console.error('Error editing hallazgo:', error);
+            alert('Error al abrir editor');
+        }
+    }
+
+    async handleEditHallazgo(e) {
+        e.preventDefault();
+
+        const hallazgoId = document.getElementById('edit-hallazgo-id').value;
+
+        const updatedData = {
+            codigo: document.getElementById('edit-codigo').value,
+            tipo_material: document.getElementById('edit-tipo-material').value,
+            localidad: document.getElementById('edit-localidad').value,
+            formacion: document.getElementById('edit-formacion').value,
+            lat: parseFloat(document.getElementById('edit-lat').value),
+            lng: parseFloat(document.getElementById('edit-lng').value),
+            folder: document.getElementById('edit-folder').value,
+            observaciones: document.getElementById('edit-observaciones').value
+        };
+
+        try {
+            const response = await this.apiRequest(
+                `/api/admin/hallazgos/${hallazgoId}`,
+                'PUT',
+                updatedData
+            );
+
+            if (response.success) {
+                alert('✅ Hallazgo actualizado exitosamente');
+                document.getElementById('modal-edit-hallazgo').style.display = 'none';
+                this.loadHallazgos(); // Recargar tabla
+            } else {
+                alert('❌ Error al actualizar: ' + (response.error || 'Desconocido'));
+            }
+
+        } catch (error) {
+            console.error('Error updating hallazgo:', error);
+            alert('❌ Error de conexión al actualizar');
+        }
+    }
+
+    async apiRequest(endpoint, method = 'GET', body = null) {
+        const options = {
+            method,
+            headers: {
+                'Authorization': `Bearer ${this.token}`,
+                'Content-Type': 'application/json'
+            }
+        };
+
+        if (body && (method === 'POST' || method === 'PUT')) {
+            options.body = JSON.stringify(body);
+        }
+
+        const response = await fetch(`${this.API_URL}${endpoint}`, options);
+        return await response.json();
     }
 }
 
