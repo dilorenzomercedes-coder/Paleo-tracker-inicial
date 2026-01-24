@@ -418,6 +418,17 @@ class Store {
 
     // Sincronizar todos los datos pendientes
     async syncAll() {
+        // CRITICAL FIX: Reload cache from IndexedDB before syncing
+        // This ensures newly created items are included in sync
+        try {
+            this.cache.hallazgos = await this.db.hallazgos.toArray();
+            this.cache.fragmentos = await this.db.fragmentos.toArray();
+            this.cache.routes = await this.db.routes.toArray();
+            this.cache.documents = await this.db.documents.toArray();
+        } catch (e) {
+            console.error('Error reloading cache before sync:', e);
+        }
+
         const results = {
             hallazgos: { synced: 0, failed: 0 },
             fragmentos: { synced: 0, failed: 0 },
@@ -519,5 +530,4 @@ class Store {
         }
     }
 }
-
 
