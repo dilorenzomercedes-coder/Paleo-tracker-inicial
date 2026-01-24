@@ -1439,11 +1439,10 @@ class AdminPanel {
         };
 
         try {
-            const response = await this.apiRequest(
-                `/api/admin/hallazgos/${hallazgoId}`,
-                'PUT',
-                updatedData
-            );
+            const response = await this.apiRequest(`/api/admin/hallazgos/${hallazgoId}`, {
+                method: 'PUT',
+                body: JSON.stringify(updatedData)
+            });
 
             if (response.success) {
                 alert('✅ Hallazgo actualizado exitosamente');
@@ -1457,23 +1456,6 @@ class AdminPanel {
             console.error('Error updating hallazgo:', error);
             alert('❌ Error de conexión al actualizar');
         }
-    }
-
-    async apiRequest(endpoint, method = 'GET', body = null) {
-        const options = {
-            method,
-            headers: {
-                'Authorization': `Bearer ${this.token}`,
-                'Content-Type': 'application/json'
-            }
-        };
-
-        if (body && (method === 'POST' || method === 'PUT')) {
-            options.body = JSON.stringify(body);
-        }
-
-        const response = await fetch(`${this.API_URL}${endpoint}`, options);
-        return await response.json();
     }
 }
 
