@@ -189,10 +189,6 @@ class AdminPanel {
             this.exportKML(collector, folder);
         });
 
-        document.getElementById('btn-export-fragmentos-excel')?.addEventListener('click', () => {
-            this.exportFragmentosToExcel();
-        });
-
         document.getElementById('btn-download-documents-zip')?.addEventListener('click', () => {
             const category = document.getElementById('filter-documents-category').value;
             this.downloadDocuments(category);
@@ -573,6 +569,7 @@ class AdminPanel {
           <td>${f.observaciones || '-'}</td>
           <td>
             ${foto ? `<button class="btn-icon" onclick="window.adminPanel.downloadPhoto('${foto.replace(/'/g, "&apos;")}', 'fragmento_${f.folder || 'img'}_${f.fecha || 'photo'}.jpg')" title="Descargar foto">📥</button>` : ''}
+            <button class="btn-icon" onclick="window.adminPanel.editFragmento('${f.id}')" title="Editar">✏️</button>
           </td>
         </tr>
       `;
@@ -1342,9 +1339,67 @@ class AdminPanel {
         this.downloadFile('/api/admin/export/json', filename);
     }
 
-    exportCSV(type) {
-        const filename = `${type}_${new Date().toISOString().slice(0, 10)}.csv`;
-        this.downloadFile(`/api/admin/export/csv/${type}`, filename);
+    async exportCSV(type) {
+        try {
+            let data, headers, rows;
+
+            if (type === 'hallazgos') {
+                // Get hallazgos data
+                const response = await this.apiRequest('/api/admin/hallazgos');
+                data = response.data;
+
+                headers = ['Fecha', 'Colector', 'Localidad', 'Carpeta', 'Tipo', 'Código', 'Latitud', 'Longitud', 'Observaciones', 'Foto'];
+                rows = data.map(h => [
+                    h.fecha || '',
+                    h.collector?.name || h.collector?.collectorId || '',
+                    h.localidad || '',
+                    h.folder || '',
+                    h.tipo_material || '',
+                    h.codigo || '',
+                    h.lat || '',
+                    h.lng || '',
+                    h.observaciones || '',
+                    h.foto1 || h.foto2 || h.foto3 || '' //Include photo base64
+                ]);
+            } else if (type === 'fragmentos') {
+                // Get fragmentos data
+                const response = await this.apiRequest('/api/admin/fragmentos');
+                data = response.data;
+
+                headers = ['Fecha', 'Colector', 'Localidad', 'Carpeta', 'Latitud', 'Longitud', 'Observaciones', 'Foto'];
+                rows = data.map(f => [
+                    f.fecha || '',
+                    f.collector?.name || f.collector?.collectorId || '',
+                    f.localidad || '',
+                    f.folder || '',
+                    f.lat || '',
+                    f.lng || '',
+                    f.observaciones || '',
+                    f.foto || '' // Include photo base64
+                ]);
+            }
+
+            // Generate CSV content
+            const csvContent = [
+                headers.join(','),
+                ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+            ].join('\n');
+
+            // Download CSV file
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${type}_con_fotos_${new Date().toISOString().slice(0, 10)}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            alert('Error al exportar CSV');
+        }
     }
 
     downloadPhotos(collector = '', folder = '') {
@@ -1502,6 +1557,18 @@ class AdminPanel {
             console.error('Error downloading photo:', error);
             alert('Error al descargar la foto');
         }
+    }
+
+    // Edit fragmento (placeholder for future implementation)
+    editFragmento(fragmentoId) {
+        const fragmento = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(fragmentoId));
+
+        if (!fragmento) {
+            alert('Fragmento no encontrado');
+            return;
+        }
+
+        alert(`Editar fragmento:\nID: ${fragmento.id}\nCarpeta: ${fragmento.folder}\nLocalidad: ${fragmento.localidad}\n\nFuncionalidad de edición en desarrollo`);
     }
 
     // Export fragmentos to Excel
