@@ -189,6 +189,10 @@ class AdminPanel {
             this.exportKML(collector, folder);
         });
 
+        document.getElementById('btn-export-fragmentos-excel')?.addEventListener('click', () => {
+            this.exportFragmentosToExcel();
+        });
+
         document.getElementById('btn-download-documents-zip')?.addEventListener('click', () => {
             const category = document.getElementById('filter-documents-category').value;
             this.downloadDocuments(category);
@@ -544,20 +548,35 @@ class AdminPanel {
             const tbody = document.getElementById('fragmentos-table-body');
 
             if (data.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6">No hay fragmentos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8">No hay fragmentos</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = data.data.map(f => `
+            // Store current data for export
+            this.currentFragmentos = data.data;
+
+            tbody.innerHTML = data.data.map(f => {
+                // Display photo if available
+                const foto = f.foto;
+                const fotoHTML = foto ?
+                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${foto.replace(/'/g, "&apos;")}', 'Fragmento - ${(f.folder || 'N/A').replace(/'/g, "&apos;")}')">` :
+                    '<span style="color:#999;">Sin foto</span>';
+
+                return `
         <tr>
+          <td>${fotoHTML}</td>
           <td>${f.fecha || 'N/A'}</td>
           <td>${f.collector?.name || f.collector?.collectorId || 'N/A'}</td>
           <td>${f.localidad || 'N/A'}</td>
           <td>${f.folder || 'N/A'}</td>
           <td>${f.lat && f.lng ? `${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}` : 'N/A'}</td>
           <td>${f.observaciones || '-'}</td>
+          <td>
+            ${foto ? `<button class="btn-icon" onclick="window.adminPanel.downloadPhoto('${foto.replace(/'/g, "&apos;")}', 'fragmento_${f.folder || 'img'}_${f.fecha || 'photo'}.jpg')" title="Descargar foto">📥</button>` : ''}
+          </td>
         </tr>
-      `).join('');
+      `;
+            }).join('');
 
             this.updateFolderFilter(data.data, 'filter-fragmentos-folder');
         } catch (error) {
@@ -1455,6 +1474,74 @@ class AdminPanel {
         } catch (error) {
             console.error('Error updating hallazgo:', error);
             alert('❌ Error de conexión al actualizar');
+        }
+    }
+
+    // Download individual photo
+    downloadPhoto(base64Data, filename) {
+        try {
+            // Convert base64 to blob
+            const byteCharacters = atob(base64Data.split(',')[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+            // Create download link
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading photo:', error);
+            alert('Error al descargar la foto');
+        }
+    }
+
+    // Export fragmentos to Excel
+    exportFragmentosToExcel() {
+        try {
+            if (!this.currentFragmentos || this.currentFragmentos.length === 0) {
+                alert('No hay fragmentos para exportar');
+                return;
+            }
+
+            // Get selected folder for filename
+            const folder = document.getElementById('filter-fragmentos-folder')?.value || 'todos';
+
+            // Prepare data for Excel
+            const excelData = this.currentFragmentos.map(f => ({
+                'Fecha': f.fecha || '',
+                'Colector': f.collector?.name || f.collector?.collectorId || '',
+                'Localidad': f.localidad || '',
+                'Carpeta': f.folder || '',
+                'Latitud': f.lat || '',
+                'Longitud': f.lng || '',
+                'Coordenadas': f.lat && f.lng ? `${f.lat}, ${f.lng}` : '',
+                'Observaciones': f.observaciones || ''
+            }));
+
+            // Create worksheet
+            const ws = XLSX.utils.json_to_sheet(excelData);
+
+            // Create workbook
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Fragmentos');
+
+            // Generate filename
+            const filename = `fragmentos_${folder}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+            // Download
+            XLSX.writeFile(wb, filename);
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            alert('Error al exportar a Excel. Verifica que la librería XLSX esté cargada.');
         }
     }
 }
