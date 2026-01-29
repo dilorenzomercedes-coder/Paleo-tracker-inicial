@@ -1340,65 +1340,106 @@ class AdminPanel {
     }
 
     async exportCSV(type) {
+        await this.exportToExcelWithImages(type);
+    }
+
+    async exportToExcelWithImages(type) {
         try {
-            let data, headers, rows;
-
-            if (type === 'hallazgos') {
-                // Get hallazgos data
-                const response = await this.apiRequest('/api/admin/hallazgos');
-                data = response.data;
-
-                headers = ['Fecha', 'Colector', 'Localidad', 'Carpeta', 'Tipo', 'Código', 'Latitud', 'Longitud', 'Observaciones', 'Foto'];
-                rows = data.map(h => [
-                    h.fecha || '',
-                    h.collector?.name || h.collector?.collectorId || '',
-                    h.localidad || '',
-                    h.folder || '',
-                    h.tipo_material || '',
-                    h.codigo || '',
-                    h.lat || '',
-                    h.lng || '',
-                    h.observaciones || '',
-                    h.foto1 || h.foto2 || h.foto3 || '' //Include photo base64
-                ]);
-            } else if (type === 'fragmentos') {
-                // Get fragmentos data
-                const response = await this.apiRequest('/api/admin/fragmentos');
-                data = response.data;
-
-                headers = ['Fecha', 'Colector', 'Localidad', 'Carpeta', 'Latitud', 'Longitud', 'Observaciones', 'Foto'];
-                rows = data.map(f => [
-                    f.fecha || '',
-                    f.collector?.name || f.collector?.collectorId || '',
-                    f.localidad || '',
-                    f.folder || '',
-                    f.lat || '',
-                    f.lng || '',
-                    f.observaciones || '',
-                    f.foto || '' // Include photo base64
-                ]);
+            if (typeof ExcelJS === 'undefined') {
+                alert('La librería ExcelJS no está cargada. Por favor recarga la página.');
+                return;
             }
 
-            // Generate CSV content
-            const csvContent = [
-                headers.join(','),
-                ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-            ].join('\n');
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Fragmentos');
 
-            // Download CSV file
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${type}_con_fotos_${new Date().toISOString().slice(0, 10)}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            let data;
+            const response = await this.apiRequest(`/api/admin/${type}`);
+            data = response.data;
+
+            if (!data || data.length === 0) {
+                alert(`No hay ${type} para exportar`);
+                return;
+            }
+
+            // Define columns
+            const columns = [];
+            if (type === 'hallazgos') {
+                columns.push(
+                    { header: 'Foto', key: 'foto', width: 15 },
+                    { header: 'Fecha', key: 'fecha', width: 12 },
+                    { header: 'Código', key: 'codigo', width: 15 },
+                    { header: 'Tipo', key: 'tipo', width: 15 },
+                    { header: 'Colector', key: 'colector', width: 15 },
+                    { header: 'Localidad', key: 'localidad', width: 15 },
+                    { header: 'Carpeta', key: 'carpeta', width: 15 },
+                    { header: 'Coordenadas', key: 'coordenadas', width: 25 },
+                    { header: 'Observaciones', key: 'observaciones', width: 30 }
+                );
+            } else {
+                columns.push(
+                    { header: 'Foto', key: 'foto', width: 15 },
+                    { header: 'Fecha', key: 'fecha', width: 12 },
+                    { header: 'Colector', key: 'colector', width: 15 },
+                    { header: 'Localidad', key: 'localidad', width: 15 },
+                    { header: 'Carpeta', key: 'carpeta', width: 15 },
+                    { header: 'Coordenadas', key: 'coordenadas', width: 25 },
+                    { header: 'Observaciones', key: 'observaciones', width: 30 }
+                );
+            }
+            worksheet.columns = columns;
+
+            // Add rows and images
+            for (let i = 0; i < data.length; i++) {
+                const item = data[i];
+                const rowValues = {};
+
+                // Common fields
+                rowValues.fecha = item.fecha || '';
+                rowValues.colector = item.collector?.name || item.collector?.collectorId || '';
+                rowValues.localidad = item.localidad || '';
+                rowValues.carpeta = item.folder || '';
+                rowValues.coordenadas = item.lat && item.lng ? `${item.lat}, ${item.lng}` : '';
+                rowValues.observaciones = item.observaciones || '';
+
+                // Type specific
+                if (type === 'hallazgos') {
+                    rowValues.codigo = item.codigo || '';
+                    rowValues.tipo = item.tipo_material || '';
+                }
+
+                const row = worksheet.addRow(rowValues);
+                row.height = 60; // Make row taller for image
+
+                // Handle Image
+                const fotoBase64 = type === 'hallazgos' ? (item.foto1 || item.foto2 || item.foto3) : item.foto;
+
+                if (fotoBase64 && fotoBase64.startsWith('data:image')) {
+                    try {
+                        const imageId = workbook.addImage({
+                            base64: fotoBase64,
+                            extension: 'jpeg',
+                        });
+
+                        worksheet.addImage(imageId, {
+                            tl: { col: 0, row: row.number - 1 }, // Column A (0)
+                            ext: { width: 80, height: 80 },
+                            editAs: 'oneCell'
+                        });
+                    } catch (e) {
+                        console.error('Error adding image to excel', e);
+                    }
+                }
+            }
+
+            // Export
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            saveAs(blob, `${type}_con_fotos_${new Date().toISOString().slice(0, 10)}.xlsx`);
 
         } catch (error) {
-            console.error('Error exporting CSV:', error);
-            alert('Error al exportar CSV');
+            console.error('Error exporting Excel with images:', error);
+            alert('Error al exportar Excel: ' + error.message);
         }
     }
 
@@ -1568,49 +1609,24 @@ class AdminPanel {
             return;
         }
 
-        alert(`Editar fragmento:\nID: ${fragmento.id}\nCarpeta: ${fragmento.folder}\nLocalidad: ${fragmento.localidad}\n\nFuncionalidad de edición en desarrollo`);
+        const info = `
+=== DATOS PARA EDICIÓN MANUAL ===
+ID: ${fragmento.id}
+Fecha: ${fragmento.fecha}
+Colector: ${fragmento.collectorId}
+Localidad: ${fragmento.localidad}
+Carpeta: ${fragmento.folder}
+Observaciones: ${fragmento.observaciones}
+Lat/Lng: ${fragmento.lat}, ${fragmento.lng}
+
+* Copia estos datos si necesitas editarlos en la base de datos *
+(Edición completa en desarrollo)
+        `;
+        alert(info);
     }
 
-    // Export fragmentos to Excel
-    exportFragmentosToExcel() {
-        try {
-            if (!this.currentFragmentos || this.currentFragmentos.length === 0) {
-                alert('No hay fragmentos para exportar');
-                return;
-            }
 
-            // Get selected folder for filename
-            const folder = document.getElementById('filter-fragmentos-folder')?.value || 'todos';
 
-            // Prepare data for Excel
-            const excelData = this.currentFragmentos.map(f => ({
-                'Fecha': f.fecha || '',
-                'Colector': f.collector?.name || f.collector?.collectorId || '',
-                'Localidad': f.localidad || '',
-                'Carpeta': f.folder || '',
-                'Latitud': f.lat || '',
-                'Longitud': f.lng || '',
-                'Coordenadas': f.lat && f.lng ? `${f.lat}, ${f.lng}` : '',
-                'Observaciones': f.observaciones || ''
-            }));
-
-            // Create worksheet
-            const ws = XLSX.utils.json_to_sheet(excelData);
-
-            // Create workbook
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Fragmentos');
-
-            // Generate filename
-            const filename = `fragmentos_${folder}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-
-            // Download
-            XLSX.writeFile(wb, filename);
-        } catch (error) {
-            console.error('Error exporting to Excel:', error);
-            alert('Error al exportar a Excel. Verifica que la librería XLSX esté cargada.');
-        }
-    }
 }
 
 // Initialize the admin panel
