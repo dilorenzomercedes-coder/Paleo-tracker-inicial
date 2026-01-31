@@ -1749,23 +1749,11 @@ class AdminPanel {
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Fragmentos');
 
-            // Get data - fetch from API if not already loaded
-            let data;
-            if (type === 'hallazgos') {
-                if (!this.currentHallazgos || this.currentHallazgos.length === 0) {
-                    const response = await this.apiRequest('/api/admin/hallazgos');
-                    data = response.data;
-                } else {
-                    data = this.currentHallazgos;
-                }
-            } else {
-                if (!this.currentFragmentos || this.currentFragmentos.length === 0) {
-                    const response = await this.apiRequest('/api/admin/fragmentos');
-                    data = response.data;
-                } else {
-                    data = this.currentFragmentos;
-                }
-            }
+            // Always fetch fresh data from API to ensure photos are included
+            console.log(`Fetching fresh ${type} data for Excel export...`);
+            const response = await this.apiRequest(type === 'hallazgos' ? '/api/admin/hallazgos' : '/api/admin/fragmentos');
+            const data = response.data;
+            console.log(`Fetched ${data.length} ${type}, first item has foto:`, !!data[0]?.foto);
 
             if (!data || data.length === 0) {
                 alert('No hay datos para exportar.');
