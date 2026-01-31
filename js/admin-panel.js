@@ -1823,12 +1823,13 @@ class AdminPanel {
                 const row = worksheet.addRow(rowData);
                 row.height = 80; // Make rows taller for images
 
-                // Add image if exists
-                if (item.foto) {
+                // Add image if exists (hallazgos use foto1, fragmentos use foto)
+                const photoField = type === 'hallazgos' ? item.foto1 : item.foto;
+                if (photoField) {
                     try {
-                        console.log(`Processing image for ${type} at row ${rowIndex}, has foto:`, !!item.foto);
+                        console.log(`Processing image for ${type} at row ${rowIndex}, has photo:`, !!photoField);
                         // Convert base64 to buffer
-                        const base64Data = item.foto.replace(/^data:image\/\w+;base64,/, '');
+                        const base64Data = photoField.replace(/^data:image\/\w+;base64,/, '');
                         const imageId = workbook.addImage({
                             base64: base64Data,
                             extension: 'jpeg',
