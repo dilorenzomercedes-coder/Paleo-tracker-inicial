@@ -1890,6 +1890,11 @@ class AdminPanel {
                 this.apiRequest('/api/admin/fragmentos')
             ]);
 
+            // Store data for Excel export (with photos)
+            this.currentHallazgos = hallazgosData.data;
+            this.currentFragmentos = fragmentosData.data;
+            console.log('Loaded data for export:', hallazgosData.data.length, 'hallazgos,', fragmentosData.data.length, 'fragmentos');
+
             // Extract unique folder names
             const folders = new Set();
             hallazgosData.data.forEach(h => {
