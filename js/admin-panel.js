@@ -528,6 +528,7 @@ class AdminPanel {
             this.updateFolderFilter(rawData.data, 'filter-hallazgos-folder');
         } catch (error) {
             console.error('Error loading hallazgos:', error);
+            alert('Error cargando hallazgos: ' + error.message);
         }
     }
 
@@ -578,6 +579,7 @@ class AdminPanel {
             this.updateFolderFilter(data.data, 'filter-fragmentos-folder');
         } catch (error) {
             console.error('Error loading fragmentos:', error);
+            alert('Error cargando fragmentos: ' + error.message);
         }
     }
 
