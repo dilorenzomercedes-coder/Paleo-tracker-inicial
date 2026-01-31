@@ -449,20 +449,29 @@
                         </div>
                         <div class="export-card">
                             <div class="export-icon">📊</div>
-                            <h3>CSV Fragmentos</h3>
-                            <p>Tabla de fragmentos en formato CSV</p>
-                            <button id="btn-export-csv-fragmentos" class="btn btn-primary">Descargar CSV</button>
+                            <h3>Excel Hallazgos</h3>
+                            <p>Tabla de hallazgos con fotos embebidas</p>
+                            <button id="btn-export-excel-hallazgos" class="btn btn-primary">Descargar Excel</button>
+                        </div>
+                        <div class="export-card">
+                            <div class="export-icon">📊</div>
+                            <h3>Excel Fragmentos</h3>
+                            <p>Tabla de fragmentos con fotos embebidas</p>
+                            <button id="btn-export-excel-fragmentos" class="btn btn-primary">Descargar Excel</button>
                         </div>
                         <div class="export-card">
                             <div class="export-icon">📷</div>
-                            <h3>Fotos (ZIP)</h3>
-                            <p>Todas las fotos organizadas por colector</p>
-                            <button id="btn-download-photos-all" class="btn btn-primary">Descargar ZIP</button>
+                            <h3>Fotos por Carpeta (ZIP)</h3>
+                            <p>Descarga fotos de una carpeta específica</p>
+                            <select id="filter-photos-folder" class="filter-select" style="margin-bottom:10px;">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <button id="btn-download-photos" class="btn btn-primary">Descargar ZIP</button>
                         </div>
                         <div class="export-card">
                             <div class="export-icon">🎁</div>
                             <h3>Paquete Completo</h3>
-                            <p>KML, CSV, fotos y documentos en un solo archivo</p>
+                            <p>KML, Excel, fotos y documentos en un solo archivo</p>
                             <button id="btn-download-complete" class="btn btn-success">Descargar Todo</button>
                         </div>
                     </div>
