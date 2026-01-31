@@ -171,9 +171,9 @@ class AdminPanel {
         // Export buttons
         document.getElementById('btn-export-kml-all')?.addEventListener('click', () => this.exportKML());
         document.getElementById('btn-export-json-backup')?.addEventListener('click', () => this.exportJSON());
-        document.getElementById('btn-export-csv-hallazgos')?.addEventListener('click', () => this.exportCSV('hallazgos'));
-        document.getElementById('btn-export-csv-fragmentos')?.addEventListener('click', () => this.exportCSV('fragmentos'));
-        document.getElementById('btn-download-photos-all')?.addEventListener('click', () => this.downloadPhotos());
+        document.getElementById('btn-export-excel-hallazgos')?.addEventListener('click', () => this.exportExcel('hallazgos'));
+        document.getElementById('btn-export-excel-fragmentos')?.addEventListener('click', () => this.exportExcel('fragmentos'));
+        document.getElementById('btn-download-photos')?.addEventListener('click', () => this.downloadPhotosByFolder());
         document.getElementById('btn-download-complete')?.addEventListener('click', () => this.downloadComplete());
 
         // Filter-specific exports
@@ -383,6 +383,9 @@ class AdminPanel {
                 break;
             case 'shared-docs':
                 this.loadSharedDocs();
+                break;
+            case 'export':
+                this.loadExportFilters();
                 break;
         }
     }
@@ -1737,6 +1740,174 @@ class AdminPanel {
         } catch (error) {
             console.error('Error updating fragmento:', error);
             alert('❌ Error de conexión al actualizar');
+        }
+    }
+
+    // Export to Excel with embedded images
+    async exportExcel(type) {
+        try {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Fragmentos');
+
+            // Get data
+            const data = type === 'hallazgos' ? this.currentHallazgos : this.currentFragmentos;
+
+            if (!data || data.length === 0) {
+                alert('No hay datos para exportar. Por favor carga los datos primero.');
+                return;
+            }
+
+            // Configure columns based on type
+            if (type === 'hallazgos') {
+                worksheet.columns = [
+                    { header: 'Código', key: 'codigo', width: 15 },
+                    { header: 'Tipo Material', key: 'tipo_material', width: 20 },
+                    { header: 'Localidad', key: 'localidad', width: 20 },
+                    { header: 'Formación', key: 'formacion', width: 20 },
+                    { header: 'Carpeta', key: 'folder', width: 15 },
+                    { header: 'Latitud', key: 'lat', width: 12 },
+                    { header: 'Longitud', key: 'lng', width: 12 },
+                    { header: 'Observaciones', key: 'observaciones', width: 30 },
+                    { header: 'Colector', key: 'collector', width: 15 },
+                    { header: 'Fecha', key: 'fecha', width: 12 },
+                    { header: 'Foto', key: 'foto', width: 20 }
+                ];
+            } else {
+                worksheet.columns = [
+                    { header: 'Localidad', key: 'localidad', width: 20 },
+                    { header: 'Carpeta', key: 'folder', width: 15 },
+                    { header: 'Latitud', key: 'lat', width: 12 },
+                    { header: 'Longitud', key: 'lng', width: 12 },
+                    { header: 'Observaciones', key: 'observaciones', width: 30 },
+                    { header: 'Colector', key: 'collector', width: 15 },
+                    { header: 'Fecha', key: 'fecha', width: 12 },
+                    { header: 'Foto', key: 'foto', width: 20 }
+                ];
+            }
+
+            // Style header
+            worksheet.getRow(1).font = { bold: true, size: 12 };
+            worksheet.getRow(1).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF4CAF50' }
+            };
+
+            // Add data rows
+            let rowIndex = 2;
+            for (const item of data) {
+                const rowData = type === 'hallazgos' ? {
+                    codigo: item.codigo || '',
+                    tipo_material: item.tipo_material || '',
+                    localidad: item.localidad || '',
+                    formacion: item.formacion || '',
+                    folder: item.folder || '',
+                    lat: item.lat || '',
+                    lng: item.lng || '',
+                    observaciones: item.observaciones || '',
+                    collector: item.collector?.name || item.collector?.collectorId || '',
+                    fecha: item.fecha || ''
+                } : {
+                    localidad: item.localidad || '',
+                    folder: item.folder || '',
+                    lat: item.lat || '',
+                    lng: item.lng || '',
+                    observaciones: item.observaciones || '',
+                    collector: item.collector?.name || item.collector?.collectorId || '',
+                    fecha: item.fecha || ''
+                };
+
+                const row = worksheet.addRow(rowData);
+                row.height = 80; // Make rows taller for images
+
+                // Add image if exists
+                if (item.foto) {
+                    try {
+                        // Convert base64 to buffer
+                        const base64Data = item.foto.replace(/^data:image\/\w+;base64,/, '');
+                        const imageId = workbook.addImage({
+                            base64: base64Data,
+                            extension: 'jpeg',
+                        });
+
+                        // Add image to cell
+                        const colIndex = type === 'hallazgos' ? 11 : 8; // Last column
+                        worksheet.addImage(imageId, {
+                            tl: { col: colIndex - 1, row: rowIndex - 1 },
+                            ext: { width: 100, height: 75 }
+                        });
+                    } catch (error) {
+                        console.error('Error adding image to row:', error);
+                        row.getCell(type === 'hallazgos' ? 11 : 8).value = 'Error cargando imagen';
+                    }
+                }
+
+                rowIndex++;
+            }
+
+            // Generate Excel file
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${type}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            alert(`✅ Excel exportado exitosamente con ${data.length} registros`);
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            alert('❌ Error al exportar a Excel: ' + error.message);
+        }
+    }
+
+    // Load export filters (populate folder dropdown)
+    async loadExportFilters() {
+        try {
+            // Get all hallazgos and fragmentos to extract folders
+            const [hallazgosData, fragmentosData] = await Promise.all([
+                this.apiRequest('/api/admin/hallazgos'),
+                this.apiRequest('/api/admin/fragmentos')
+            ]);
+
+            // Extract unique folder names
+            const folders = new Set();
+            hallazgosData.data.forEach(h => {
+                if (h.folder) folders.add(h.folder);
+            });
+            fragmentosData.data.forEach(f => {
+                if (f.folder) folders.add(f.folder);
+            });
+
+            // Populate dropdown
+            const folderSelect = document.getElementById('filter-photos-folder');
+            if (folderSelect) {
+                folderSelect.innerHTML = '<option value="">Todas las carpetas</option>';
+                Array.from(folders).sort().forEach(folder => {
+                    const option = document.createElement('option');
+                    option.value = folder;
+                    option.textContent = folder;
+                    folderSelect.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading export filters:', error);
+        }
+    }
+
+    // Download photos by folder
+    async downloadPhotosByFolder() {
+        try {
+            const folder = document.getElementById('filter-photos-folder')?.value || '';
+            const params = new URLSearchParams();
+            if (folder) params.append('folder', folder);
+
+            // Call backend endpoint
+            this.downloadFile(`/api/admin/download/photos?${params}`, `fotos_${folder || 'todas'}_${new Date().toISOString().slice(0, 10)}.zip`);
+        } catch (error) {
+            console.error('Error downloading photos:', error);
+            alert('Error descargando fotos');
         }
     }
 
