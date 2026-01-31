@@ -1838,6 +1838,7 @@ class AdminPanel {
                 // Add image if exists
                 if (item.foto) {
                     try {
+                        console.log(`Processing image for ${type} at row ${rowIndex}, has foto:`, !!item.foto);
                         // Convert base64 to buffer
                         const base64Data = item.foto.replace(/^data:image\/\w+;base64,/, '');
                         const imageId = workbook.addImage({
@@ -1846,15 +1847,18 @@ class AdminPanel {
                         });
 
                         // Add image to cell
-                        const colIndex = type === 'hallazgos' ? 11 : 8; // Last column
+                        const colIndex = type === 'hallazgos' ? 10 : 7; // Photo column (0-indexed)
                         worksheet.addImage(imageId, {
-                            tl: { col: colIndex - 1, row: rowIndex - 1 },
+                            tl: { col: colIndex, row: rowIndex - 1 },
                             ext: { width: 100, height: 75 }
                         });
+                        console.log(`Image added successfully at col ${colIndex}, row ${rowIndex - 1}`);
                     } catch (error) {
                         console.error('Error adding image to row:', error);
                         row.getCell(type === 'hallazgos' ? 11 : 8).value = 'Error cargando imagen';
                     }
+                } else {
+                    console.log(`No foto for ${type} at row ${rowIndex}`);
                 }
 
                 rowIndex++;
