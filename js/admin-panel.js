@@ -480,7 +480,15 @@ class AdminPanel {
 
             const rawData = await this.apiRequest(`/api/admin/hallazgos?${params}`);
 
-            // Apply advanced filters
+            // Store for export and photo viewing
+            this.currentHallazgos = rawData.data;
+
+            if (rawData.data.length === 0) {
+                document.getElementById('hallazgos-table-body').innerHTML = '<tr><td colspan="9">No hay hallazgos</td></tr>';
+                return;
+            }
+
+            // Client-side filtering
             this.filterManager.setFilter('collector', collector);
             this.filterManager.setFilter('folder', folder);
             const filteredData = this.filterManager.applyFilters(rawData.data);
@@ -491,18 +499,16 @@ class AdminPanel {
             const tbody = document.getElementById('hallazgos-table-body');
 
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9">No hay hallazgos con los filtros aplicados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9">No hay resultados para los filtros aplicados</td></tr>';
                 return;
             }
-
-            // Store current data for editing
-            this.currentHallazgos = filteredData;
 
             tbody.innerHTML = filteredData.map(h => {
                 // Check for any of the photo fields (foto1, foto2, foto3)
                 const foto = h.foto1 || h.foto2 || h.foto3;
+                // Use ID for onclick to avoid passing massive base64 string
                 const fotoHTML = foto ?
-                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${foto.replace(/'/g, "&apos;")}', '${(h.codigo || 'Hallazgo').replace(/'/g, "&apos;")}')">` :
+                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${h.id}', 'hallazgo')">` :
                     '<span style="color:#999;">Sin foto</span>';
 
                 return `
@@ -549,14 +555,15 @@ class AdminPanel {
                 return;
             }
 
-            // Store current data for export
+            // Store current data for export and photos
             this.currentFragmentos = data.data;
 
             tbody.innerHTML = data.data.map(f => {
                 // Display photo if available
                 const foto = f.foto;
+                // Use ID for onclick
                 const fotoHTML = foto ?
-                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${foto.replace(/'/g, "&apos;")}', 'Fragmento - ${(f.folder || 'N/A').replace(/'/g, "&apos;")}')">` :
+                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')">` :
                     '<span style="color:#999;">Sin foto</span>';
 
                 return `
@@ -569,7 +576,7 @@ class AdminPanel {
           <td>${f.lat && f.lng ? `${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}` : 'N/A'}</td>
           <td>${f.observaciones || '-'}</td>
           <td>
-            ${foto ? `<button class="btn-icon" onclick="window.adminPanel.downloadPhoto('${foto.replace(/'/g, "&apos;")}', 'fragmento_${f.folder || 'img'}_${f.fecha || 'photo'}.jpg')" title="Descargar foto">📥</button>` : ''}
+            ${foto ? `<button class="btn-icon" onclick="window.adminPanel.downloadPhotoById('${f.id}', 'fragmento')" title="Descargar foto">📥</button>` : ''}
             <button class="btn-icon" onclick="window.adminPanel.editFragmento('${f.id}')" title="Editar">✏️</button>
           </td>
         </tr>
@@ -1442,6 +1449,72 @@ class AdminPanel {
         } catch (error) {
             console.error('Error exporting Excel with images:', error);
             alert('Error al exportar Excel: ' + error.message);
+        }
+    }
+
+    // View photo by ID (more efficient than passing base64 in HTML)
+    viewPhotoById(id, type) {
+        let item;
+        let title;
+        let foto;
+
+        if (type === 'hallazgo') {
+            item = this.currentHallazgos && this.currentHallazgos.find(h => String(h.id) === String(id));
+            if (item) {
+                foto = item.foto1 || item.foto2 || item.foto3;
+                title = item.codigo || 'Hallazgo';
+            }
+        } else if (type === 'fragmento') {
+            item = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(id));
+            if (item) {
+                foto = item.foto;
+                title = `Fragmento - ${item.folder}`;
+            }
+        }
+
+        if (foto) {
+            this.viewPhoto(foto, title);
+        } else {
+            alert('Foto no encontrada');
+        }
+    }
+
+    // View photo in modal
+    viewPhoto(base64, title) {
+        const modal = document.getElementById('modal-photo');
+        const img = document.getElementById('modal-photo-img');
+        const caption = document.getElementById('modal-photo-caption');
+
+        img.src = base64;
+        caption.textContent = title;
+        modal.style.display = 'block';
+    }
+
+    // Download photo by ID
+    downloadPhotoById(id, type) {
+        let item;
+        let filename;
+        let foto;
+
+        if (type === 'hallazgo') {
+            // Not implemented for hallazgo individual download yet, but preparing structure
+            item = this.currentHallazgos && this.currentHallazgos.find(h => String(h.id) === String(id));
+            if (item) {
+                foto = item.foto1 || item.foto2 || item.foto3;
+                filename = `hallazgo_${item.codigo}.jpg`;
+            }
+        } else if (type === 'fragmento') {
+            item = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(id));
+            if (item) {
+                foto = item.foto;
+                filename = `fragmento_${item.folder || 'img'}_${item.fecha || 'date'}.jpg`;
+            }
+        }
+
+        if (foto) {
+            this.downloadPhoto(foto, filename);
+        } else {
+            alert('Foto no encontrada para descargar');
         }
     }
 
