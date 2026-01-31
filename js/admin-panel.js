@@ -1675,29 +1675,68 @@ class AdminPanel {
         }
     }
 
-    // Edit fragmento (placeholder for future implementation)
+    // Edit fragmento
     editFragmento(fragmentoId) {
-        const fragmento = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(fragmentoId));
+        try {
+            // Buscar fragmento en los datos actuales
+            const fragmento = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(fragmentoId));
 
-        if (!fragmento) {
-            alert('Fragmento no encontrado');
-            return;
+            if (!fragmento) {
+                alert('Fragmento no encontrado');
+                return;
+            }
+
+            // Prellenar formulario
+            document.getElementById('edit-fragmento-id').value = fragmento.id;
+            document.getElementById('edit-fragmento-fecha').value = fragmento.fecha || '';
+            document.getElementById('edit-fragmento-localidad').value = fragmento.localidad || '';
+            document.getElementById('edit-fragmento-folder').value = fragmento.folder || '';
+            document.getElementById('edit-fragmento-lat').value = fragmento.lat || '';
+            document.getElementById('edit-fragmento-lng').value = fragmento.lng || '';
+            document.getElementById('edit-fragmento-observaciones').value = fragmento.observaciones || '';
+
+            // Abrir modal
+            document.getElementById('modal-edit-fragmento').style.display = 'flex';
+
+        } catch (error) {
+            console.error('Error editing fragmento:', error);
+            alert('Error al abrir editor');
         }
+    }
 
-        const info = `
-=== DATOS PARA EDICIÓN MANUAL ===
-ID: ${fragmento.id}
-Fecha: ${fragmento.fecha}
-Colector: ${fragmento.collectorId}
-Localidad: ${fragmento.localidad}
-Carpeta: ${fragmento.folder}
-Observaciones: ${fragmento.observaciones}
-Lat/Lng: ${fragmento.lat}, ${fragmento.lng}
+    // Handle edit fragmento form submission
+    async handleEditFragmento(e) {
+        e.preventDefault();
 
-* Copia estos datos si necesitas editarlos en la base de datos *
-(Edición completa en desarrollo)
-        `;
-        alert(info);
+        const fragmentoId = document.getElementById('edit-fragmento-id').value;
+
+        const updatedData = {
+            fecha: document.getElementById('edit-fragmento-fecha').value,
+            localidad: document.getElementById('edit-fragmento-localidad').value,
+            folder: document.getElementById('edit-fragmento-folder').value,
+            lat: parseFloat(document.getElementById('edit-fragmento-lat').value) || null,
+            lng: parseFloat(document.getElementById('edit-fragmento-lng').value) || null,
+            observaciones: document.getElementById('edit-fragmento-observaciones').value
+        };
+
+        try {
+            const response = await this.apiRequest(`/api/admin/fragmentos/${fragmentoId}`, {
+                method: 'PUT',
+                body: JSON.stringify(updatedData)
+            });
+
+            if (response.success) {
+                alert('✅ Fragmento actualizado exitosamente');
+                document.getElementById('modal-edit-fragmento').style.display = 'none';
+                this.loadFragmentos(); // Recargar tabla
+            } else {
+                alert('❌ Error al actualizar: ' + (response.error || 'Desconocido'));
+            }
+
+        } catch (error) {
+            console.error('Error updating fragmento:', error);
+            alert('❌ Error de conexión al actualizar');
+        }
     }
 
 
