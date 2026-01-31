@@ -676,6 +676,27 @@
         </div>
     </div>
 
+
+    </div>
+
+    <!-- Photo Viewer Modal -->
+    <div id="modal-photo-viewer" class="modal">
+        <div class="modal-content" style="max-width: 90%; max-height: 90vh;">
+            <div class="modal-header">
+                <h2 id="photo-viewer-title">Vista de Foto</h2>
+                <button class="btn-close"
+                    onclick="document.getElementById('modal-photo-viewer').style.display='none'">×</button>
+            </div>
+            <div style="text-align: center; padding: 20px; overflow: auto; max-height: 70vh;">
+                <img id="photo-viewer-image" src="" alt="Foto"
+                    style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary"
+                    onclick="document.getElementById('modal-photo-viewer').style.display='none'">Cerrar</button>
+                <button id="btn-download-photo" class="btn btn-primary">📥 Descargar Foto</button>
+            </div>
+        </div>
     </div>
 
     <!-- Leaflet JS -->
