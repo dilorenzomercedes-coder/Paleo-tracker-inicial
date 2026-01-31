@@ -1909,6 +1909,86 @@ class AdminPanel {
         }
     }
 
+    // View photo by ID in modal
+    viewPhotoById(id, type) {
+        try {
+            // Find the item in cached data
+            const data = type === 'hallazgo' ? this.currentHallazgos : this.currentFragmentos;
+            const item = data.find(i => i.id === id);
+
+            if (!item) {
+                alert('No se encontró el elemento');
+                return;
+            }
+
+            // Get the photo (hallazgos have foto1/2/3, fragmentos have foto)
+            const photo = type === 'hallazgo' ? (item.foto1 || item.foto2 || item.foto3) : item.foto;
+
+            if (!photo) {
+                alert('Este elemento no tiene foto');
+                return;
+            }
+
+            // Set modal content
+            document.getElementById('photo-viewer-title').textContent = type === 'hallazgo'
+                ? `Foto ${item.codigo || item.id}`
+                : `Foto ${item.localidad || item.id}`;
+            document.getElementById('photo-viewer-image').src = photo;
+
+            // Set download handler
+            const downloadBtn = document.getElementById('btn-download-photo');
+            downloadBtn.onclick = () => this.downloadPhoto(photo, type, item);
+
+            // Show modal
+            document.getElementById('modal-photo-viewer').style.display = 'flex';
+        } catch (error) {
+            console.error('Error viewing photo:', error);
+            alert('Error al ver la foto');
+        }
+    }
+
+    // Download individual photo
+    downloadPhoto(photoBase64, type, item) {
+        try {
+            // Create filename
+            const filename = type === 'hallazgo'
+                ? `hallazgo_${item.codigo || item.id}_${item.fecha || 'sin_fecha'}.jpg`
+                : `fragmento_${item.localidad || item.id}_${item.fecha || 'sin_fecha'}.jpg`;
+
+            // Convert base64 to blob
+            const base64Data = photoBase64.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+            const byteCharacters = atob(base64Data);
+            const byteArrays = [];
+
+            for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+                const slice = byteCharacters.slice(offset, offset + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let i = 0; i < slice.length; i++) {
+                    byteNumbers[i] = slice.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+
+            const blob = new Blob(byteArrays, { type: 'image/jpeg' });
+            const url = window.URL.createObjectURL(blob);
+
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+
+            // Cleanup
+            window.URL.revokeObjectURL(url);
+
+            console.log(`Photo downloaded: ${filename}`);
+        } catch (error) {
+            console.error('Error downloading photo:', error);
+            alert('Error al descargar la foto');
+        }
+    }
+
     // Download photos by folder
     async downloadPhotosByFolder() {
         try {
