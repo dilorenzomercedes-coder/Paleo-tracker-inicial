@@ -617,6 +617,63 @@
 
     </div>
 
+    <!-- Modal: Edit Fragmento -->
+    <div id="modal-edit-fragmento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Editar Fragmento</h2>
+                <button class="close-modal"
+                    onclick="document.getElementById('modal-edit-fragmento').style.display='none'">×</button>
+            </div>
+            <form id="form-edit-fragmento" onsubmit="adminPanel.handleEditFragmento(event)">
+                <input type="hidden" id="edit-fragmento-id">
+
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="edit-fragmento-fecha" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Localidad</label>
+                    <input type="text" id="edit-fragmento-localidad" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Carpeta</label>
+                    <input type="text" id="edit-fragmento-folder" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitud</label>
+                        <input type="number" id="edit-fragmento-lat" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitud</label>
+                        <input type="number" id="edit-fragmento-lng" step="any">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="edit-fragmento-observaciones" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('modal-edit-fragmento').style.display='none'">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
