@@ -147,10 +147,37 @@
                         </div>
                     </div>
 
-                    <div class="section">
-                        <h2>Actividad Reciente</h2>
-                        <div id="recent-activity" class="activity-list">
-                            <p class="loading">Cargando...</p>
+                    <!-- Charts Section -->
+                    <div class="charts-grid">
+                        <!-- Hallazgos por Carpeta -->
+                        <div class="chart-card">
+                            <h3>Hallazgos por Carpeta</h3>
+                            <canvas id="chart-por-carpeta"></canvas>
+                        </div>
+
+                        <!-- Tipos de Material -->
+                        <div class="chart-card">
+                            <h3>Tipos de Material</h3>
+                            <canvas id="chart-tipos-material"></canvas>
+                        </div>
+
+                        <!-- Tendencia Temporal -->
+                        <div class="chart-card chart-wide">
+                            <h3>Tendencia Temporal (Hallazgos por Mes)</h3>
+                            <canvas id="chart-temporal"></canvas>
+                        </div>
+
+                        <!-- Concentración por Localidad -->
+                        <div class="chart-card chart-wide">
+                            <h3>Concentración por Localidad</h3>
+                            <div style="margin-bottom: 15px;">
+                                <label for="filter-concentration-folder">Carpeta:</label>
+                                <select id="filter-concentration-folder" class="filter-select"
+                                    style="max-width: 300px;">
+                                    <option value="">Todas las carpetas</option>
+                                </select>
+                            </div>
+                            <canvas id="chart-concentracion"></canvas>
                         </div>
                     </div>
                 </div>
@@ -717,6 +744,9 @@
     <!-- ExcelJS for export with images -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <!-- Chart.js for statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <script src="js/admin-panel.js?v=9"></script>
 </body>
