@@ -169,7 +169,10 @@ class AdminPanel {
         });
 
         // Export buttons
-        document.getElementById('btn-export-kml-all')?.addEventListener('click', () => this.exportKML());
+        document.getElementById('btn-export-kml-all')?.addEventListener('click', () => {
+            const folder = document.getElementById('filter-kml-folder')?.value || '';
+            this.exportKML('', folder);
+        });
         document.getElementById('btn-export-json-backup')?.addEventListener('click', () => this.exportJSON());
         document.getElementById('btn-export-excel-hallazgos')?.addEventListener('click', () => this.exportExcel('hallazgos'));
         document.getElementById('btn-export-excel-fragmentos')?.addEventListener('click', () => this.exportExcel('fragmentos'));
@@ -1752,8 +1755,19 @@ class AdminPanel {
             // Always fetch fresh data from API to ensure photos are included
             console.log(`Fetching fresh ${type} data for Excel export...`);
             const response = await this.apiRequest(type === 'hallazgos' ? '/api/admin/hallazgos' : '/api/admin/fragmentos');
-            const data = response.data;
+            let data = response.data;
             console.log(`Fetched ${data.length} ${type}, first item has foto:`, !!data[0]?.foto);
+
+            // Get selected folder filter
+            const folderFilter = type === 'hallazgos'
+                ? document.getElementById('filter-excel-hallazgos-folder')?.value
+                : document.getElementById('filter-excel-fragmentos-folder')?.value;
+
+            // Filter by folder if selected
+            if (folderFilter) {
+                data = data.filter(item => item.folder === folderFilter);
+                console.log(`Filtered to ${data.length} ${type} in folder "${folderFilter}"`);
+            }
 
             if (!data || data.length === 0) {
                 alert('No hay datos para exportar.');
@@ -1893,17 +1907,28 @@ class AdminPanel {
                 if (f.folder) folders.add(f.folder);
             });
 
-            // Populate dropdown
-            const folderSelect = document.getElementById('filter-photos-folder');
-            if (folderSelect) {
-                folderSelect.innerHTML = '<option value="">Todas las carpetas</option>';
-                Array.from(folders).sort().forEach(folder => {
-                    const option = document.createElement('option');
-                    option.value = folder;
-                    option.textContent = folder;
-                    folderSelect.appendChild(option);
-                });
-            }
+            const sortedFolders = Array.from(folders).sort();
+
+            // Populate all folder dropdowns
+            const dropdowns = [
+                'filter-photos-folder',
+                'filter-kml-folder',
+                'filter-excel-hallazgos-folder',
+                'filter-excel-fragmentos-folder'
+            ];
+
+            dropdowns.forEach(dropdownId => {
+                const select = document.getElementById(dropdownId);
+                if (select) {
+                    select.innerHTML = '<option value="">Todas las carpetas</option>';
+                    sortedFolders.forEach(folder => {
+                        const option = document.createElement('option');
+                        option.value = folder;
+                        option.textContent = folder;
+                        select.appendChild(option);
+                    });
+                }
+            });
         } catch (error) {
             console.error('Error loading export filters:', error);
         }
