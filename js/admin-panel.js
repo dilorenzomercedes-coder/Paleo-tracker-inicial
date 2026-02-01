@@ -407,20 +407,34 @@ class AdminPanel {
             document.getElementById('stat-routes').textContent = stats.stats.totals.routes;
             document.getElementById('stat-collectors').textContent = stats.stats.totals.collectors;
 
-            // Recent activity
-            const activityContainer = document.getElementById('recent-activity');
-            if (stats.stats.recent.hallazgos.length > 0) {
-                activityContainer.innerHTML = stats.stats.recent.hallazgos.map(h => `
-          <div class="activity-item">
-            <span class="icon">📍</span>
-            <span><strong>${h.collector?.name || h.collector?.collectorId || 'Sin nombre'}</strong> registró un hallazgo en <strong>${h.localidad}</strong></span>
-          </div>
-        `).join('');
-            } else {
-                activityContainer.innerHTML = '<p class="loading">No hay actividad reciente</p>';
-            }
+            // Load charts
+            await this.loadChartsData();
         } catch (error) {
             console.error('Error loading overview:', error);
+        }
+    }
+
+    async loadChartsData() {
+        try {
+            // Fetch all data for charts
+            const [hallazgosRes, fragmentosRes] = await Promise.all([
+                this.apiRequest('/api/admin/hallazgos'),
+                this.apiRequest('/api/admin/fragmentos')
+            ]);
+
+            const hallazgos = hallazgosRes.data;
+            const fragmentos = fragmentosRes.data;
+
+            // Create charts
+            this.createHallazgosPorCarpetaChart(hallazgos);
+            this.createTipoMaterialChart(hallazgos);
+            this.createTendenciaTemporalChart(hallazgos);
+            this.createConcentracionChart(hallazgos, fragmentos);
+
+            // Populate concentration folder filter
+            this.populateConcentrationFolderFilter(hallazgos, fragmentos);
+        } catch (error) {
+            console.error('Error loading charts data:', error);
         }
     }
 
@@ -2029,6 +2043,254 @@ class AdminPanel {
         }
     }
 
+    // CHARTS FUNCTIONS
+
+    createHallazgosPorCarpetaChart(hallazgos) {
+        const ctx = document.getElementById('chart-por-carpeta');
+        if (!ctx) return;
+
+        // Group by folder
+        const byFolder = {};
+        hallazgos.forEach(h => {
+            const folder = h.folder || 'Sin carpeta';
+            byFolder[folder] = (byFolder[folder] || 0) + 1;
+        });
+
+        // Destroy previous chart if exists
+        if (this.chartPorCarpeta) {
+            this.chartPorCarpeta.destroy();
+        }
+
+        this.chartPorCarpeta = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(byFolder),
+                datasets: [{
+                    label: 'Hallazgos',
+                    data: Object.values(byFolder),
+                    backgroundColor: '#4A5D23',
+                    borderColor: '#3a4a1a',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+
+    createTipoMaterialChart(hallazgos) {
+        const ctx = document.getElementById('chart-tipos-material');
+        if (!ctx) return;
+
+        // Group by tipo_material
+        const byTipo = {};
+        hallazgos.forEach(h => {
+            const tipo = h.tipo_material || 'Sin especificar';
+            byTipo[tipo] = (byTipo[tipo] || 0) + 1;
+        });
+
+        // Destroy previous chart
+        if (this.chartTipoMaterial) {
+            this.chartTipoMaterial.destroy();
+        }
+
+        const colors = [
+            '#4A5D23', '#6B8E23', '#8FBC8F', '#556B2F', '#9ACD32',
+            '#6B7A3E', '#4F6128', '#7C8A5D', '#5F7033', '#98B060'
+        ];
+
+        this.chartTipoMaterial = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(byTipo),
+                datasets: [{
+                    data: Object.values(byTipo),
+                    backgroundColor: colors.slice(0, Object.keys(byTipo).length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+
+    createTendenciaTemporalChart(hallazgos) {
+        const ctx = document.getElementById('chart-temporal');
+        if (!ctx) return;
+
+        // Group by month
+        const byMonth = {};
+        hallazgos.forEach(h => {
+            if (h.fecha) {
+                const date = new Date(h.fecha);
+                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                byMonth[monthKey] = (byMonth[monthKey] || 0) + 1;
+            }
+        });
+
+        // Sort by date
+        const sortedMonths = Object.keys(byMonth).sort();
+        const labels = sortedMonths.map(m => {
+            const [year, month] = m.split('-');
+            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            return `${monthNames[parseInt(month) - 1]} ${year}`;
+        });
+
+        // Destroy previous chart
+        if (this.chartTemporal) {
+            this.chartTemporal.destroy();
+        }
+
+        this.chartTemporal = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Hallazgos por Mes',
+                    data: sortedMonths.map(m => byMonth[m]),
+                    borderColor: '#4A5D23',
+                    backgroundColor: 'rgba(74, 93, 35, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#4A5D23',
+                    pointRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+
+    createConcentracionChart(hallazgos, fragmentos) {
+        const ctx = document.getElementById('chart-concentracion');
+        if (!ctx) return;
+
+        // Store data for filtering
+        this.concentracionData = { hallazgos, fragmentos };
+
+        // Render with no filter initially
+        this.renderConcentracionChart('');
+    }
+
+    renderConcentracionChart(folderFilter) {
+        const ctx = document.getElementById('chart-concentracion');
+        if (!ctx || !this.concentracionData) return;
+
+        let { hallazgos, fragmentos } = this.concentracionData;
+
+        // Filter by folder if specified
+        if (folderFilter) {
+            hallazgos = hallazgos.filter(h => h.folder === folderFilter);
+            fragmentos = fragmentos.filter(f => f.folder === folderFilter);
+        }
+
+        // Count by localidad
+        const byLocalidad = {};
+        hallazgos.forEach(h => {
+            const loc = h.localidad || 'Sin localidad';
+            byLocalidad[loc] = (byLocalidad[loc] || 0) + 1;
+        });
+        fragmentos.forEach(f => {
+            const loc = f.localidad || 'Sin localidad';
+            byLocalidad[loc] = (byLocalidad[loc] || 0) + 1;
+        });
+
+        // Sort by count and take top 10
+        const sorted = Object.entries(byLocalidad)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+
+        const labels = sorted.map(e => e[0]);
+        const data = sorted.map(e => e[1]);
+
+        // Destroy previous chart
+        if (this.chartConcentracion) {
+            this.chartConcentracion.destroy();
+        }
+
+        this.chartConcentracion = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Total (Hallazgos + Fragmentos)',
+                    data: data,
+                    backgroundColor: '#6B8E23',
+                    borderColor: '#4A5D23',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+
+    populateConcentrationFolderFilter(hallazgos, fragmentos) {
+        const select = document.getElementById('filter-concentration-folder');
+        if (!select) return;
+
+        // Get unique folders
+        const folders = new Set();
+        hallazgos.forEach(h => { if (h.folder) folders.add(h.folder); });
+        fragmentos.forEach(f => { if (f.folder) folders.add(f.folder); });
+
+        // Populate dropdown
+        select.innerHTML = '<option value="">Todas las carpetas</option>';
+        Array.from(folders).sort().forEach(folder => {
+            const option = document.createElement('option');
+            option.value = folder;
+            option.textContent = folder;
+            select.appendChild(option);
+        });
+
+        // Add change listener
+        select.addEventListener('change', (e) => {
+            this.renderConcentracionChart(e.target.value);
+        });
+    }
 
 
 }
