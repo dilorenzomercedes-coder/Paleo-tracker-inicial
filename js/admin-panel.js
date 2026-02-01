@@ -2068,6 +2068,13 @@ class AdminPanel {
             this.chartPorCarpeta.destroy();
         }
 
+        // Multi-color palette for each folder
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384',
+            '#36A2EB', '#FFCE56', '#E7E9ED', '#FF6384', '#36A2EB'
+        ];
+
         this.chartPorCarpeta = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -2075,8 +2082,8 @@ class AdminPanel {
                 datasets: [{
                     label: 'Hallazgos',
                     data: Object.values(byFolder),
-                    backgroundColor: '#4A5D23',
-                    borderColor: '#3a4a1a',
+                    backgroundColor: colors.slice(0, Object.keys(byFolder).length),
+                    borderColor: colors.slice(0, Object.keys(byFolder).length),
                     borderWidth: 1
                 }]
             },
@@ -2100,6 +2107,24 @@ class AdminPanel {
         const ctx = document.getElementById('chart-tipos-material');
         if (!ctx) return;
 
+        // Store data for filtering
+        this.tipoMaterialData = hallazgos;
+
+        // Render with no filter initially
+        this.renderTipoMaterialChart('');
+    }
+
+    renderTipoMaterialChart(folderFilter) {
+        const ctx = document.getElementById('chart-tipos-material');
+        if (!ctx || !this.tipoMaterialData) return;
+
+        let hallazgos = this.tipoMaterialData;
+
+        // Filter by folder if specified
+        if (folderFilter) {
+            hallazgos = hallazgos.filter(h => h.folder === folderFilter);
+        }
+
         // Group by tipo_material
         const byTipo = {};
         hallazgos.forEach(h => {
@@ -2112,9 +2137,11 @@ class AdminPanel {
             this.chartTipoMaterial.destroy();
         }
 
+        // Vibrant multi-color palette
         const colors = [
-            '#4A5D23', '#6B8E23', '#8FBC8F', '#556B2F', '#9ACD32',
-            '#6B7A3E', '#4F6128', '#7C8A5D', '#5F7033', '#98B060'
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384',
+            '#36A2EB', '#FFCE56', '#E7E9ED', '#FF6384', '#36A2EB'
         ];
 
         this.chartTipoMaterial = new Chart(ctx, {
@@ -2246,6 +2273,12 @@ class AdminPanel {
             this.chartConcentracion.destroy();
         }
 
+        // Multi-color palette
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+        ];
+
         this.chartConcentracion = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -2253,8 +2286,8 @@ class AdminPanel {
                 datasets: [{
                     label: 'Total (Hallazgos + Fragmentos)',
                     data: data,
-                    backgroundColor: '#6B8E23',
-                    borderColor: '#4A5D23',
+                    backgroundColor: colors.slice(0, labels.length),
+                    borderColor: colors.slice(0, labels.length),
                     borderWidth: 1
                 }]
             },
@@ -2276,27 +2309,45 @@ class AdminPanel {
     }
 
     populateConcentrationFolderFilter(hallazgos, fragmentos) {
-        const select = document.getElementById('filter-concentration-folder');
-        if (!select) return;
-
         // Get unique folders
         const folders = new Set();
         hallazgos.forEach(h => { if (h.folder) folders.add(h.folder); });
         fragmentos.forEach(f => { if (f.folder) folders.add(f.folder); });
+        const sortedFolders = Array.from(folders).sort();
 
-        // Populate dropdown
-        select.innerHTML = '<option value="">Todas las carpetas</option>';
-        Array.from(folders).sort().forEach(folder => {
-            const option = document.createElement('option');
-            option.value = folder;
-            option.textContent = folder;
-            select.appendChild(option);
-        });
+        // Populate concentration folder filter
+        const selectConcentracion = document.getElementById('filter-concentration-folder');
+        if (selectConcentracion) {
+            selectConcentracion.innerHTML = '<option value="">Todas las carpetas</option>';
+            sortedFolders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder;
+                option.textContent = folder;
+                selectConcentracion.appendChild(option);
+            });
 
-        // Add change listener
-        select.addEventListener('change', (e) => {
-            this.renderConcentracionChart(e.target.value);
-        });
+            // Add change listener
+            selectConcentracion.addEventListener('change', (e) => {
+                this.renderConcentracionChart(e.target.value);
+            });
+        }
+
+        // Populate material folder filter
+        const selectMaterial = document.getElementById('filter-material-folder');
+        if (selectMaterial) {
+            selectMaterial.innerHTML = '<option value="">Todas las carpetas</option>';
+            sortedFolders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder;
+                option.textContent = folder;
+                selectMaterial.appendChild(option);
+            });
+
+            // Add change listener
+            selectMaterial.addEventListener('change', (e) => {
+                this.renderTipoMaterialChart(e.target.value);
+            });
+        }
     }
 
     // DOWNLOAD AND CUSTOMIZATION FUNCTIONS
