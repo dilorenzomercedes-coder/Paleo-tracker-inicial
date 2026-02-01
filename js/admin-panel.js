@@ -2327,16 +2327,21 @@ class AdminPanel {
         // Populate concentration folder filter
         const selectConcentracion = document.getElementById('filter-concentration-folder');
         if (selectConcentracion) {
-            selectConcentracion.innerHTML = '<option value="">Todas las carpetas</option>';
+            // Remove old listener by cloning
+            const newSelectConc = selectConcentracion.cloneNode(false);
+            selectConcentracion.parentNode.replaceChild(newSelectConc, selectConcentracion);
+
+            newSelectConc.innerHTML = '<option value="">Todas las carpetas</option>';
             sortedFolders.forEach(folder => {
                 const option = document.createElement('option');
                 option.value = folder;
                 option.textContent = folder;
-                selectConcentracion.appendChild(option);
+                newSelectConc.appendChild(option);
             });
 
             // Add change listener
-            selectConcentracion.addEventListener('change', (e) => {
+            newSelectConc.addEventListener('change', (e) => {
+                console.log('Concentration filter changed to:', e.target.value);
                 this.renderConcentracionChart(e.target.value);
             });
         }
@@ -2344,16 +2349,20 @@ class AdminPanel {
         // Populate material folder filter
         const selectMaterial = document.getElementById('filter-material-folder');
         if (selectMaterial) {
-            selectMaterial.innerHTML = '<option value="">Todas las carpetas</option>';
+            // Remove old listener by cloning
+            const newSelectMat = selectMaterial.cloneNode(false);
+            selectMaterial.parentNode.replaceChild(newSelectMat, selectMaterial);
+
+            newSelectMat.innerHTML = '<option value="">Todas las carpetas</option>';
             sortedFolders.forEach(folder => {
                 const option = document.createElement('option');
                 option.value = folder;
                 option.textContent = folder;
-                selectMaterial.appendChild(option);
+                newSelectMat.appendChild(option);
             });
 
             // Add change listener
-            selectMaterial.addEventListener('change', (e) => {
+            newSelectMat.addEventListener('change', (e) => {
                 this.renderTipoMaterialChart(e.target.value);
             });
         }
