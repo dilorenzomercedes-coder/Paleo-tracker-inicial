@@ -828,11 +828,41 @@ body {
     box-shadow: var(--shadow);
 }
 
-.chart-card h3 {
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.chart-header h3 {
     font-size: 16px;
     font-weight: 600;
     color: var(--primary-color);
-    margin-bottom: 20px;
+    margin: 0;
+}
+
+.chart-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.chart-controls label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--dark-text);
+}
+
+.chart-controls input[type="color"] {
+    width: 40px;
+    height: 32px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 .chart-card.chart-wide {
@@ -848,8 +878,18 @@ body {
     .charts-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .chart-card.chart-wide {
         grid-column: span 1;
+    }
+
+    .chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .chart-controls {
+        width: 100%;
+        justify-content: flex-start;
     }
 }
