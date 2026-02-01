@@ -2241,12 +2241,19 @@ class AdminPanel {
         const ctx = document.getElementById('chart-concentracion');
         if (!ctx || !this.concentracionData) return;
 
-        let { hallazgos, fragmentos } = this.concentracionData;
+        // Create copies to avoid mutating original data
+        let hallazgos = [...this.concentracionData.hallazgos];
+        let fragmentos = [...this.concentracionData.fragmentos];
 
-        // Filter by folder if specified
-        if (folderFilter) {
+        console.log('Rendering concentration chart with filter:', folderFilter);
+        console.log('Total hallazgos before filter:', hallazgos.length);
+        console.log('Total fragmentos before filter:', fragmentos.length);
+
+        // Filter by folder if specified (empty string means show all)
+        if (folderFilter && folderFilter !== '') {
             hallazgos = hallazgos.filter(h => h.folder === folderFilter);
             fragmentos = fragmentos.filter(f => f.folder === folderFilter);
+            console.log('After filtering by folder "' + folderFilter + '":', hallazgos.length, fragmentos.length);
         }
 
         // Count by localidad
@@ -2259,6 +2266,8 @@ class AdminPanel {
             const loc = f.localidad || 'Sin localidad';
             byLocalidad[loc] = (byLocalidad[loc] || 0) + 1;
         });
+
+        console.log('Localities count:', byLocalidad);
 
         // Sort by count and take top 10
         const sorted = Object.entries(byLocalidad)
