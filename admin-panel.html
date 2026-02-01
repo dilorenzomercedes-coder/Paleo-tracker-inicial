@@ -107,6 +107,10 @@
                         <span class="icon">⬇️</span>
                         <span>Exportar</span>
                     </a>
+                    <a href="#" class="menu-item" data-view="statistics">
+                        <span class="icon">📊</span>
+                        <span>Estadísticas</span>
+                    </a>
                 </nav>
             </aside>
 
@@ -144,40 +148,6 @@
                                 <h3 id="stat-collectors">0</h3>
                                 <p>Colectores</p>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Charts Section -->
-                    <div class="charts-grid">
-                        <!-- Hallazgos por Carpeta -->
-                        <div class="chart-card">
-                            <h3>Hallazgos por Carpeta</h3>
-                            <canvas id="chart-por-carpeta"></canvas>
-                        </div>
-
-                        <!-- Tipos de Material -->
-                        <div class="chart-card">
-                            <h3>Tipos de Material</h3>
-                            <canvas id="chart-tipos-material"></canvas>
-                        </div>
-
-                        <!-- Tendencia Temporal -->
-                        <div class="chart-card chart-wide">
-                            <h3>Tendencia Temporal (Hallazgos por Mes)</h3>
-                            <canvas id="chart-temporal"></canvas>
-                        </div>
-
-                        <!-- Concentración por Localidad -->
-                        <div class="chart-card chart-wide">
-                            <h3>Concentración por Localidad</h3>
-                            <div style="margin-bottom: 15px;">
-                                <label for="filter-concentration-folder">Carpeta:</label>
-                                <select id="filter-concentration-folder" class="filter-select"
-                                    style="max-width: 300px;">
-                                    <option value="">Todas las carpetas</option>
-                                </select>
-                            </div>
-                            <canvas id="chart-concentracion"></canvas>
                         </div>
                     </div>
                 </div>
@@ -506,6 +476,89 @@
                             <h3>Paquete Completo</h3>
                             <p>KML, Excel, fotos y documentos en un solo archivo</p>
                             <button id="btn-download-complete" class="btn btn-success">Descargar Todo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics View -->
+                <div id="view-statistics" class="view">
+                    <h1>Estadísticas</h1>
+
+                    <div class="charts-grid">
+                        <!-- Hallazgos por Carpeta -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Hallazgos por Carpeta</h3>
+                                <div class="chart-controls">
+                                    <label>Color:</label>
+                                    <input type="color" id="color-carpeta" value="#4A5D23" />
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-por-carpeta', 'hallazgos_por_carpeta')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('carpeta')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-por-carpeta"></canvas>
+                        </div>
+
+                        <!-- Tipos de Material -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Tipos de Material</h3>
+                                <div class="chart-controls">
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-tipos-material', 'tipos_de_material')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('material')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-tipos-material"></canvas>
+                        </div>
+
+                        <!-- Tendencia Temporal -->
+                        <div class="chart-card chart-wide">
+                            <div class="chart-header">
+                                <h3>Tendencia Temporal (Hallazgos por Mes)</h3>
+                                <div class="chart-controls">
+                                    <label>Color:</label>
+                                    <input type="color" id="color-temporal" value="#4A5D23" />
+                                    <label>Escala:</label>
+                                    <select id="scale-temporal" class="filter-select" style="width:100px;">
+                                        <option value="auto">Auto</option>
+                                        <option value="manual">Manual</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-temporal', 'tendencia_temporal')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('temporal')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-temporal"></canvas>
+                        </div>
+
+                        <!-- Concentración por Localidad -->
+                        <div class="chart-card chart-wide">
+                            <div class="chart-header">
+                                <h3>Concentración por Localidad</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-concentration-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <label>Color:</label>
+                                    <input type="color" id="color-concentracion" value="#6B8E23" />
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-concentracion', 'concentracion_localidad')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('concentracion')">📊
+                                        Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-concentracion"></canvas>
                         </div>
                     </div>
                 </div>
