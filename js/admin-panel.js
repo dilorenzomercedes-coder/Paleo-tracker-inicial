@@ -390,6 +390,9 @@ class AdminPanel {
             case 'export':
                 this.loadExportFilters();
                 break;
+            case 'statistics':
+                this.loadStatistics();
+                break;
         }
     }
 
@@ -406,12 +409,16 @@ class AdminPanel {
             document.getElementById('stat-fragmentos').textContent = stats.stats.totals.fragmentos;
             document.getElementById('stat-routes').textContent = stats.stats.totals.routes;
             document.getElementById('stat-collectors').textContent = stats.stats.totals.collectors;
-
-            // Load charts
-            await this.loadChartsData();
         } catch (error) {
             console.error('Error loading overview:', error);
         }
+    }
+
+    async loadStatistics() {
+        // Load charts data
+        await this.loadChartsData();
+        // Setup color change listeners
+        this.setupColorChangeListeners();
     }
 
     async loadChartsData() {
@@ -2290,6 +2297,178 @@ class AdminPanel {
         select.addEventListener('change', (e) => {
             this.renderConcentracionChart(e.target.value);
         });
+    }
+
+    // DOWNLOAD AND CUSTOMIZATION FUNCTIONS
+
+    downloadChartPNG(chartId, filename) {
+        const canvas = document.getElementById(chartId);
+        if (!canvas) {
+            alert('Gráfico no encontrado');
+            return;
+        }
+
+        try {
+            // Get chart instance
+            const chart = Chart.getChart(canvas);
+            if (!chart) {
+                alert('No se pudo obtener el gráfico');
+                return;
+            }
+
+            // Convert to PNG
+            const url = chart.toBase64Image();
+            const link = document.createElement('a');
+            link.download = `${filename}_${new Date().toISOString().slice(0, 10)}.png`;
+            link.href = url;
+            link.click();
+        } catch (error) {
+            console.error('Error downloading chart as PNG:', error);
+            alert('Error al descargar la imagen');
+        }
+    }
+
+    async downloadChartExcel(chartType) {
+        try {
+            let data, headers, rows, filename;
+
+            switch (chartType) {
+                case 'carpeta':
+                    // Hallazgos por Carpeta
+                    if (!this.chartPorCarpeta) {
+                        alert('Gráfico no disponible');
+                        return;
+                    }
+                    const carpetaData = this.chartPorCarpeta.data;
+                    headers = ['Carpeta', 'Cantidad'];
+                    rows = carpetaData.labels.map((label, i) => [label, carpetaData.datasets[0].data[i]]);
+                    filename = 'hallazgos_por_carpeta';
+                    break;
+
+                case 'material':
+                    // Tipos de Material
+                    if (!this.chartTipoMaterial) {
+                        alert('Gráfico no disponible');
+                        return;
+                    }
+                    const materialData = this.chartTipoMaterial.data;
+                    headers = ['Tipo Material', 'Cantidad'];
+                    rows = materialData.labels.map((label, i) => [label, materialData.datasets[0].data[i]]);
+                    filename = 'tipos_de_material';
+                    break;
+
+                case 'temporal':
+                    // Tendencia Temporal
+                    if (!this.chartTemporal) {
+                        alert('Gráfico no disponible');
+                        return;
+                    }
+                    const temporalData = this.chartTemporal.data;
+                    headers = ['Mes', 'Cantidad'];
+                    rows = temporalData.labels.map((label, i) => [label, temporalData.datasets[0].data[i]]);
+                    filename = 'tendencia_temporal';
+                    break;
+
+                case 'concentracion':
+                    // Concentración por Localidad
+                    if (!this.chartConcentracion) {
+                        alert('Gráfico no disponible');
+                        return;
+                    }
+                    const concentracionData = this.chartConcentracion.data;
+                    headers = ['Localidad', 'Total (Hallazgos + Fragmentos)'];
+                    rows = concentracionData.labels.map((label, i) => [label, concentracionData.datasets[0].data[i]]);
+                    filename = 'concentracion_localidad';
+                    break;
+
+                default:
+                    alert('Tipo de gráfico no reconocido');
+                    return;
+            }
+
+            // Create Excel file
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Datos');
+
+            // Add headers
+            worksheet.addRow(headers);
+            worksheet.getRow(1).font = { bold: true };
+
+            // Add data rows
+            rows.forEach(row => {
+                worksheet.addRow(row);
+            });
+
+            // Auto-fit columns
+            worksheet.columns.forEach(column => {
+                column.width = 20;
+            });
+
+            // Generate file
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${filename}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+        } catch (error) {
+            console.error('Error downloading Excel:', error);
+            alert('Error al descargar Excel');
+        }
+    }
+
+    setupColorChangeListeners() {
+        // Color for Hallazgos por Carpeta
+        const colorCarpeta = document.getElementById('color-carpeta');
+        if (colorCarpeta) {
+            colorCarpeta.addEventListener('change', (e) => {
+                if (this.chartPorCarpeta) {
+                    this.chartPorCarpeta.data.datasets[0].backgroundColor = e.target.value;
+                    this.chartPorCarpeta.data.datasets[0].borderColor = e.target.value;
+                    this.chartPorCarpeta.update();
+                }
+            });
+        }
+
+        // Color for Tendencia Temporal
+        const colorTemporal = document.getElementById('color-temporal');
+        if (colorTemporal) {
+            colorTemporal.addEventListener('change', (e) => {
+                if (this.chartTemporal) {
+                    this.chartTemporal.data.datasets[0].borderColor = e.target.value;
+                    this.chartTemporal.data.datasets[0].pointBackgroundColor = e.target.value;
+                    this.chartTemporal.data.datasets[0].backgroundColor = e.target.value + '1a'; // Add alpha
+                    this.chartTemporal.update();
+                }
+            });
+        }
+
+        // Color for Concentración
+        const colorConcentracion = document.getElementById('color-concentracion');
+        if (colorConcentracion) {
+            colorConcentracion.addEventListener('change', (e) => {
+                if (this.chartConcentracion) {
+                    this.chartConcentracion.data.datasets[0].backgroundColor = e.target.value;
+                    this.chartConcentracion.data.datasets[0].borderColor = e.target.value;
+                    this.chartConcentracion.update();
+                }
+            });
+        }
+
+        // Scale control for Temporal
+        const scaleTemporal = document.getElementById('scale-temporal');
+        if (scaleTemporal) {
+            scaleTemporal.addEventListener('change', (e) => {
+                if (this.chartTemporal) {
+                    const isAuto = e.target.value === 'auto';
+                    this.chartTemporal.options.scales.y.beginAtZero = isAuto;
+                    this.chartTemporal.update();
+                }
+            });
+        }
     }
 
 
