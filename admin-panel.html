@@ -587,13 +587,6 @@
                                         <option value="week">Semana</option>
                                         <option value="month" selected>Mes</option>
                                     </select>
-                                    <label>Colores:</label>
-                                    <select class="palette-selector" data-chart="temporal" style="width:100px;">
-                                        <option value="vibrant">Vibrante</option>
-                                        <option value="pastel">Pastel</option>
-                                        <option value="earth">Tierra</option>
-                                        <option value="ocean">Océano</option>
-                                    </select>
                                     <label>Escala:</label>
                                     <select id="scale-temporal" class="filter-select" style="width:100px;">
                                         <option value="auto">Auto</option>
@@ -870,6 +863,24 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
     <script src="js/admin-panel.js?v=9"></script>
+
+    <!-- Color Picker Modal -->
+    <div id="modal-color-picker" class="modal">
+        <div class="modal-content" style="max-width: 300px;">
+            <div class="modal-header">
+                <h2>Elegir Color</h2>
+                <button class="modal-close" data-close-modal="modal-color-picker">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="color-picker-label" style="margin-bottom: 15px; font-weight: bold;"></p>
+                <input type="color" id="color-picker-input" style="width: 100%; height: 50px; cursor: pointer;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close-modal="modal-color-picker">Cancelar</button>
+                <button id="btn-apply-color" class="btn btn-primary">Aplicar</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
