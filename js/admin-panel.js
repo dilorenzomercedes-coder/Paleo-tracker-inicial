@@ -2374,31 +2374,73 @@ class AdminPanel {
         const ctx = document.getElementById('chart-temporal');
         if (!ctx) return;
 
-        // Group by folder AND month
-        const byFolderAndMonth = {};
-        const allMonths = new Set();
+        // Store data
+        this.tendenciaTemporalData = hallazgos;
+
+        // Render with default period (month)
+        this.renderTendenciaTemporalChart('month');
+
+        // Add event listener for period selector
+        const periodSelector = document.getElementById('period-temporal');
+        if (periodSelector) {
+            const newSelector = periodSelector.cloneNode(true);
+            periodSelector.parentNode.replaceChild(newSelector, periodSelector);
+
+            newSelector.addEventListener('change', (e) => {
+                this.renderTendenciaTemporalChart(e.target.value);
+            });
+        }
+    }
+
+    renderTendenciaTemporalChart(period) {
+        const ctx = document.getElementById('chart-temporal');
+        if (!ctx || !this.tendenciaTemporalData) return;
+
+        const hallazgos = this.tendenciaTemporalData;
+
+        // Group by folder AND period
+        const byFolderAndPeriod = {};
+        const allPeriods = new Set();
 
         hallazgos.forEach(h => {
             if (h.fecha) {
                 const date = new Date(h.fecha);
-                const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                const folder = h.folder || 'Sin carpeta';
+                let periodKey;
 
-                allMonths.add(monthKey);
-
-                if (!byFolderAndMonth[folder]) {
-                    byFolderAndMonth[folder] = {};
+                if (period === 'day') {
+                    periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                } else if (period === 'week') {
+                    const onejan = new Date(date.getFullYear(), 0, 1);
+                    const weekNum = Math.ceil((((date - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+                    periodKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+                } else {
+                    periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
                 }
-                byFolderAndMonth[folder][monthKey] = (byFolderAndMonth[folder][monthKey] || 0) + 1;
+
+                const folder = h.folder || 'Sin carpeta';
+                allPeriods.add(periodKey);
+
+                if (!byFolderAndPeriod[folder]) {
+                    byFolderAndPeriod[folder] = {};
+                }
+                byFolderAndPeriod[folder][periodKey] = (byFolderAndPeriod[folder][periodKey] || 0) + 1;
             }
         });
 
-        // Sort months chronologically
-        const sortedMonths = Array.from(allMonths).sort();
-        const labels = sortedMonths.map(m => {
-            const [year, month] = m.split('-');
-            const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-            return `${monthNames[parseInt(month) - 1]} ${year}`;
+        // Sort periods chronologically
+        const sortedPeriods = Array.from(allPeriods).sort();
+        const labels = sortedPeriods.map(p => {
+            if (period === 'day') {
+                const [year, month, day] = p.split('-');
+                return `${day}/${month}/${year.substring(2)}`;
+            } else if (period === 'week') {
+                const [year, week] = p.split('-W');
+                return `S${week} ${year}`;
+            } else {
+                const [year, month] = p.split('-');
+                const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                return `${monthNames[parseInt(month) - 1]} ${year}`;
+            }
         });
 
         // Color palette for different folders
@@ -2412,9 +2454,9 @@ class AdminPanel {
         ];
 
         // Create a dataset for each folder
-        const datasets = Object.keys(byFolderAndMonth).map((folder, index) => {
+        const datasets = Object.keys(byFolderAndPeriod).map((folder, index) => {
             const colorSet = colors[index % colors.length];
-            const data = sortedMonths.map(month => byFolderAndMonth[folder][month] || 0);
+            const data = sortedPeriods.map(p => byFolderAndPeriod[folder][p] || 0);
 
             return {
                 label: folder,
