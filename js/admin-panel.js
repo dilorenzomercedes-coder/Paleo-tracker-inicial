@@ -120,6 +120,37 @@ class AdminPanel {
         // Initialize filter manager
         this.filterManager = new FilterManager();
 
+        // Define color palettes
+        this.colorPalettes = {
+            vibrant: [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                '#FF9F40', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'
+            ],
+            pastel: [
+                '#FFB3BA', '#BAE1FF', '#FFFFBA', '#BAFFC9', '#E0BBE4',
+                '#FFDFBA', '#C9E4DE', '#FFC8DD', '#BDE0FE', '#A0C4FF'
+            ],
+            earth: [
+                '#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F4A460',
+                '#BC8F8F', '#A0522D', '#C19A6B', '#E97451', '#DD7540'
+            ],
+            ocean: [
+                '#006994', '#00A8E1', '#00C2F9', '#66D3F9', '#99E1F9',
+                '#0077BE', '#48A9C5', '#72DDF7', '#0096C7', '#00B4D8'
+            ]
+        };
+
+        // Default palette for each chart
+        this.chartPalettes = {
+            carpeta: 'vibrant',
+            material: 'vibrant',
+            formacion: 'vibrant',
+            taxonomica: 'vibrant',
+            accion: 'vibrant',
+            temporal: 'vibrant',
+            concentration: 'vibrant'
+        };
+
         this.init();
     }
 
@@ -234,6 +265,112 @@ class AdminPanel {
         document.getElementById('form-edit-hallazgo')?.addEventListener('submit', (e) => {
             this.handleEditHallazgo(e);
         });
+
+        // Setup palette selectors
+        this.setupPaletteListeners();
+    }
+
+    setupPaletteListeners() {
+        document.querySelectorAll('.palette-selector').forEach(selector => {
+            selector.addEventListener('change', (e) => {
+                const chartName = e.target.dataset.chart;
+                const palette = e.target.value;
+
+                this.chartPalettes[chartName] = palette;
+
+                // Re-render the chart with new palette
+                switch (chartName) {
+                    case 'material':
+                        if (this.tipoMaterialData) {
+                            const folder = document.getElementById('filter-material-folder')?.value || '';
+                            this.renderTipoMaterialChart(folder);
+                        }
+                        break;
+                    case 'formacion':
+                        if (this.formacionData) {
+                            const folder = document.getElementById('filter-formacion-folder')?.value || '';
+                            this.renderFormacionGeologicaChart(folder);
+                        }
+                        break;
+                    case 'taxonomica':
+                        if (this.taxonomicaData) {
+                            const folder = document.getElementById('filter-taxonomica-folder')?.value || '';
+                            this.renderClasificacionTaxonomicaChart(folder);
+                        }
+                        break;
+                    case 'accion':
+                        if (this.accionData) {
+                            const folder = document.getElementById('filter-accion-folder')?.value || '';
+                            this.renderAccionChart(folder);
+                        }
+                        break;
+                    case 'temporal':
+                        if (this.tendenciaTemporalData) {
+                            const period = document.getElementById('period-temporal')?.value || 'month';
+                            this.renderTendenciaTemporalChart(period);
+                        }
+                        break;
+                }
+            });
+        });
+    }
+
+    openColorPicker(chartName, label, datasetIndex) {
+        // Store current selection
+        this.currentColorSelection = {
+            chartName,
+            label,
+            datasetIndex
+        };
+
+        // Set label text
+        document.getElementById('color-picker-label').textContent = `Color para: ${label}`;
+
+        // Get current color
+        let currentColor = '#FF6384'; // default
+        if (this.customChartColors && this.customChartColors[chartName] && this.customChartColors[chartName][label]) {
+            currentColor = this.customChartColors[chartName][label];
+        }
+
+        // Set color picker to current color
+        document.getElementById('color-picker-input').value = currentColor;
+
+        // Setup apply button
+        const applyBtn = document.getElementById('btn-apply-color');
+        const newApplyBtn = applyBtn.cloneNode(true);
+        applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
+
+        newApplyBtn.addEventListener('click', () => {
+            this.applyCustomColor();
+        });
+
+        // Show modal
+        this.openModal('modal-color-picker');
+    }
+
+    applyCustomColor() {
+        const color = document.getElementById('color-picker-input').value;
+        const { chartName, label, datasetIndex } = this.currentColorSelection;
+
+        // Initialize custom colors storage
+        if (!this.customChartColors) {
+            this.customChartColors = {};
+        }
+        if (!this.customChartColors[chartName]) {
+            this.customChartColors[chartName] = {};
+        }
+
+        // Store custom color
+        this.customChartColors[chartName][label] = color;
+
+        // Re-render chart with new color
+        if (chartName === 'temporal') {
+            const period = document.getElementById('period-temporal')?.value || 'month';
+            this.renderTendenciaTemporalChart(period);
+        }
+
+        // Close modal
+        this.closeModal('modal-color-picker');
     }
 
     showLogin() {
@@ -2460,15 +2597,20 @@ class AdminPanel {
             }
         });
 
-        // Color palette for different folders
-        const colors = [
-            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-            '#FF9F40', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'
-        ];
+        // Get selected color palette for temporal chart
+        const paletteKey = this.chartPalettes['temporal'] || 'vibrant';
+        const colors = this.colorPalettes[paletteKey];
 
         // Create a dataset for each folder (for stacked bar chart)
         const datasets = Object.keys(byFolderAndPeriod).map((folder, index) => {
-            const color = colors[index % colors.length];
+            // Check if there's a custom color for this folder
+            let color;
+            if (this.customChartColors && this.customChartColors['temporal'] && this.customChartColors['temporal'][folder]) {
+                color = this.customChartColors['temporal'][folder];
+            } else {
+                color = colors[index % colors.length];
+            }
+
             const data = sortedPeriods.map(p => byFolderAndPeriod[folder][p] || 0);
 
             return {
@@ -2497,7 +2639,17 @@ class AdminPanel {
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top'
+                        position: 'top',
+                        onClick: (e, legendItem, legend) => {
+                            // Open color picker for this legend item
+                            this.openColorPicker('temporal', legendItem.text, legendItem.datasetIndex);
+                        },
+                        onHover: (e) => {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: (e) => {
+                            e.native.target.style.cursor = 'default';
+                        }
                     },
                     tooltip: {
                         mode: 'index',
