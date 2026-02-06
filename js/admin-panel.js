@@ -2208,6 +2208,15 @@ class AdminPanel {
             byFormacion[formacion] = (byFormacion[formacion] || 0) + 1;
         });
 
+        console.log('=== FORMACIÓN GEOLÓGICA CHART ===');
+        console.log('Total hallazgos:', hallazgos.length);
+        if (hallazgos.length > 0) {
+            console.log('Sample hallazgo:', hallazgos[0]);
+            console.log('formacion values:', hallazgos.map(h => h.formacion).filter(Boolean));
+        }
+        console.log('Grouped by formacion:', byFormacion);
+
+
         if (this.chartFormacion) {
             this.chartFormacion.destroy();
         }
@@ -2261,6 +2270,15 @@ class AdminPanel {
             byTaxonomica[taxonomica] = (byTaxonomica[taxonomica] || 0) + 1;
         });
 
+        console.log('=== CLASIFICACIÓN TAXONÓMICA CHART ===');
+        console.log('Total hallazgos:', hallazgos.length);
+        if (hallazgos.length > 0) {
+            console.log('Sample hallazgo:', hallazgos[0]);
+            console.log('taxonomia values:', hallazgos.map(h => h.taxonomia).filter(Boolean));
+        }
+        console.log('Grouped by taxonomica:', byTaxonomica);
+
+
         if (this.chartTaxonomica) {
             this.chartTaxonomica.destroy();
         }
@@ -2313,6 +2331,15 @@ class AdminPanel {
             const accion = h.accion || 'Sin especificar';
             byAccion[accion] = (byAccion[accion] || 0) + 1;
         });
+
+        console.log('=== ACCIÓN CHART ===');
+        console.log('Total hallazgos:', hallazgos.length);
+        if (hallazgos.length > 0) {
+            console.log('Sample hallazgo:', hallazgos[0]);
+            console.log('accion values:', hallazgos.map(h => h.accion).filter(Boolean));
+        }
+        console.log('Grouped by accion:', byAccion);
+
 
         if (this.chartAccion) {
             this.chartAccion.destroy();
