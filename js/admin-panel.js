@@ -2185,22 +2185,62 @@ class AdminPanel {
         const ctx = document.getElementById('chart-temporal');
         if (!ctx) return;
 
-        // Group by month
-        const byMonth = {};
+        // Group by folder AND month
+        const byFolderAndMonth = {};
+        const allMonths = new Set();
+
         hallazgos.forEach(h => {
             if (h.fecha) {
                 const date = new Date(h.fecha);
                 const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-                byMonth[monthKey] = (byMonth[monthKey] || 0) + 1;
+                const folder = h.folder || 'Sin carpeta';
+
+                allMonths.add(monthKey);
+
+                if (!byFolderAndMonth[folder]) {
+                    byFolderAndMonth[folder] = {};
+                }
+                byFolderAndMonth[folder][monthKey] = (byFolderAndMonth[folder][monthKey] || 0) + 1;
             }
         });
 
-        // Sort by date
-        const sortedMonths = Object.keys(byMonth).sort();
+        // Sort months chronologically
+        const sortedMonths = Array.from(allMonths).sort();
         const labels = sortedMonths.map(m => {
             const [year, month] = m.split('-');
             const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
             return `${monthNames[parseInt(month) - 1]} ${year}`;
+        });
+
+        // Color palette for different folders
+        const colors = [
+            { border: '#FF6384', bg: 'rgba(255, 99, 132, 0.1)' },
+            { border: '#36A2EB', bg: 'rgba(54, 162, 235, 0.1)' },
+            { border: '#FFCE56', bg: 'rgba(255, 206, 86, 0.1)' },
+            { border: '#4BC0C0', bg: 'rgba(75, 192, 192, 0.1)' },
+            { border: '#9966FF', bg: 'rgba(153, 102, 255, 0.1)' },
+            { border: '#FF9F40', bg: 'rgba(255, 159, 64, 0.1)' },
+        ];
+
+        // Create a dataset for each folder
+        const datasets = Object.keys(byFolderAndMonth).map((folder, index) => {
+            const colorSet = colors[index % colors.length];
+            const data = sortedMonths.map(month => byFolderAndMonth[folder][month] || 0);
+
+            return {
+                label: folder,
+                data: data,
+                borderColor: colorSet.border,
+                backgroundColor: colorSet.bg,
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2,
+                pointBackgroundColor: colorSet.border,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            };
         });
 
         // Destroy previous chart
@@ -2212,23 +2252,20 @@ class AdminPanel {
             type: 'line',
             data: {
                 labels: labels,
-                datasets: [{
-                    label: 'Hallazgos por Mes',
-                    data: sortedMonths.map(m => byMonth[m]),
-                    borderColor: '#4A5D23',
-                    backgroundColor: 'rgba(74, 93, 35, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 2,
-                    pointBackgroundColor: '#4A5D23',
-                    pointRadius: 4
-                }]
+                datasets: datasets
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    }
                 },
                 scales: {
                     y: {
