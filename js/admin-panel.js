@@ -2241,14 +2241,25 @@ class AdminPanel {
     }
 
     createConcentracionChart(hallazgos, fragmentos) {
-        const ctx = document.getElementById('chart-concentracion');
-        if (!ctx) return;
+        // Store data for filtering
+        this.concentracionData = { hallazgos, fragmentos };
 
-        console.log('=== CREATING CONCENTRATION CHART (BY FOLDER) ===');
+        // Render with no filter initially (all folders)
+        this.renderConcentracionChart('');
+    }
+
+    renderConcentracionChart(folderFilter) {
+        const ctx = document.getElementById('chart-concentracion');
+        if (!ctx || !this.concentracionData) return;
+
+        const { hallazgos, fragmentos } = this.concentracionData;
+
+        console.log('=== RENDERING CONCENTRATION CHART (BY FOLDER) ===');
+        console.log('Filter:', folderFilter || 'ALL FOLDERS');
         console.log('Total hallazgos:', hallazgos.length);
         console.log('Total fragmentos:', fragmentos.length);
 
-        // Count by FOLDER (not locality)
+        // Count by FOLDER
         const byFolder = {};
         hallazgos.forEach(h => {
             const folder = h.folder || 'Sin carpeta';
@@ -2259,11 +2270,17 @@ class AdminPanel {
             byFolder[folder] = (byFolder[folder] || 0) + 1;
         });
 
-        console.log('Folders count:', byFolder);
+        console.log('All folders count:', byFolder);
 
-        // Sort by count and take all (no limit to 10)
-        const sorted = Object.entries(byFolder)
-            .sort((a, b) => b[1] - a[1]);
+        // Filter if specific folder selected
+        let foldersToShow = Object.entries(byFolder);
+        if (folderFilter && folderFilter !== '') {
+            foldersToShow = foldersToShow.filter(([folder, count]) => folder === folderFilter);
+            console.log('Filtered to show only:', folderFilter);
+        }
+
+        // Sort by count
+        const sorted = foldersToShow.sort((a, b) => b[1] - a[1]);
 
         const labels = sorted.map(e => e[0]);
         const data = sorted.map(e => e[1]);
@@ -2318,7 +2335,28 @@ class AdminPanel {
         fragmentos.forEach(f => { if (f.folder) folders.add(f.folder); });
         const sortedFolders = Array.from(folders).sort();
 
-        // Populate material folder filter ONLY
+        // Populate CONCENTRATION folder filter
+        const selectConcentracion = document.getElementById('filter-concentration-folder');
+        if (selectConcentracion) {
+            // Remove old listener by cloning
+            const newSelectConc = selectConcentracion.cloneNode(false);
+            selectConcentracion.parentNode.replaceChild(newSelectConc, selectConcentracion);
+
+            newSelectConc.innerHTML = '<option value="">Todas las carpetas</option>';
+            sortedFolders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder;
+                option.textContent = folder;
+                newSelectConc.appendChild(option);
+            });
+
+            // Add change listener
+            newSelectConc.addEventListener('change', (e) => {
+                this.renderConcentracionChart(e.target.value);
+            });
+        }
+
+        // Populate MATERIAL folder filter
         const selectMaterial = document.getElementById('filter-material-folder');
         if (selectMaterial) {
             // Remove old listener by cloning
