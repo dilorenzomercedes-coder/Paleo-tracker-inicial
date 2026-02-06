@@ -2382,7 +2382,6 @@ class AdminPanel {
 
         // Add event listener for period selector
         const periodSelector = document.getElementById('period-temporal');
-        console.log('Period selector found:', periodSelector);
 
         if (periodSelector) {
             // Remove existing listener
@@ -2390,28 +2389,24 @@ class AdminPanel {
 
             // Create new handler
             this.periodChangeHandler = (e) => {
-                console.log('Period changed to:', e.target.value);
                 this.renderTendenciaTemporalChart(e.target.value);
             };
 
             // Add listener
             periodSelector.addEventListener('change', this.periodChangeHandler);
-            console.log('Event listener added to period selector');
         }
     }
 
     renderTendenciaTemporalChart(period) {
-        console.log('=== RENDERING TEMPORAL CHART ===');
-        console.log('Period:', period);
-
         const ctx = document.getElementById('chart-temporal');
         if (!ctx || !this.tendenciaTemporalData) return;
 
         const hallazgos = this.tendenciaTemporalData;
 
-        // Group by folder AND period
+        // Group by folder AND period (day/week/month)
         const byFolderAndPeriod = {};
         const allPeriods = new Set();
+        const periodDates = {}; // Store actual dates for better labels
 
         hallazgos.forEach(h => {
             if (h.fecha) {
@@ -2420,12 +2415,21 @@ class AdminPanel {
 
                 if (period === 'day') {
                     periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                    periodDates[periodKey] = date;
                 } else if (period === 'week') {
+                    // Get week number and store the date of Monday of that week
                     const onejan = new Date(date.getFullYear(), 0, 1);
                     const weekNum = Math.ceil((((date - onejan) / 86400000) + onejan.getDay() + 1) / 7);
                     periodKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-                } else {
+
+                    // Calculate Monday of this week
+                    const dayOfWeek = date.getDay();
+                    const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+                    const monday = new Date(date.getFullYear(), date.getMonth(), diff);
+                    periodDates[periodKey] = monday;
+                } else { // month
                     periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    periodDates[periodKey] = new Date(date.getFullYear(), date.getMonth(), 1);
                 }
 
                 const folder = h.folder || 'Sin carpeta';
@@ -2442,12 +2446,14 @@ class AdminPanel {
         const sortedPeriods = Array.from(allPeriods).sort();
         const labels = sortedPeriods.map(p => {
             if (period === 'day') {
-                const [year, month, day] = p.split('-');
-                return `${day}/${month}/${year.substring(2)}`;
+                const d = periodDates[p];
+                return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
             } else if (period === 'week') {
-                const [year, week] = p.split('-W');
-                return `S${week} ${year}`;
-            } else {
+                const d = periodDates[p];
+                const endDate = new Date(d);
+                endDate.setDate(d.getDate() + 6);
+                return `${d.getDate()}/${d.getMonth() + 1} - ${endDate.getDate()}/${endDate.getMonth() + 1}`;
+            } else { // month
                 const [year, month] = p.split('-');
                 const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
                 return `${monthNames[parseInt(month) - 1]} ${year}`;
@@ -2456,32 +2462,21 @@ class AdminPanel {
 
         // Color palette for different folders
         const colors = [
-            { border: '#FF6384', bg: 'rgba(255, 99, 132, 0.1)' },
-            { border: '#36A2EB', bg: 'rgba(54, 162, 235, 0.1)' },
-            { border: '#FFCE56', bg: 'rgba(255, 206, 86, 0.1)' },
-            { border: '#4BC0C0', bg: 'rgba(75, 192, 192, 0.1)' },
-            { border: '#9966FF', bg: 'rgba(153, 102, 255, 0.1)' },
-            { border: '#FF9F40', bg: 'rgba(255, 159, 64, 0.1)' },
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'
         ];
 
-        // Create a dataset for each folder
+        // Create a dataset for each folder (for stacked bar chart)
         const datasets = Object.keys(byFolderAndPeriod).map((folder, index) => {
-            const colorSet = colors[index % colors.length];
+            const color = colors[index % colors.length];
             const data = sortedPeriods.map(p => byFolderAndPeriod[folder][p] || 0);
 
             return {
                 label: folder,
                 data: data,
-                borderColor: colorSet.border,
-                backgroundColor: colorSet.bg,
-                fill: true,
-                tension: 0.4,
-                borderWidth: 2,
-                pointBackgroundColor: colorSet.border,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                backgroundColor: color,
+                borderColor: color,
+                borderWidth: 1
             };
         });
 
@@ -2491,7 +2486,7 @@ class AdminPanel {
         }
 
         this.chartTemporal = new Chart(ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
                 labels: labels,
                 datasets: datasets
@@ -2502,15 +2497,23 @@ class AdminPanel {
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 15
-                        }
+                        position: 'top'
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
                     }
                 },
                 scales: {
+                    x: {
+                        stacked: true,
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
                     y: {
+                        stacked: true,
                         beginAtZero: true,
                         ticks: { stepSize: 1 }
                     }
