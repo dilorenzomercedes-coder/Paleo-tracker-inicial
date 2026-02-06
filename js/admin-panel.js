@@ -2382,17 +2382,28 @@ class AdminPanel {
 
         // Add event listener for period selector
         const periodSelector = document.getElementById('period-temporal');
-        if (periodSelector) {
-            const newSelector = periodSelector.cloneNode(true);
-            periodSelector.parentNode.replaceChild(newSelector, periodSelector);
+        console.log('Period selector found:', periodSelector);
 
-            newSelector.addEventListener('change', (e) => {
+        if (periodSelector) {
+            // Remove existing listener
+            periodSelector.removeEventListener('change', this.periodChangeHandler);
+
+            // Create new handler
+            this.periodChangeHandler = (e) => {
+                console.log('Period changed to:', e.target.value);
                 this.renderTendenciaTemporalChart(e.target.value);
-            });
+            };
+
+            // Add listener
+            periodSelector.addEventListener('change', this.periodChangeHandler);
+            console.log('Event listener added to period selector');
         }
     }
 
     renderTendenciaTemporalChart(period) {
+        console.log('=== RENDERING TEMPORAL CHART ===');
+        console.log('Period:', period);
+
         const ctx = document.getElementById('chart-temporal');
         if (!ctx || !this.tendenciaTemporalData) return;
 
