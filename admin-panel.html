@@ -519,6 +519,63 @@
                             <canvas id="chart-tipos-material"></canvas>
                         </div>
 
+                        <!-- Formación Geológica -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Formación Geológica</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-formacion-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-formacion', 'formacion_geologica')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('formacion')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-formacion"></canvas>
+                        </div>
+
+                        <!-- Clasificación Taxonómica -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Clasificación Taxonómica</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-taxonomica-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-taxonomica', 'clasificacion_taxonomica')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('taxonomica')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-taxonomica"></canvas>
+                        </div>
+
+                        <!-- Acción -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Acción</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-accion-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-accion', 'accion')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('accion')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-accion"></canvas>
+                        </div>
+
                         <!-- Tendencia Temporal -->
                         <div class="chart-card chart-wide">
                             <div class="chart-header">
