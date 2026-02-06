@@ -449,6 +449,9 @@ class AdminPanel {
             // Create charts
             this.createHallazgosPorCarpetaChart(hallazgos);
             this.createTipoMaterialChart(hallazgos);
+            this.createFormacionGeologicaChart(hallazgos);
+            this.createClasificacionTaxonomicaChart(hallazgos);
+            this.createAccionChart(hallazgos);
             this.createTendenciaTemporalChart(hallazgos);
             this.createConcentracionChart(hallazgos, fragmentos);
 
@@ -2181,6 +2184,165 @@ class AdminPanel {
         });
     }
 
+    // FORMACIÓN GEOLÓGICA CHART
+    createFormacionGeologicaChart(hallazgos) {
+        const ctx = document.getElementById('chart-formacion');
+        if (!ctx) return;
+
+        this.formacionData = hallazgos;
+        this.renderFormacionGeologicaChart('');
+    }
+
+    renderFormacionGeologicaChart(folderFilter) {
+        const ctx = document.getElementById('chart-formacion');
+        if (!ctx || !this.formacionData) return;
+
+        let hallazgos = this.formacionData;
+        if (folderFilter) {
+            hallazgos = hallazgos.filter(h => h.folder === folderFilter);
+        }
+
+        const byFormacion = {};
+        hallazgos.forEach(h => {
+            const formacion = h.formacion_geologica || 'Sin especificar';
+            byFormacion[formacion] = (byFormacion[formacion] || 0) + 1;
+        });
+
+        if (this.chartFormacion) {
+            this.chartFormacion.destroy();
+        }
+
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+        ];
+
+        this.chartFormacion = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(byFormacion),
+                datasets: [{
+                    data: Object.values(byFormacion),
+                    backgroundColor: colors.slice(0, Object.keys(byFormacion).length),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+    }
+
+    // CLASIFICACIÓN TAXONÓMICA CHART
+    createClasificacionTaxonomicaChart(hallazgos) {
+        const ctx = document.getElementById('chart-taxonomica');
+        if (!ctx) return;
+
+        this.taxonomicaData = hallazgos;
+        this.renderClasificacionTaxonomicaChart('');
+    }
+
+    renderClasificacionTaxonomicaChart(folderFilter) {
+        const ctx = document.getElementById('chart-taxonomica');
+        if (!ctx || !this.taxonomicaData) return;
+
+        let hallazgos = this.taxonomicaData;
+        if (folderFilter) {
+            hallazgos = hallazgos.filter(h => h.folder === folderFilter);
+        }
+
+        const byTaxonomica = {};
+        hallazgos.forEach(h => {
+            const taxonomica = h.clasificacion_taxonomica || 'Sin especificar';
+            byTaxonomica[taxonomica] = (byTaxonomica[taxonomica] || 0) + 1;
+        });
+
+        if (this.chartTaxonomica) {
+            this.chartTaxonomica.destroy();
+        }
+
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+        ];
+
+        this.chartTaxonomica = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(byTaxonomica),
+                datasets: [{
+                    data: Object.values(byTaxonomica),
+                    backgroundColor: colors.slice(0, Object.keys(byTaxonomica).length),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+    }
+
+    // ACCIÓN CHART
+    createAccionChart(hallazgos) {
+        const ctx = document.getElementById('chart-accion');
+        if (!ctx) return;
+
+        this.accionData = hallazgos;
+        this.renderAccionChart('');
+    }
+
+    renderAccionChart(folderFilter) {
+        const ctx = document.getElementById('chart-accion');
+        if (!ctx || !this.accionData) return;
+
+        let hallazgos = this.accionData;
+        if (folderFilter) {
+            hallazgos = hallazgos.filter(h => h.folder === folderFilter);
+        }
+
+        const byAccion = {};
+        hallazgos.forEach(h => {
+            const accion = h.accion || 'Sin especificar';
+            byAccion[accion] = (byAccion[accion] || 0) + 1;
+        });
+
+        if (this.chartAccion) {
+            this.chartAccion.destroy();
+        }
+
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+        ];
+
+        this.chartAccion = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(byAccion),
+                datasets: [{
+                    data: Object.values(byAccion),
+                    backgroundColor: colors.slice(0, Object.keys(byAccion).length),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { position: 'right' }
+                }
+            }
+        });
+    }
+
     createTendenciaTemporalChart(hallazgos) {
         const ctx = document.getElementById('chart-temporal');
         if (!ctx) return;
@@ -2413,6 +2575,63 @@ class AdminPanel {
                 this.renderTipoMaterialChart(e.target.value);
             });
         }
+
+        // Populate FORMACIÓN GEOLÓGICA folder filter
+        const selectFormacion = document.getElementById('filter-formacion-folder');
+        if (selectFormacion) {
+            const newSelectForm = selectFormacion.cloneNode(false);
+            selectFormacion.parentNode.replaceChild(newSelectForm, selectFormacion);
+
+            newSelectForm.innerHTML = '<option value="">Todas las carpetas</option>';
+            sortedFolders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder;
+                option.textContent = folder;
+                newSelectForm.appendChild(option);
+            });
+
+            newSelectForm.addEventListener('change', (e) => {
+                this.renderFormacionGeologicaChart(e.target.value);
+            });
+        }
+
+        // Populate CLASIFICACIÓN TAXONÓMICA folder filter
+        const selectTaxonomica = document.getElementById('filter-taxonomica-folder');
+        if (selectTaxonomica) {
+            const newSelectTax = selectTaxonomica.cloneNode(false);
+            selectTaxonomica.parentNode.replaceChild(newSelectTax, selectTaxonomica);
+
+            newSelectTax.innerHTML = '<option value="">Todas las carpetas</option>';
+            sortedFolders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder;
+                option.textContent = folder;
+                newSelectTax.appendChild(option);
+            });
+
+            newSelectTax.addEventListener('change', (e) => {
+                this.renderClasificacionTaxonomicaChart(e.target.value);
+            });
+        }
+
+        // Populate ACCIÓN folder filter
+        const selectAccion = document.getElementById('filter-accion-folder');
+        if (selectAccion) {
+            const newSelectAcc = selectAccion.cloneNode(false);
+            selectAccion.parentNode.replaceChild(newSelectAcc, selectAccion);
+
+            newSelectAcc.innerHTML = '<option value="">Todas las carpetas</option>';
+            sortedFolders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder;
+                option.textContent = folder;
+                newSelectAcc.appendChild(option);
+            });
+
+            newSelectAcc.addEventListener('change', (e) => {
+                this.renderAccionChart(e.target.value);
+            });
+        }
     }
 
     // DOWNLOAD AND CUSTOMIZATION FUNCTIONS
@@ -2495,6 +2714,42 @@ class AdminPanel {
                     headers = ['Localidad', 'Total (Hallazgos + Fragmentos)'];
                     rows = concentracionData.labels.map((label, i) => [label, concentracionData.datasets[0].data[i]]);
                     filename = 'concentracion_localidad';
+                    break;
+
+                case 'formacion':
+                    // Formación Geológica
+                    if (!this.chartFormacion) {
+                        alert('Gráfico no disponible');
+                        return;
+                    }
+                    const formacionData = this.chartFormacion.data;
+                    headers = ['Formación Geológica', 'Cantidad'];
+                    rows = formacionData.labels.map((label, i) => [label, formacionData.datasets[0].data[i]]);
+                    filename = 'formacion_geologica';
+                    break;
+
+                case 'taxonomica':
+                    // Clasificación Taxonómica
+                    if (!this.chartTaxonomica) {
+                        alert('Gráfico no disponible');
+                        return;
+                    }
+                    const taxonomicaData = this.chartTaxonomica.data;
+                    headers = ['Clasificación Taxonómica', 'Cantidad'];
+                    rows = taxonomicaData.labels.map((label, i) => [label, taxonomicaData.datasets[0].data[i]]);
+                    filename = 'clasificacion_taxonomica';
+                    break;
+
+                case 'accion':
+                    // Acción
+                    if (!this.chartAccion) {
+                        alert('Gráfico no disponible');
+                        return;
+                    }
+                    const accionData = this.chartAccion.data;
+                    headers = ['Acción', 'Cantidad'];
+                    rows = accionData.labels.map((label, i) => [label, accionData.datasets[0].data[i]]);
+                    filename = 'accion';
                     break;
 
                 default:
