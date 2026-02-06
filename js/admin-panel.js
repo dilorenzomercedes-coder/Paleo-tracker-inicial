@@ -2204,7 +2204,7 @@ class AdminPanel {
 
         const byFormacion = {};
         hallazgos.forEach(h => {
-            const formacion = h.formacion_geologica || 'Sin especificar';
+            const formacion = h.formacion || 'Sin especificar';
             byFormacion[formacion] = (byFormacion[formacion] || 0) + 1;
         });
 
@@ -2257,7 +2257,7 @@ class AdminPanel {
 
         const byTaxonomica = {};
         hallazgos.forEach(h => {
-            const taxonomica = h.clasificacion_taxonomica || 'Sin especificar';
+            const taxonomica = h.taxonomia || 'Sin especificar';
             byTaxonomica[taxonomica] = (byTaxonomica[taxonomica] || 0) + 1;
         });
 
