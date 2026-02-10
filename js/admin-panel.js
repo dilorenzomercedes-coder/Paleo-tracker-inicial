@@ -344,6 +344,21 @@ class AdminPanel {
             this.applyCustomColor();
         });
 
+        // Setup cancel and close buttons
+        const modal = document.getElementById('modal-color-picker');
+        const closeButtons = modal.querySelectorAll('[data-close-modal]');
+        closeButtons.forEach(btn => {
+            // Remove old listeners by cloning
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            // Add new listener
+            newBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.closeModal('modal-color-picker');
+            });
+        });
+
         // Show modal
         this.openModal('modal-color-picker');
     }
