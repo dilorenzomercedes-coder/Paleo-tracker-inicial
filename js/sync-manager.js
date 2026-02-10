@@ -35,12 +35,24 @@ class SyncManager {
         this.updateSyncStatus('syncing', 'Sincronizando...');
 
         try {
-            // Verificar conexión
+            // Verificar conexión (no bloqueante)
             const isOnline = await this.store.checkBackendConnection();
 
             if (!isOnline) {
-                this.updateSyncStatus('offline', 'Sin conexión');
-                return { success: false, error: 'Sin conexión al servidor' };
+                // Contar items pendientes
+                const stats = this.store.getSyncStats();
+                const totalPending = stats.pending.hallazgos + stats.pending.fragmentos +
+                    stats.pending.routes + stats.pending.documents;
+
+                if (totalPending === 0) {
+                    // No hay nada que sincronizar
+                    this.updateSyncStatus('offline', 'Sin conexión (sin datos pendientes)');
+                    return { success: true, message: 'No hay datos para sincronizar' };
+                } else {
+                    // Hay datos pendientes pero sin conexión
+                    this.updateSyncStatus('offline', `${totalPending} pendientes (sin conexión)`);
+                    return { success: false, error: 'Sin conexión - datos guardados localmente' };
+                }
             }
 
             // Sincronizar todos los datos pendientes
@@ -65,7 +77,7 @@ class SyncManager {
             }
         } catch (error) {
             console.error('Error en sincronización:', error);
-            this.updateSyncStatus('error', 'Error de sincronización');
+            this.updateSyncStatus('offline', 'Modo offline - datos locales');
             return { success: false, error: error.message };
         }
     }
