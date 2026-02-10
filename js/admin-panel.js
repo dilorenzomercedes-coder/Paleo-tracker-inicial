@@ -363,14 +363,104 @@ class AdminPanel {
         // Store custom color
         this.customChartColors[chartName][label] = color;
 
-        // Re-render chart with new color
-        if (chartName === 'temporal') {
+        // Re-render charts with filters to apply custom colors
+        if (chartName === 'temporal' && this.tendenciaTemporalData) {
             const period = document.getElementById('period-temporal')?.value || 'month';
             this.renderTendenciaTemporalChart(period);
+        } else if (chartName === 'material' && this.tipoMaterialData) {
+            const folderFilter = document.getElementById('filter-material-folder')?.value || '';
+            this.renderTipoMaterialChart(folderFilter);
+        } else if (chartName === 'formacion' && this.formacionData) {
+            const folderFilter = document.getElementById('filter-formacion-folder')?.value || '';
+            this.renderFormacionGeologicaChart(folderFilter);
+        } else if (chartName === 'taxonomica' && this.taxonomicaData) {
+            const folderFilter = document.getElementById('filter-taxonomica-folder')?.value || '';
+            this.renderClasificacionTaxonomicaChart(folderFilter);
+        } else if (chartName === 'accion' && this.accionData) {
+            const folderFilter = document.getElementById('filter-accion-folder')?.value || '';
+            this.renderAccionChart(folderFilter);
+        } else if (chartName === 'concentracion' && this.concentracionData) {
+            const folderFilter = document.getElementById('filter-concentration-folder')?.value || '';
+            this.renderConcentracionChart(folderFilter);
+        } else if (chartName === 'carpeta') {
+            // For bar charts without filters, update directly
+            const chartMap = {
+                carpeta: 'chart-por-carpeta'
+            };
+            const canvasId = chartMap[chartName];
+            if (canvasId) {
+                const canvas = document.getElementById(canvasId);
+                if (canvas) {
+                    const chartInstance = Chart.getChart(canvas);
+                    if (chartInstance) {
+                        // For bar charts, update the specific bar color
+                        const labelIndex = chartInstance.data.labels.indexOf(label);
+                        if (labelIndex !== -1 && chartInstance.data.datasets[0]) {
+                            chartInstance.data.datasets[0].backgroundColor[labelIndex] = color;
+                            chartInstance.data.datasets[0].borderColor[labelIndex] = color;
+                            chartInstance.update();
+                        }
+                    }
+                }
+            }
         }
 
         // Close modal
         this.closeModal('modal-color-picker');
+    }
+
+    // Helper function to enable color picking on any Chart.js instance
+    enableChartColorPicking(chartInstance, chartName) {
+        if (!chartInstance || !chartInstance.options) return;
+
+        // Add onClick to legend
+        if (!chartInstance.options.plugins) {
+            chartInstance.options.plugins = {};
+        }
+        if (!chartInstance.options.plugins.legend) {
+            chartInstance.options.plugins.legend = {};
+        }
+
+        chartInstance.options.plugins.legend.onClick = (e, legendItem, legend) => {
+            this.openColorPicker(chartName, legendItem.text, legendItem.datasetIndex);
+        };
+
+        chartInstance.options.plugins.legend.onHover = (e) => {
+            e.native.target.style.cursor = 'pointer';
+        };
+
+        chartInstance.options.plugins.legend.onLeave = (e) => {
+            e.native.target.style.cursor = 'default';
+        };
+
+        // Update the chart to apply new options
+        chartInstance.update();
+    }
+
+    // Function to make all existing charts color-pickable
+    makeAllChartsColorPickable() {
+        // This will be called after charts are created
+        setTimeout(() => {
+            const canvasElements = [
+                { id: 'chart-por-carpeta', name: 'carpeta' },
+                { id: 'chart-tipos-material', name: 'material' },
+                { id: 'chart-formacion', name: 'formacion' },
+                { id: 'chart-taxonomia', name: 'taxonomica' },
+                { id: 'chart-accion', name: 'accion' },
+                { id: 'chart-concentration', name: 'concentration' }
+            ];
+
+            canvasElements.forEach(({ id, name }) => {
+                const canvas = document.getElementById(id);
+                if (canvas) {
+                    // Use Chart.js V4 API to get chart instance
+                    const chartInstance = Chart.getChart(canvas);
+                    if (chartInstance) {
+                        this.enableChartColorPicking(chartInstance, name);
+                    }
+                }
+            });
+        }, 1000); // Increased timeout to ensure charts are loaded
     }
 
     showLogin() {
@@ -2229,15 +2319,21 @@ class AdminPanel {
             '#36A2EB', '#FFCE56', '#E7E9ED', '#FF6384', '#36A2EB'
         ];
 
+        // Apply custom colors if they exist
+        const folders = Object.keys(byFolder);
+        const backgroundColors = folders.map((folder, idx) =>
+            this.customChartColors?.carpeta?.[folder] || colors[idx % colors.length]
+        );
+
         this.chartPorCarpeta = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: Object.keys(byFolder),
+                labels: folders,
                 datasets: [{
                     label: 'Hallazgos',
                     data: Object.values(byFolder),
-                    backgroundColor: colors.slice(0, Object.keys(byFolder).length),
-                    borderColor: colors.slice(0, Object.keys(byFolder).length),
+                    backgroundColor: backgroundColors,
+                    borderColor: backgroundColors,
                     borderWidth: 1
                 }]
             },
@@ -2245,7 +2341,22 @@ class AdminPanel {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        onClick: (e, legendItem, legend) => {
+                            // Get the label (folder name) from x-axis labels
+                            const index = legendItem.index !== undefined ? legendItem.index : legendItem.datasetIndex;
+                            const label = legend.chart.data.labels[index];
+                            this.openColorPicker('carpeta', label, index);
+                        },
+                        onHover: (e) => {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: (e) => {
+                            e.native.target.style.cursor = 'default';
+                        }
+                    }
                 },
                 scales: {
                     y: {
@@ -2298,13 +2409,19 @@ class AdminPanel {
             '#36A2EB', '#FFCE56', '#E7E9ED', '#FF6384', '#36A2EB'
         ];
 
+        // Apply custom colors if they exist
+        const tipos = Object.keys(byTipo);
+        const backgroundColors = tipos.map((tipo, idx) =>
+            this.customChartColors?.material?.[tipo] || colors[idx % colors.length]
+        );
+
         this.chartTipoMaterial = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: Object.keys(byTipo),
+                labels: tipos,
                 datasets: [{
                     data: Object.values(byTipo),
-                    backgroundColor: colors.slice(0, Object.keys(byTipo).length),
+                    backgroundColor: backgroundColors,
                     borderWidth: 2,
                     borderColor: '#fff'
                 }]
@@ -2314,7 +2431,16 @@ class AdminPanel {
                 maintainAspectRatio: true,
                 plugins: {
                     legend: {
-                        position: 'right'
+                        position: 'right',
+                        onClick: (e, legendItem, legend) => {
+                            this.openColorPicker('material', legendItem.text, legendItem.index);
+                        },
+                        onHover: (e) => {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: (e) => {
+                            e.native.target.style.cursor = 'default';
+                        }
                     }
                 }
             }
@@ -2363,13 +2489,19 @@ class AdminPanel {
             '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
         ];
 
+        // Apply custom colors if they exist
+        const formaciones = Object.keys(byFormacion);
+        const backgroundColors = formaciones.map((formacion, idx) =>
+            this.customChartColors?.formacion?.[formacion] || colors[idx % colors.length]
+        );
+
         this.chartFormacion = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: Object.keys(byFormacion),
+                labels: formaciones,
                 datasets: [{
                     data: Object.values(byFormacion),
-                    backgroundColor: colors.slice(0, Object.keys(byFormacion).length),
+                    backgroundColor: backgroundColors,
                     borderWidth: 1
                 }]
             },
@@ -2377,7 +2509,18 @@ class AdminPanel {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { position: 'right' }
+                    legend: {
+                        position: 'right',
+                        onClick: (e, legendItem, legend) => {
+                            this.openColorPicker('formacion', legendItem.text, legendItem.index);
+                        },
+                        onHover: (e) => {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: (e) => {
+                            e.native.target.style.cursor = 'default';
+                        }
+                    }
                 }
             }
         });
@@ -2425,13 +2568,19 @@ class AdminPanel {
             '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
         ];
 
+        // Apply custom colors if they exist
+        const taxonomias = Object.keys(byTaxonomica);
+        const backgroundColors = taxonomias.map((taxonomica, idx) =>
+            this.customChartColors?.taxonomica?.[taxonomica] || colors[idx % colors.length]
+        );
+
         this.chartTaxonomica = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: Object.keys(byTaxonomica),
+                labels: taxonomias,
                 datasets: [{
                     data: Object.values(byTaxonomica),
-                    backgroundColor: colors.slice(0, Object.keys(byTaxonomica).length),
+                    backgroundColor: backgroundColors,
                     borderWidth: 1
                 }]
             },
@@ -2439,7 +2588,18 @@ class AdminPanel {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { position: 'right' }
+                    legend: {
+                        position: 'right',
+                        onClick: (e, legendItem, legend) => {
+                            this.openColorPicker('taxonomica', legendItem.text, legendItem.index);
+                        },
+                        onHover: (e) => {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: (e) => {
+                            e.native.target.style.cursor = 'default';
+                        }
+                    }
                 }
             }
         });
@@ -2487,13 +2647,19 @@ class AdminPanel {
             '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
         ];
 
+        // Apply custom colors if they exist
+        const acciones = Object.keys(byAccion);
+        const backgroundColors = acciones.map((accion, idx) =>
+            this.customChartColors?.accion?.[accion] || colors[idx % colors.length]
+        );
+
         this.chartAccion = new Chart(ctx, {
             type: 'pie',
             data: {
-                labels: Object.keys(byAccion),
+                labels: acciones,
                 datasets: [{
                     data: Object.values(byAccion),
-                    backgroundColor: colors.slice(0, Object.keys(byAccion).length),
+                    backgroundColor: backgroundColors,
                     borderWidth: 1
                 }]
             },
@@ -2501,7 +2667,18 @@ class AdminPanel {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { position: 'right' }
+                    legend: {
+                        position: 'right',
+                        onClick: (e, legendItem, legend) => {
+                            this.openColorPicker('accion', legendItem.text, legendItem.index);
+                        },
+                        onHover: (e) => {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: (e) => {
+                            e.native.target.style.cursor = 'default';
+                        }
+                    }
                 }
             }
         });
@@ -2733,6 +2910,11 @@ class AdminPanel {
             '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
         ];
 
+        // Apply custom colors if they exist
+        const backgroundColors = labels.map((label, idx) =>
+            this.customChartColors?.concentracion?.[label] || colors[idx % colors.length]
+        );
+
         this.chartConcentracion = new Chart(ctx, {
             type: 'bar',
             data: {
@@ -2740,8 +2922,8 @@ class AdminPanel {
                 datasets: [{
                     label: 'Total (Hallazgos + Fragmentos)',
                     data: data,
-                    backgroundColor: colors.slice(0, labels.length),
-                    borderColor: colors.slice(0, labels.length),
+                    backgroundColor: backgroundColors,
+                    borderColor: backgroundColors,
                     borderWidth: 1
                 }]
             },
@@ -2750,7 +2932,22 @@ class AdminPanel {
                 responsive: true,
                 maintainAspectRatio: true,
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        onClick: (e, legendItem, legend) => {
+                            // For horizontal bar chart, get label from y-axis
+                            const index = legendItem.index !== undefined ? legendItem.index : legendItem.datasetIndex;
+                            const label = legend.chart.data.labels[index];
+                            this.openColorPicker('concentracion', label, index);
+                        },
+                        onHover: (e) => {
+                            e.native.target.style.cursor = 'pointer';
+                        },
+                        onLeave: (e) => {
+                            e.native.target.style.cursor = 'default';
+                        }
+                    }
                 },
                 scales: {
                     x: {
