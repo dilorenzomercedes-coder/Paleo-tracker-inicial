@@ -2340,21 +2340,25 @@ class AdminPanel {
             options: {
                 responsive: true,
                 maintainAspectRatio: true,
+                // Click on bars to pick color
+                onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const element = activeElements[0];
+                        const index = element.index;
+                        const label = folders[index];
+                        this.openColorPicker('carpeta', label, index);
+                    }
+                },
+                onHover: (event, activeElements) => {
+                    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                },
                 plugins: {
                     legend: {
-                        display: true,
-                        position: 'top',
-                        onClick: (e, legendItem, legend) => {
-                            // Get the label (folder name) from x-axis labels
-                            const index = legendItem.index !== undefined ? legendItem.index : legendItem.datasetIndex;
-                            const label = legend.chart.data.labels[index];
-                            this.openColorPicker('carpeta', label, index);
-                        },
-                        onHover: (e) => {
-                            e.native.target.style.cursor = 'pointer';
-                        },
-                        onLeave: (e) => {
-                            e.native.target.style.cursor = 'default';
+                        display: false // Hide legend for this chart type
+                    },
+                    tooltip: {
+                        callbacks: {
+                            footer: () => 'Click para cambiar color'
                         }
                     }
                 },
@@ -2931,21 +2935,25 @@ class AdminPanel {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: true,
+                // Click on bars to pick color
+                onClick: (event, activeElements) => {
+                    if (activeElements.length > 0) {
+                        const element = activeElements[0];
+                        const index = element.index;
+                        const label = labels[index];
+                        this.openColorPicker('concentracion', label, index);
+                    }
+                },
+                onHover: (event, activeElements) => {
+                    event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'default';
+                },
                 plugins: {
                     legend: {
-                        display: true,
-                        position: 'top',
-                        onClick: (e, legendItem, legend) => {
-                            // For horizontal bar chart, get label from y-axis
-                            const index = legendItem.index !== undefined ? legendItem.index : legendItem.datasetIndex;
-                            const label = legend.chart.data.labels[index];
-                            this.openColorPicker('concentracion', label, index);
-                        },
-                        onHover: (e) => {
-                            e.native.target.style.cursor = 'pointer';
-                        },
-                        onLeave: (e) => {
-                            e.native.target.style.cursor = 'default';
+                        display: false // Hide legend for this chart type
+                    },
+                    tooltip: {
+                        callbacks: {
+                            footer: () => 'Click para cambiar color'
                         }
                     }
                 },
