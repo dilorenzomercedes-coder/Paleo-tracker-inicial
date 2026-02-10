@@ -520,12 +520,19 @@ class Store {
     // Verificar conexión con backend
     async checkBackendConnection() {
         try {
-            const response = await fetch(`${this.BACKEND_URL}/health`, {
-                method: 'GET',
-                signal: AbortSignal.timeout(5000) // 5 segundos timeout
+            // Use Promise.race for timeout instead of AbortSignal.timeout (not supported in old Android WebView)
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Timeout')), 5000);
             });
+
+            const fetchPromise = fetch(`${this.BACKEND_URL}/health`, {
+                method: 'GET'
+            });
+
+            const response = await Promise.race([fetchPromise, timeoutPromise]);
             return response.ok;
         } catch (error) {
+            console.error('Backend connection check failed:', error);
             return false;
         }
     }
