@@ -384,22 +384,23 @@ class AdminPanel {
             this.renderConcentracionChart(folderFilter);
         } else if (chartName === 'carpeta') {
             // For bar charts without filters, update directly
-            const chartMap = {
-                carpeta: 'chart-por-carpeta'
-            };
-            const canvasId = chartMap[chartName];
-            if (canvasId) {
-                const canvas = document.getElementById(canvasId);
-                if (canvas) {
-                    const chartInstance = Chart.getChart(canvas);
-                    if (chartInstance) {
-                        // For bar charts, update the specific bar color
-                        const labelIndex = chartInstance.data.labels.indexOf(label);
-                        if (labelIndex !== -1 && chartInstance.data.datasets[0]) {
-                            chartInstance.data.datasets[0].backgroundColor[labelIndex] = color;
-                            chartInstance.data.datasets[0].borderColor[labelIndex] = color;
-                            chartInstance.update();
-                        }
+            const canvas = document.getElementById('chart-por-carpeta');
+            if (canvas) {
+                const chartInstance = Chart.getChart(canvas);
+                if (chartInstance) {
+                    // For bar charts, update the specific bar color
+                    const labelIndex = chartInstance.data.labels.indexOf(label);
+                    if (labelIndex !== -1 && chartInstance.data.datasets[0]) {
+                        // Create new arrays to trigger Chart.js update
+                        const newBackgroundColors = [...chartInstance.data.datasets[0].backgroundColor];
+                        const newBorderColors = [...chartInstance.data.datasets[0].borderColor];
+
+                        newBackgroundColors[labelIndex] = color;
+                        newBorderColors[labelIndex] = color;
+
+                        chartInstance.data.datasets[0].backgroundColor = newBackgroundColors;
+                        chartInstance.data.datasets[0].borderColor = newBorderColors;
+                        chartInstance.update();
                     }
                 }
             }
