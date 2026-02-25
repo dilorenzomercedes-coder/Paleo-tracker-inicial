@@ -1249,3 +1249,37 @@ textarea {
 .hidden {
     display: none !important;
 }
+
+/* ── Floating Action Button: Parte Diario ─────────────────────────── */
+.fab-parte-diario {
+    position: fixed;
+    bottom: calc(var(--nav-height) + 20px);
+    right: 20px;
+    background: linear-gradient(135deg, #2c5e2e, #4c8c4a);
+    color: white;
+    border: none;
+    padding: 14px 22px;
+    border-radius: 30px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(44, 94, 46, 0.45);
+    z-index: 200;
+    display: none;
+    /* shown only when Docs tab is active */
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s, box-shadow 0.2s;
+    letter-spacing: 0.2px;
+}
+
+.fab-parte-diario:active {
+    transform: scale(0.96);
+    box-shadow: 0 2px 8px rgba(44, 94, 46, 0.3);
+}
+
+/* Show FAB only when Docs tab is active */
+#tab-documentacion.active~* .fab-parte-diario,
+#tab-documentacion.active .fab-parte-diario {
+    display: flex;
+}
