@@ -400,36 +400,29 @@
                     </div>
                 </div>
 
-                <!-- Partes Diarios View -->
+                                <!-- Partes Diarios View -->
                 <div id="view-partes-diarios" class="view">
                     <div class="view-header">
-                        <h1>📋 Partes Diarios</h1>
+                        <h1>&#128203; Partes Diarios</h1>
                         <div class="filters" style="display:flex; gap:8px; align-items:center;">
                             <select id="filter-partes-collector" class="filter-select">
                                 <option value="">Todos los colectores</option>
                             </select>
-                            <label for="import-partes-json" class="btn btn-primary btn-sm"
-                                style="cursor:pointer; margin:0;">
-                                📂 Importar JSON
+                            <label for="import-partes-json" class="btn btn-primary btn-sm" style="cursor:pointer; margin:0;">
+                                &#128194; Importar JSON
                             </label>
                             <input type="file" id="import-partes-json" accept=".json" style="display:none;">
-                            <button id="btn-limpiar-partes" class="btn btn-secondary btn-sm"
-                                title="Eliminar partes importados">
-                                🗑️ Limpiar
+                            <button id="btn-limpiar-partes" class="btn btn-secondary btn-sm" title="Eliminar partes importados">
+                                &#128465; Limpiar
                             </button>
                         </div>
                     </div>
-                    <div
-                        style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:0.88rem; color:#2e7d32;">
-                        💡 <strong>Cómo funciona:</strong> En la app, andá a Docs → Partes Diarios → tap "📤 Exportar".
-                        Eso descarga un archivo <code>.json</code>. Importalo acá para ver y descargar los partes como
-                        PDF.
-                    </div>
-                    <div id="partes-diarios-admin-grid"
-                        style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:20px;">
-                        <div
-                            style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">
-                            Importá un archivo JSON desde la app para ver los partes aquí.
+                    <p style="color:#666; margin-bottom:20px; font-size:0.88rem;">
+                        En la app, and&aacute; a Docs &rarr; Partes Diarios y toc&aacute;s Exportar. Descarg&aacute; el archivo .json e import&aacute;lo ac&aacute; para ver y descargar los partes como PDF.
+                    </p>
+                    <div id="partes-diarios-admin-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:16px;">
+                        <div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">
+                            Import&aacute; un archivo JSON desde la app para ver los partes aqu&iacute;.
                         </div>
                     </div>
                 </div>
@@ -920,13 +913,6 @@
         </div>
     </div>
 
-    <!-- Partes Diarios Lightbox -->
-    <div id="partes-lightbox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.88); z-index:9999; align-items:center; justify-content:center; flex-direction:column; padding:20px;">
-        <button id="partes-lightbox-close" style="position:absolute; top:16px; right:24px; background:none; border:none; color:white; font-size:2.4rem; cursor:pointer; line-height:1;">�</button>
-        <img id="partes-lightbox-img" src="" alt="Parte Diario" style="max-width:90vw; max-height:70vh; border-radius:10px; box-shadow:0 8px 40px rgba(0,0,0,0.6); object-fit:contain;">
-        <div id="partes-lightbox-meta" style="color:#eee; margin-top:16px; text-align:center; font-size:0.95rem; line-height:1.7; max-width:600px;"></div>
-        <button id="partes-lightbox-pdf" style="margin-top:16px; background:#2c5e2e; color:white; border:none; padding:12px 34px; border-radius:8px; font-size:1rem; font-weight:700; cursor:pointer;">?? Descargar PDF</button>
-    </div>
 </body>
 
 </html>
