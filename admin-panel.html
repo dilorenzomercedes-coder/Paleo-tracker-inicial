@@ -95,6 +95,10 @@
                         <span class="icon">📁</span>
                         <span>Carpetas</span>
                     </a>
+                    <a href="#" class="menu-item" data-view="partes-diarios">
+                        <span class="icon">📋</span>
+                        <span>Partes Diarios</span>
+                    </a>
                     <a href="#" class="menu-item" data-view="documents">
                         <span class="icon">📄</span>
                         <span>Documentos</span>
@@ -393,6 +397,40 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Partes Diarios View -->
+                <div id="view-partes-diarios" class="view">
+                    <div class="view-header">
+                        <h1>📋 Partes Diarios</h1>
+                        <div class="filters" style="display:flex; gap:8px; align-items:center;">
+                            <select id="filter-partes-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                            <label for="import-partes-json" class="btn btn-primary btn-sm"
+                                style="cursor:pointer; margin:0;">
+                                📂 Importar JSON
+                            </label>
+                            <input type="file" id="import-partes-json" accept=".json" style="display:none;">
+                            <button id="btn-limpiar-partes" class="btn btn-secondary btn-sm"
+                                title="Eliminar partes importados">
+                                🗑️ Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    <div
+                        style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:0.88rem; color:#2e7d32;">
+                        💡 <strong>Cómo funciona:</strong> En la app, andá a Docs → Partes Diarios → tap "📤 Exportar".
+                        Eso descarga un archivo <code>.json</code>. Importalo acá para ver y descargar los partes como
+                        PDF.
+                    </div>
+                    <div id="partes-diarios-admin-grid"
+                        style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:20px;">
+                        <div
+                            style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">
+                            Importá un archivo JSON desde la app para ver los partes aquí.
+                        </div>
                     </div>
                 </div>
 

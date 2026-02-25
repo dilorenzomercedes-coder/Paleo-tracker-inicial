@@ -431,6 +431,24 @@
           </div>
         </div>
 
+        <!-- Partes Diarios Section -->
+        <div class="section" id="partes-diarios-section" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            <span>📋</span> Partes Diarios
+            <span id="count-partes"
+              style="font-size: 0.8em; color: var(--text-muted); font-weight: normal; margin-left: auto;">0
+              partes</span>
+            <button id="btn-exportar-partes" class="btn-secondary btn-small"
+              style="font-size:0.78rem; padding:4px 10px; margin-left:8px;"
+              title="Exportar partes para enviar al admin">
+              📤 Exportar
+            </button>
+          </h3>
+          <div id="partes-diarios-list" class="data-list">
+            <div class="empty-state">No hay partes diarios registrados.</div>
+          </div>
+        </div>
+
         <!-- Personal Documents -->
         <div class="section">
           <h3 style="margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
@@ -511,6 +529,47 @@
             </form>
           </div>
         </div>
+
+        <!-- Floating Action Button: Parte Diario -->
+        <button id="btn-nuevo-parte" class="fab-parte-diario" title="Nuevo Parte Diario">
+          📋 Parte Diario
+        </button>
+
+        <!-- Parte Diario Modal -->
+        <div id="parte-diario-modal" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>📋 Nuevo Parte Diario</h3>
+              <button class="btn-close" id="btn-close-parte">&times;</button>
+            </div>
+            <form id="form-parte-diario">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" id="parte-fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea name="observaciones" id="parte-observaciones" rows="4"
+                  placeholder="Descripción de las actividades del día..."
+                  style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; resize:vertical; font-family:inherit;"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Foto del Parte</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto" accept="image/*" capture="environment" id="parte-foto-input">
+                  <label for="parte-foto-input" class="file-upload-label">
+                    <span class="icon">📷</span> Tomar / Seleccionar Foto
+                  </label>
+                </div>
+                <div id="parte-foto-preview" class="image-preview" style="margin-top:10px;"></div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">💾 Guardar Parte Diario</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
       </section>
 
     </main>
@@ -565,6 +624,7 @@
   <script src="js/ui.js?v=13"></script>
   <script src="js/map.js?v=13"></script>
   <script src="js/documentation.js?v=13"></script>
+  <script src="js/partes-diarios.js?v=1"></script>
   <script src="js/app.js?v=14"></script>
   <script src="js/migrate.js?v=13"></script>
 
