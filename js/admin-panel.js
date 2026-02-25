@@ -630,6 +630,9 @@ class AdminPanel {
             case 'shared-docs':
                 this.loadSharedDocs();
                 break;
+            case 'partes-diarios':
+                this.loadPartesAdmin();
+                break;
             case 'export':
                 this.loadExportFilters();
                 break;
@@ -970,6 +973,159 @@ class AdminPanel {
         } catch (error) {
             console.error('Error loading shared docs:', error);
         }
+    }
+
+    // ── Partes Diarios (local storage, read from collector device key) ──────
+    loadPartesAdmin() {
+        const grid = document.getElementById('partes-diarios-admin-grid');
+        const collectorFilter = document.getElementById('filter-partes-collector');
+        if (!grid) return;
+
+        // Wire up Import JSON input (once)
+        const importInput = document.getElementById('import-partes-json');
+        if (importInput && !importInput._wired) {
+            importInput._wired = true;
+            importInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    try {
+                        const imported = JSON.parse(ev.target.result);
+                        if (!Array.isArray(imported)) throw new Error('Formato inválido');
+                        // Merge with existing (avoid duplicates by id)
+                        const existing = this._getAdminPartes();
+                        const existingIds = new Set(existing.map(p => p.id));
+                        const newOnes = imported.filter(p => !existingIds.has(p.id));
+                        const merged = [...newOnes, ...existing];
+                        localStorage.setItem('admin_partes_diarios', JSON.stringify(merged));
+                        importInput.value = ''; // reset so same file can be re-imported
+                        this.loadPartesAdmin(); // re-render
+                        alert(`✅ ${newOnes.length} parte(s) importado(s) correctamente.`);
+                    } catch (err) {
+                        alert('❌ Error al leer el archivo. Asegurate de que sea un JSON válido exportado desde la app.');
+                    }
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        // Wire up Limpiar button (once)
+        const btnLimpiar = document.getElementById('btn-limpiar-partes');
+        if (btnLimpiar && !btnLimpiar._wired) {
+            btnLimpiar._wired = true;
+            btnLimpiar.addEventListener('click', () => {
+                if (confirm('¿Eliminar todos los partes importados del panel admin?')) {
+                    localStorage.removeItem('admin_partes_diarios');
+                    this.loadPartesAdmin();
+                }
+            });
+        }
+
+        // Read from admin-specific localStorage key
+        let partes = this._getAdminPartes();
+
+        // Populate collector filter
+        if (collectorFilter) {
+            const collectors = [...new Set(partes.map(p => p.collectorName || p.collectorId).filter(Boolean))];
+            const currentVal = collectorFilter.value;
+            collectorFilter.innerHTML = '<option value="">Todos los colectores</option>' +
+                collectors.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+            collectorFilter.onchange = () => this.loadPartesAdmin();
+        }
+
+        // Apply filter
+        const selectedCollector = collectorFilter ? collectorFilter.value : '';
+        const filtered = selectedCollector
+            ? partes.filter(p => (p.collectorName || p.collectorId) === selectedCollector)
+            : partes;
+
+        if (filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">Importá un archivo JSON desde la app para ver los partes aquí.</div>';
+            return;
+        }
+
+        grid.innerHTML = '';
+        filtered.forEach(parte => {
+            const card = document.createElement('div');
+            card.style.cssText = 'background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow:hidden; border:1px solid #eee;';
+            card.innerHTML = `
+                <img src="${parte.fotoData}" alt="Parte ${parte.fecha}"
+                    style="width:100%; height:180px; object-fit:cover; display:block;">
+                <div style="padding:14px;">
+                    <div style="font-weight:700; margin-bottom:4px;">📋 ${this.formatParteDate(parte.fecha)}</div>
+                    <div style="font-size:0.82rem; color:#666; margin-bottom:6px;">
+                        👤 ${parte.collectorName || parte.collectorId || 'Desconocido'}
+                    </div>
+                    ${parte.observaciones ? `<div style="font-size:0.85rem; color:#444; margin-bottom:10px; border-left:3px solid #4c8c4a; padding-left:8px;">${parte.observaciones}</div>` : ''}
+                    <button class="btn btn-primary btn-sm"
+                        style="width:100%; margin-top:4px;"
+                        onclick="adminPanel.downloadPartePDF(${JSON.stringify(parte).replace(/"/g, '&quot;')})">
+                        📥 Descargar PDF
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    _getAdminPartes() {
+        try { return JSON.parse(localStorage.getItem('admin_partes_diarios') || '[]'); } catch { return []; }
+    }
+
+    formatParteDate(dateStr) {
+        if (!dateStr) return '–';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    }
+
+    downloadPartePDF(parte) {
+        // Build a hidden printable window
+        const printWin = window.open('', '_blank', 'width=800,height=1000');
+        const fecha = this.formatParteDate(parte.fecha);
+        const collector = parte.collectorName || parte.collectorId || 'Desconocido';
+        const obs = parte.observaciones ? parte.observaciones.replace(/\n/g, '<br>') : '—';
+
+        printWin.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Parte Diario – ${fecha}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 30px; color: #222; }
+    .header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid #2c5e2e; padding-bottom: 16px; margin-bottom: 24px; }
+    .title { font-size: 1.6rem; font-weight: 700; color: #2c5e2e; margin: 0; }
+    .meta { font-size: 0.95rem; color: #555; margin-top: 4px; }
+    .photo { width: 100%; max-height: 60vh; object-fit: contain; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd; }
+    .section { margin-bottom: 16px; }
+    .label { font-size: 0.8rem; text-transform: uppercase; color: #888; letter-spacing: .5px; margin-bottom: 4px; }
+    .value { font-size: 1rem; color: #333; padding: 10px 14px; background: #f8f9fa; border-radius: 6px; }
+    .footer { border-top: 1px solid #ddd; padding-top: 12px; margin-top: 30px; font-size: 0.78rem; color: #999; text-align: center; }
+    @media print { body { padding: 10mm 15mm; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">📋 Parte Diario</div>
+      <div class="meta">Paleo Heritage · ${fecha} · ${collector}</div>
+    </div>
+  </div>
+  <img src="${parte.fotoData}" class="photo" alt="Foto del parte">
+  <div class="section">
+    <div class="label">Observaciones</div>
+    <div class="value">${obs}</div>
+  </div>
+  <div class="section">
+    <div class="label">Colector</div>
+    <div class="value">${collector}</div>
+  </div>
+  <div class="footer">Generado por Paleo Heritage Admin · ${new Date().toLocaleString()}</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`);
+        printWin.document.close();
     }
 
     async loadMap() {
