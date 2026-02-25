@@ -1035,6 +1035,9 @@ class AdminPanel {
         }
 
         // Apply filter
+        // Wire up lightbox controls (once)
+        this._setupLightbox();
+
         const selectedCollector = collectorFilter ? collectorFilter.value : '';
         const filtered = selectedCollector
             ? partes.filter(p => (p.collectorName || p.collectorId) === selectedCollector)
@@ -1045,29 +1048,55 @@ class AdminPanel {
             return;
         }
 
+        // Update grid to square-thumbnail layout
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+        grid.style.gap = '16px';
         grid.innerHTML = '';
+
         filtered.forEach(parte => {
-            const card = document.createElement('div');
-            card.style.cssText = 'background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.08); overflow:hidden; border:1px solid #eee;';
-            card.innerHTML = `
-                <img src="${parte.fotoData}" alt="Parte ${parte.fecha}"
-                    style="width:100%; height:180px; object-fit:cover; display:block;">
-                <div style="padding:14px;">
-                    <div style="font-weight:700; margin-bottom:4px;">📋 ${this.formatParteDate(parte.fecha)}</div>
-                    <div style="font-size:0.82rem; color:#666; margin-bottom:6px;">
-                        👤 ${parte.collectorName || parte.collectorId || 'Desconocido'}
-                    </div>
-                    ${parte.observaciones ? `<div style="font-size:0.85rem; color:#444; margin-bottom:10px; border-left:3px solid #4c8c4a; padding-left:8px;">${parte.observaciones}</div>` : ''}
-                    <button class="btn btn-primary btn-sm"
-                        style="width:100%; margin-top:4px;"
-                        onclick="adminPanel.downloadPartePDF(${JSON.stringify(parte).replace(/"/g, '&quot;')})">
-                        📥 Descargar PDF
-                    </button>
-                </div>
+            const thumb = document.createElement('div');
+            thumb.style.cssText = `
+                position:relative; border-radius:10px; overflow:hidden;
+                cursor:pointer; aspect-ratio:1;
+                box-shadow:0 2px 8px rgba(0,0,0,0.12);
+                background:#f0f0f0;
+                transition:transform 0.15s, box-shadow 0.15s;
             `;
-            grid.appendChild(card);
+            thumb.innerHTML = `
+                <img src="${parte.fotoData}" alt="Parte ${parte.fecha}"
+                    style="width:100%; height:100%; object-fit:cover; display:block;">
+            `;
+            thumb.addEventListener('mouseenter', () => { thumb.style.transform = 'scale(1.03)'; thumb.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)'; });
+            thumb.addEventListener('mouseleave', () => { thumb.style.transform = ''; thumb.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'; });
+            thumb.addEventListener('click', () => this._openLightbox(parte));
+            grid.appendChild(thumb);
         });
     }
+
+    _setupLightbox() { /* unused – we reuse photo-modal like Hallazgos */ }
+
+    _openLightbox(parte) {
+        const fecha = this.formatParteDate(parte.fecha);
+        const title = `📋 Parte del ${fecha} – ${parte.collectorName || parte.collectorId || ''}`;
+
+        // Reuse the same viewPhoto modal as Hallazgos
+        this.viewPhoto(parte.fotoData, title);
+
+        // Add/update PDF button in the modal actions (once)
+        let pdfBtn = document.getElementById('parte-pdf-btn');
+        const actions = document.querySelector('#photo-modal .modal-actions');
+        if (actions && !pdfBtn) {
+            pdfBtn = document.createElement('button');
+            pdfBtn.id = 'parte-pdf-btn';
+            pdfBtn.className = 'btn btn-success';
+            pdfBtn.textContent = '📥 Descargar PDF';
+            actions.prepend(pdfBtn);
+        }
+        if (pdfBtn) pdfBtn.onclick = () => this.downloadPartePDF(parte);
+    }
+
+    _closeLightbox() { this.closeModal('photo-modal'); }
+
 
     _getAdminPartes() {
         try { return JSON.parse(localStorage.getItem('admin_partes_diarios') || '[]'); } catch { return []; }
