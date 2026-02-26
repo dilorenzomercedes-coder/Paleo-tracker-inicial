@@ -265,6 +265,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetId = targetBtn.dataset.target;
             ui.switchTab(targetId);
 
+            // Show/hide floating "Parte Diario" button
+            const btnNuevoParte = document.getElementById('btn-nuevo-parte');
+            if (btnNuevoParte) {
+                btnNuevoParte.style.display = targetId === 'tab-documentacion' ? 'block' : 'none';
+            }
+
             if (targetId === 'tab-caminos') {
                 setTimeout(() => {
                     if (mapManager.map) {

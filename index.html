@@ -412,28 +412,51 @@
           <h2>Documentación</h2>
         </div>
 
-        <!-- Document Folders Grid -->
-        <div class="doc-folders-grid" id="doc-folders-root">
-          <!-- Cards for fixed folders -->
-          <div class="doc-folder-card" data-category="Permisos">
-            <span class="folder-icon">📋</span>
-            <h3>Permisos</h3>
-            <small id="count-permisos">0 archivos</small>
+        <!-- Documentos Compartidos por Admin -->
+        <div style="margin-bottom: 20px;">
+          <h3 style="font-size:1rem; color:var(--text-muted); margin-bottom:10px;">📤 Documentos Compartidos por
+            Administración</h3>
+          <div id="shared-documents-list">
+            <div class="empty-state">Cargando documentos compartidos...</div>
           </div>
-          <div class="doc-folder-card" data-category="ATS">
-            <span class="folder-icon">📋</span>
-            <h3>ATS</h3>
-            <small id="count-ats">0 archivos</small>
+        </div>
+
+        <!-- Partes Diarios -->
+        <div style="margin-bottom: 20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h3 style="font-size:1rem; color:var(--text-muted); margin:0;">📋 Partes Diarios</h3>
+            <span id="count-partes" style="font-size:0.8rem; color:var(--text-muted);">0 partes</span>
           </div>
-          <div class="doc-folder-card" data-category="IPCR">
-            <span class="folder-icon">📋</span>
-            <h3>IPCR</h3>
-            <small id="count-ipcr">0 archivos</small>
+          <div id="partes-diarios-list" class="data-list">
+            <div class="empty-state">No hay partes diarios registrados.</div>
           </div>
-          <div class="doc-folder-card" data-category="Alta Spot">
-            <span class="folder-icon">📋</span>
-            <h3>Alta Spot</h3>
-            <small id="count-altaspot">0 archivos</small>
+        </div>
+
+        <!-- Mis Documentos -->
+        <div>
+          <h3 style="font-size:1rem; color:var(--text-muted); margin-bottom:10px;">📁 Mis Documentos</h3>
+          <!-- Document Folders Grid -->
+          <div class="doc-folders-grid" id="doc-folders-root">
+            <div class="doc-folder-card" data-category="Permisos">
+              <span class="folder-icon">📋</span>
+              <h3>Permisos</h3>
+              <small id="count-permisos">0 archivos</small>
+            </div>
+            <div class="doc-folder-card" data-category="ATS">
+              <span class="folder-icon">📋</span>
+              <h3>ATS</h3>
+              <small id="count-ats">0 archivos</small>
+            </div>
+            <div class="doc-folder-card" data-category="IPCR">
+              <span class="folder-icon">📋</span>
+              <h3>IPCR</h3>
+              <small id="count-ipcr">0 archivos</small>
+            </div>
+            <div class="doc-folder-card" data-category="Alta Spot">
+              <span class="folder-icon">📋</span>
+              <h3>Alta Spot</h3>
+              <small id="count-altaspot">0 archivos</small>
+            </div>
           </div>
         </div>
 
@@ -478,7 +501,59 @@
             </form>
           </div>
         </div>
+
+        <!-- Botón flotante: Nuevo Parte Diario -->
+        <button id="btn-nuevo-parte" style="
+          position: fixed;
+          bottom: 90px;
+          right: 20px;
+          background: var(--primary, #4A5D23);
+          color: white;
+          border: none;
+          border-radius: 50px;
+          padding: 14px 20px;
+          font-size: 0.95rem;
+          font-weight: 600;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+          cursor: pointer;
+          z-index: 100;
+          display: none;
+        ">📋 Parte Diario</button>
+
       </section>
+
+      <!-- Modal: Nuevo Parte Diario -->
+      <div id="parte-diario-modal" class="form-overlay hidden">
+        <div class="form-card">
+          <div class="form-header">
+            <h3>📋 Nuevo Parte Diario</h3>
+            <button class="btn-close" id="btn-close-parte">&times;</button>
+          </div>
+          <form id="form-parte-diario">
+            <div class="form-group">
+              <label>Fecha</label>
+              <input type="date" name="fecha" required>
+            </div>
+            <div class="form-group">
+              <label>Foto del Parte <span style="color:red">*</span></label>
+              <div class="file-upload-wrapper">
+                <input type="file" name="foto" accept="image/*" capture="environment" id="parte-foto-input">
+                <label for="parte-foto-input" class="file-upload-label">
+                  <span class="icon">📷</span> Tomar / Subir Foto
+                </label>
+              </div>
+              <div id="parte-foto-preview"></div>
+            </div>
+            <div class="form-group">
+              <label>Observaciones (opcional)</label>
+              <textarea name="observaciones" rows="3" placeholder="Notas del día..."></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary full-width">💾 Guardar Parte Diario</button>
+            </div>
+          </form>
+        </div>
+      </div>
 
     </main>
 
@@ -547,11 +622,13 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
-  <script src="js/store.js?v=13"></script>
-  <script src="js/export.js?v=13"></script>
-  <script src="js/ui.js?v=13"></script>
-  <script src="js/map.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/store.js?v=14"></script>
+  <script src="js/export.js?v=14"></script>
+  <script src="js/ui.js?v=14"></script>
+  <script src="js/map.js?v=14"></script>
+  <script src="js/documentation.js?v=14"></script>
+  <script src="js/partes-diarios.js?v=14"></script>
+  <script src="js/app.js?v=14"></script>
 
   <script>
     // Repair Button Logic

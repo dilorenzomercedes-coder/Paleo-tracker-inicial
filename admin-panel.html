@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paleo Heritage - Panel de Administración</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <link rel="stylesheet" href="css/admin-styles.css">
+</head>
+
+<body>
+    <div id="app">
+
+        <!-- Login Screen -->
+        <div id="login-screen" class="screen active">
+            <div class="login-container">
+                <div class="login-card">
+                    <div class="login-header">
+                        <img src="public/logo paleo heritage.png" alt="Paleo Heritage" class="login-logo">
+                        <h1>Panel de Administración</h1>
+                        <p>Paleo Heritage</p>
+                    </div>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="username">Usuario</label>
+                            <input type="text" id="username" name="username" required autocomplete="username">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Contraseña</label>
+                            <input type="password" id="password" name="password" required
+                                autocomplete="current-password">
+                        </div>
+                        <div class="form-group">
+                            <label for="server-url">URL del Servidor</label>
+                            <input type="text" id="server-url" name="serverUrl"
+                                value="https://paleo-tracker-backend.onrender.com" required>
+                        </div>
+                        <div id="login-error" class="error-message" style="display: none;"></div>
+                        <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard-screen" class="screen">
+            <!-- Top Navigation -->
+            <nav class="top-nav">
+                <div class="nav-brand">
+                    <img src="public/logo paleo heritage.png" alt="Logo" class="nav-logo">
+                    <span class="nav-title">Paleo Heritage Admin</span>
+                </div>
+                <div class="nav-user">
+                    <span id="user-name">Admin</span>
+                    <button id="btn-logout" class="btn btn-secondary btn-sm">Cerrar Sesión</button>
+                </div>
+            </nav>
+
+            <!-- Side Navigation -->
+            <aside class="side-nav">
+                <nav class="side-menu">
+                    <a href="#" class="menu-item active" data-view="overview">
+                        <span class="icon">📊</span>
+                        <span>Resumen</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="collectors">
+                        <span class="icon">👥</span>
+                        <span>Colectores</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="hallazgos">
+                        <span class="icon">📍</span>
+                        <span>Hallazgos</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="fragmentos">
+                        <span class="icon">🦴</span>
+                        <span>Fragmentos</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="routes">
+                        <span class="icon">🗺️</span>
+                        <span>Rutas</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="map">
+                        <span class="icon">🌍</span>
+                        <span>Mapa</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="folders">
+                        <span class="icon">📁</span>
+                        <span>Carpetas</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="partes-diarios">
+                        <span class="icon">📋</span>
+                        <span>Partes Diarios</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="documents">
+                        <span class="icon">📄</span>
+                        <span>Documentos</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="shared-docs">
+                        <span class="icon">📤</span>
+                        <span>Docs Compartidos</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="export">
+                        <span class="icon">⬇️</span>
+                        <span>Exportar</span>
+                    </a>
+                    <a href="#" class="menu-item" data-view="statistics">
+                        <span class="icon">📊</span>
+                        <span>Estadísticas</span>
+                    </a>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="main-content">
+
+                <!-- Overview View -->
+                <div id="view-overview" class="view active">
+                    <h1>Resumen General</h1>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">📍</div>
+                            <div class="stat-content">
+                                <h3 id="stat-hallazgos">0</h3>
+                                <p>Hallazgos</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🦴</div>
+                            <div class="stat-content">
+                                <h3 id="stat-fragmentos">0</h3>
+                                <p>Fragmentos</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🗺️</div>
+                            <div class="stat-content">
+                                <h3 id="stat-routes">0</h3>
+                                <p>Rutas</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-content">
+                                <h3 id="stat-collectors">0</h3>
+                                <p>Colectores</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Collectors View -->
+                <div id="view-collectors" class="view">
+                    <div class="view-header">
+                        <h1>Colectores</h1>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Última Sync</th>
+                                    <th>Hallazgos</th>
+                                    <th>Fragmentos</th>
+                                    <th>Rutas</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="collectors-table-body">
+                                <tr>
+                                    <td colspan="7">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Hallazgos View -->
+                <div id="view-hallazgos" class="view">
+                    <div class="view-header">
+                        <h1>Hallazgos</h1>
+                        <div class="filters">
+                            <select id="filter-hallazgos-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                            <select id="filter-hallazgos-folder" class="filter-select">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <button id="btn-export-hallazgos-kml" class="btn btn-primary btn-sm">⬇️ KML</button>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Filters -->
+                    <div class="advanced-filters">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>🔍 Buscar</label>
+                                <input type="text" id="filter-hallazgos-search"
+                                    placeholder="Código, tipo, localidad, observaciones...">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>📅 Desde</label>
+                                <input type="date" id="filter-hallazgos-date-from">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>📅 Hasta</label>
+                                <input type="date" id="filter-hallazgos-date-to">
+                            </div>
+
+                            <div class="filter-group">
+                                <button class="btn btn-secondary btn-sm" id="btn-clear-hallazgos-filters">
+                                    × Limpiar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="filter-summary" id="filter-hallazgos-summary"></div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Foto</th>
+                                    <th>Fecha</th>
+                                    <th>Colector</th>
+                                    <th>Localidad</th>
+                                    <th>Carpeta</th>
+                                    <th>Tipo</th>
+                                    <th>Código</th>
+                                    <th>Coordenadas</th>
+                                    <th>Acciones</th>
+                                </tr>
+
+                            </thead>
+                            <tbody id="hallazgos-table-body">
+                                <tr>
+                                    <td colspan="9">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Fragmentos View -->
+                <div id="view-fragmentos" class="view">
+                    <div class="view-header">
+                        <h1>Fragmentos</h1>
+                        <div class="filters">
+                            <select id="filter-fragmentos-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                            <select id="filter-fragmentos-folder" class="filter-select">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <button id="btn-export-fragmentos-kml" class="btn btn-primary btn-sm">⬇️ KML</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Foto</th>
+                                    <th>Fecha</th>
+                                    <th>Colector</th>
+                                    <th>Localidad</th>
+                                    <th>Carpeta</th>
+                                    <th>Coordenadas</th>
+                                    <th>Observaciones</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fragmentos-table-body">
+                                <tr>
+                                    <td colspan="6">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Routes View -->
+                <div id="view-routes" class="view">
+                    <div class="view-header">
+                        <h1>Rutas</h1>
+                        <div class="filters">
+                            <select id="filter-routes-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>Colector</th>
+                                    <th>Fecha Creación</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="routes-table-body">
+                                <tr>
+                                    <td colspan="4">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Map View -->
+                <div id="view-map" class="view">
+                    <div class="view-header">
+                        <h1>Mapa Interactivo</h1>
+                        <div class="filters">
+                            <select id="filter-map-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                            <select id="filter-map-folder" class="filter-select">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <div style="display:inline-block;margin-left:10px;">
+                                <label><input type="checkbox" id="map-show-hallazgos" checked> Hallazgos</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos"
+                                        checked> Fragmentos</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-routes" checked>
+                                    Rutas</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="admin-map" style="height:600px;width:100%;border-radius:8px;"></div>
+                </div>
+
+                <!-- Folders View -->
+                <div id="view-folders" class="view">
+                    <div class="view-header">
+                        <h1>Carpetas / Sitios</h1>
+                        <div class="filters">
+                            <select id="filter-folders-sort" class="filter-select">
+                                <option value="name">Por Nombre</option>
+                                <option value="count">Por Cantidad</option>
+                                <option value="activity">Por Actividad</option>
+                            </select>
+                            <input type="text" id="filter-folders-search" class="filter-select"
+                                placeholder="Buscar carpeta..." style="width:200px;">
+                        </div>
+                    </div>
+                    <div id="folders-grid" class="folders-grid">
+                        <div style="grid-column: 1/-1; text-align:center; padding:40px; color:#999;">
+                            Cargando carpetas...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents View -->
+                <div id="view-documents" class="view">
+                    <div class="view-header">
+                        <h1>Documentos de Colectores</h1>
+                        <div class="filters">
+                            <select id="filter-documents-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                            <select id="filter-documents-category" class="filter-select">
+                                <option value="">Todas las categorías</option>
+                                <option value="Permisos">Permisos</option>
+                                <option value="ATS">ATS</option>
+                                <option value="IPCR">IPCR</option>
+                                <option value="Alta Spot">Alta Spot</option>
+                            </select>
+                            <button id="btn-download-documents-zip" class="btn btn-primary btn-sm">⬇️ ZIP</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Título</th>
+                                    <th>Categoría</th>
+                                    <th>Colector</th>
+                                    <th>Fecha</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documents-table-body">
+                                <tr>
+                                    <td colspan="5">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                                <!-- Partes Diarios View -->
+                <div id="view-partes-diarios" class="view">
+                    <div class="view-header">
+                        <h1>&#128203; Partes Diarios</h1>
+                        <div class="filters" style="display:flex; gap:8px; align-items:center;">
+                            <select id="filter-partes-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                            <label for="import-partes-json" class="btn btn-primary btn-sm" style="cursor:pointer; margin:0;">
+                                &#128194; Importar JSON
+                            </label>
+                            <input type="file" id="import-partes-json" accept=".json" style="display:none;">
+                            <button id="btn-limpiar-partes" class="btn btn-secondary btn-sm" title="Eliminar partes importados">
+                                &#128465; Limpiar
+                            </button>
+                        </div>
+                    </div>
+                    <p style="color:#666; margin-bottom:20px; font-size:0.88rem;">
+                        En la app, and&aacute; a Docs &rarr; Partes Diarios y toc&aacute;s Exportar. Descarg&aacute; el archivo .json e import&aacute;lo ac&aacute; para ver y descargar los partes como PDF.
+                    </p>
+                    <div id="partes-diarios-admin-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:16px;">
+                        <div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">
+                            Import&aacute; un archivo JSON desde la app para ver los partes aqu&iacute;.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shared Documents View -->
+                <div id="view-shared-docs" class="view">
+                    <div class="view-header">
+                        <h1>Documentos Compartidos</h1>
+                        <button id="btn-add-shared-doc" class="btn btn-primary">+ Nuevo Documento</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Título</th>
+                                    <th>Categoría</th>
+                                    <th>Descripción</th>
+                                    <th>Fecha</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shared-docs-table-body">
+                                <tr>
+                                    <td colspan="6">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Export View -->
+                <div id="view-export" class="view">
+                    <h1>Exportar Datos</h1>
+                    <div class="export-grid">
+                        <div class="export-card">
+                            <div class="export-icon">📍</div>
+                            <h3>Exportar KML Completo</h3>
+                            <p>Todos los hallazgos, fragmentos y rutas en formato KML</p>
+                            <select id="filter-kml-folder" class="filter-select" style="margin-bottom:10px;">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <button id="btn-export-kml-all" class="btn btn-primary">Descargar KML</button>
+                        </div>
+                        <div class="export-card">
+                            <div class="export-icon">📦</div>
+                            <h3>Backup Completo (JSON)</h3>
+                            <p>Respaldo completo de la base de datos en formato JSON</p>
+                            <button id="btn-export-json-backup" class="btn btn-primary">Descargar JSON</button>
+                        </div>
+                        <div class="export-card">
+                            <div class="export-icon">📊</div>
+                            <h3>Excel Hallazgos</h3>
+                            <p>Tabla de hallazgos con fotos embebidas</p>
+                            <select id="filter-excel-hallazgos-folder" class="filter-select"
+                                style="margin-bottom:10px;">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <button id="btn-export-excel-hallazgos" class="btn btn-primary">Descargar Excel</button>
+                        </div>
+                        <div class="export-card">
+                            <div class="export-icon">📊</div>
+                            <h3>Excel Fragmentos</h3>
+                            <p>Tabla de fragmentos con fotos embebidas</p>
+                            <select id="filter-excel-fragmentos-folder" class="filter-select"
+                                style="margin-bottom:10px;">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <button id="btn-export-excel-fragmentos" class="btn btn-primary">Descargar Excel</button>
+                        </div>
+                        <div class="export-card">
+                            <div class="export-icon">📷</div>
+                            <h3>Fotos por Carpeta (ZIP)</h3>
+                            <p>Descarga fotos de una carpeta específica</p>
+                            <select id="filter-photos-folder" class="filter-select" style="margin-bottom:10px;">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                            <button id="btn-download-photos" class="btn btn-primary">Descargar ZIP</button>
+                        </div>
+                        <div class="export-card">
+                            <div class="export-icon">🎁</div>
+                            <h3>Paquete Completo</h3>
+                            <p>KML, Excel, fotos y documentos en un solo archivo</p>
+                            <button id="btn-download-complete" class="btn btn-success">Descargar Todo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Statistics View -->
+                <div id="view-statistics" class="view">
+                    <h1>Estadísticas</h1>
+
+                    <div class="charts-grid">
+                        <!-- Hallazgos por Carpeta -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Hallazgos por Carpeta</h3>
+                                <div class="chart-controls">
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-por-carpeta', 'hallazgos_por_carpeta')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('carpeta')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-por-carpeta"></canvas>
+                        </div>
+
+                        <!-- Tipos de Material -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Tipos de Material</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-material-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-tipos-material', 'tipos_de_material')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('material')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-tipos-material"></canvas>
+                        </div>
+
+                        <!-- Formación Geológica -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Formación Geológica</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-formacion-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-formacion', 'formacion_geologica')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('formacion')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-formacion"></canvas>
+                        </div>
+
+                        <!-- Clasificación Taxonómica -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Clasificación Taxonómica</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-taxonomica-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-taxonomica', 'clasificacion_taxonomica')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('taxonomica')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-taxonomica"></canvas>
+                        </div>
+
+                        <!-- Acción -->
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Acción</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-accion-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-accion', 'accion')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('accion')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-accion"></canvas>
+                        </div>
+
+                        <!-- Tendencia Temporal -->
+                        <div class="chart-card chart-wide">
+                            <div class="chart-header">
+                                <h3>Tendencia Temporal (Hallazgos por Mes)</h3>
+                                <div class="chart-controls">
+                                    <label>Período:</label>
+                                    <select id="period-temporal" class="filter-select" style="width:100px;">
+                                        <option value="day">Día</option>
+                                        <option value="week">Semana</option>
+                                        <option value="month" selected>Mes</option>
+                                    </select>
+                                    <label>Escala:</label>
+                                    <select id="scale-temporal" class="filter-select" style="width:100px;">
+                                        <option value="auto">Auto</option>
+                                        <option value="manual">Manual</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-temporal', 'tendencia_temporal')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('temporal')">📊 Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-temporal"></canvas>
+                        </div>
+
+                        <!-- Concentración por Localidad -->
+                        <div class="chart-card chart-wide">
+                            <div class="chart-header">
+                                <h3>Concentración por Carpeta</h3>
+                                <div class="chart-controls">
+                                    <label>Carpeta:</label>
+                                    <select id="filter-concentration-folder" class="filter-select" style="width:150px;">
+                                        <option value="">Todas las carpetas</option>
+                                    </select>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartPNG('chart-concentracion', 'concentracion_localidad')">💾
+                                        PNG</button>
+                                    <button class="btn btn-sm"
+                                        onclick="window.adminPanel.downloadChartExcel('concentracion')">📊
+                                        Excel</button>
+                                </div>
+                            </div>
+                            <canvas id="chart-concentracion"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+
+        <!-- Add Shared Document Modal -->
+        <div id="modal-add-shared-doc" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Nuevo Documento Compartido</h2>
+                    <button class="btn-close" data-close-modal="modal-add-shared-doc">&times;</button>
+                </div>
+                <form id="form-shared-doc">
+                    <div class="form-group">
+                        <label for="shared-doc-title">Título *</label>
+                        <input type="text" id="shared-doc-title" name="title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="shared-doc-category">Categoría *</label>
+                        <select id="shared-doc-category" name="category" required>
+                            <option value="Permisos">Permisos</option>
+                            <option value="ATS">ATS</option>
+                            <option value="IPCR">IPCR</option>
+                            <option value="Alta Spot">Alta Spot</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="shared-doc-description">Descripción</label>
+                        <textarea id="shared-doc-description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="shared-doc-file">Archivo PDF *</label>
+                        <input type="file" id="shared-doc-file" name="file" accept=".pdf" required>
+                        <small>Solo archivos PDF</small>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary"
+                            data-close-modal="modal-add-shared-doc">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Folder Details Modal -->
+        <div id="modal-folder-details" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2 id="folder-modal-title">Carpeta</h2>
+                    <button class="btn-close"
+                        onclick="document.getElementById('modal-folder-details').style.display='none'">×</button>
+                </div>
+                <div id="folder-stats-summary" class="folder-stats-summary">
+                    <!-- Estadísticas dinámicas -->
+                </div>
+                <div class="tabs-container">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="folder-hallazgos">Hallazgos</button>
+                        <button class="tab-btn" data-tab="folder-fragmentos">Fragmentos</button>
+                    </div>
+                    <div id="folder-tab-content" class="tab-content">
+                        <!-- Contenido dinámico de tabs -->
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" id="btn-export-folder-kml">📥 Exportar KML</button>
+                    <button class="btn btn-secondary" id="btn-view-folder-map">🗺️ Ver en Mapa</button>
+                    <button class="btn btn-secondary"
+                        onclick="document.getElementById('modal-folder-details').style.display='none'">Cerrar</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Edit Hallazgo Modal -->
+    <div id="modal-edit-hallazgo" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>✏️ Editar Hallazgo</h2>
+                <button class="btn-close"
+                    onclick="document.getElementById('modal-edit-hallazgo').style.display='none'">×</button>
+            </div>
+
+            <form id="form-edit-hallazgo" class="edit-form">
+                <input type="hidden" id="edit-hallazgo-id">
+
+                <div class="form-group">
+                    <label>Código *</label>
+                    <input type="text" id="edit-codigo" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Material *</label>
+                    <select id="edit-tipo-material" required>
+                        <option value="">Seleccionar...</option>
+                        <option value="VS">VS - Vertebrado</option>
+                        <option value="IV">IV - Invertebrado</option>
+                        <option value="VP">VP - Vegetal Petrificado</option>
+                        <option value="Indeterminado">Indeterminado</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Localidad *</label>
+                    <input type="text" id="edit-localidad" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Formación</label>
+                    <input type="text" id="edit-formacion">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitud *</label>
+                        <input type="number" id="edit-lat" step="0.000001" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Longitud *</label>
+                        <input type="number" id="edit-lng" step="0.000001" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Carpeta/Sitio *</label>
+                    <input type="text" id="edit-folder" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="edit-observaciones" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('modal-edit-hallazgo').style.display='none'">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- Modal: Edit Fragmento -->
+    <div id="modal-edit-fragmento" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ Editar Fragmento</h2>
+                <button class="close-modal"
+                    onclick="document.getElementById('modal-edit-fragmento').style.display='none'">×</button>
+            </div>
+            <form id="form-edit-fragmento" onsubmit="adminPanel.handleEditFragmento(event)">
+                <input type="hidden" id="edit-fragmento-id">
+
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="edit-fragmento-fecha" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Localidad</label>
+                    <input type="text" id="edit-fragmento-localidad" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Carpeta</label>
+                    <input type="text" id="edit-fragmento-folder" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitud</label>
+                        <input type="number" id="edit-fragmento-lat" step="any">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitud</label>
+                        <input type="number" id="edit-fragmento-lng" step="any">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="edit-fragmento-observaciones" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('modal-edit-fragmento').style.display='none'">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    </div>
+
+    <!-- Photo Viewer Modal -->
+    <div id="modal-photo-viewer" class="modal">
+        <div class="modal-content" style="max-width: 90%; max-height: 90vh;">
+            <div class="modal-header">
+                <h2 id="photo-viewer-title">Vista de Foto</h2>
+                <button class="btn-close"
+                    onclick="document.getElementById('modal-photo-viewer').style.display='none'">×</button>
+            </div>
+            <div style="text-align: center; padding: 20px; overflow: auto; max-height: 70vh;">
+                <img id="photo-viewer-image" src="" alt="Foto"
+                    style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary"
+                    onclick="document.getElementById('modal-photo-viewer').style.display='none'">Cerrar</button>
+                <button id="btn-download-photo" class="btn btn-primary">📥 Descargar Foto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- ExcelJS for export with images -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <!-- Chart.js for statistics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script src="js/admin-panel.js?v=10"></script>
+
+    <!-- Color Picker Modal -->
+    <div id="modal-color-picker" class="modal">
+        <div class="modal-content" style="max-width: 300px;">
+            <div class="modal-header">
+                <h2>Elegir Color</h2>
+                <button class="modal-close" data-close-modal="modal-color-picker">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="color-picker-label" style="margin-bottom: 15px; font-weight: bold;"></p>
+                <input type="color" id="color-picker-input" style="width: 100%; height: 50px; cursor: pointer;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-close-modal="modal-color-picker">Cancelar</button>
+                <button id="btn-apply-color" class="btn btn-primary">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
