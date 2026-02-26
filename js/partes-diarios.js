@@ -1,100 +1,47 @@
 // Partes Diarios Manager
-// Handles daily report photo storage and display in the Documentación tab
+// Saves partes to backend API (same flow as Hallazgos). Falls back to localStorage if offline.
 
 class PartesDiariosManager {
     constructor() {
-        this.DB_KEY = 'partes_diarios';
+        this.LOCAL_KEY = 'partes_diarios_local';   // local copy (own partes, for display)
+        this.PENDING_KEY = 'partes_diarios_pending'; // offline queue
+        this.BACKEND_URL = localStorage.getItem('backend_url') || 'https://paleo-tracker-backend.onrender.com';
+        this.collectorId = localStorage.getItem('collector_id') || 'unknown';
+        this.collectorName = localStorage.getItem('collector_name') || '';
         this.init();
     }
 
     // ─── LocalStorage helpers ────────────────────────────────────────
-    getPartes() {
-        try {
-            return JSON.parse(localStorage.getItem(this.DB_KEY) || '[]');
-        } catch {
-            return [];
-        }
+    getLocalPartes() {
+        try { return JSON.parse(localStorage.getItem(this.LOCAL_KEY) || '[]'); } catch { return []; }
     }
-
-    savePartes(partes) {
-        localStorage.setItem(this.DB_KEY, JSON.stringify(partes));
+    saveLocalPartes(partes) {
+        localStorage.setItem(this.LOCAL_KEY, JSON.stringify(partes));
     }
-
-    addParte(parte) {
-        const partes = this.getPartes();
-        parte.id = Date.now().toString();
-        parte.createdAt = new Date().toISOString();
-        parte.collectorId = localStorage.getItem('collector_id') || 'unknown';
-        parte.collectorName = localStorage.getItem('collector_name') || '';
-        parte.syncStatus = 'pending';
-        partes.unshift(parte); // newest first
-        this.savePartes(partes);
-        return parte;
+    getPending() {
+        try { return JSON.parse(localStorage.getItem(this.PENDING_KEY) || '[]'); } catch { return []; }
     }
-
-    deleteParte(id) {
-        const partes = this.getPartes().filter(p => p.id !== id);
-        this.savePartes(partes);
+    savePending(items) {
+        localStorage.setItem(this.PENDING_KEY, JSON.stringify(items));
     }
 
     // ─── UI ─────────────────────────────────────────────────────────
     init() {
-        // Floating button opens modal
-        document.getElementById('btn-nuevo-parte')?.addEventListener('click', () => {
-            this.openModal();
-        });
-
-        // Close modal
-        document.getElementById('btn-close-parte')?.addEventListener('click', () => {
-            this.closeModal();
-        });
-
-        // Photo preview
-        document.getElementById('parte-foto-input')?.addEventListener('change', (e) => {
-            this.showPhotoPreview(e.target.files[0]);
-        });
-
-        // Form submit
+        document.getElementById('btn-nuevo-parte')?.addEventListener('click', () => this.openModal());
+        document.getElementById('btn-close-parte')?.addEventListener('click', () => this.closeModal());
+        document.getElementById('parte-foto-input')?.addEventListener('change', (e) => this.showPhotoPreview(e.target.files[0]));
         document.getElementById('form-parte-diario')?.addEventListener('submit', (e) => {
             e.preventDefault();
             this.saveParte(e.target);
         });
-
-        // Export button
-        document.getElementById('btn-exportar-partes')?.addEventListener('click', () => {
-            this.exportarPartes();
-        });
-
-        // Initial render
         this.renderPartes();
+        // Try to flush any pending offline partes
+        this.flushPending();
     }
-
-    exportarPartes() {
-        const partes = this.getPartes();
-        if (partes.length === 0) {
-            alert('No hay partes diarios para exportar.');
-            return;
-        }
-
-        const json = JSON.stringify(partes, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const fecha = new Date().toISOString().split('T')[0];
-        const collectorName = (localStorage.getItem('collector_name') || 'colector').replace(/\s+/g, '_');
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `partes_diarios_${collectorName}_${fecha}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
 
     openModal() {
         const modal = document.getElementById('parte-diario-modal');
         const fechaInput = document.getElementById('parte-fecha');
-        // Default to today
-        fechaInput.value = new Date().toISOString().split('T')[0];
         document.getElementById('form-parte-diario').reset();
         fechaInput.value = new Date().toISOString().split('T')[0];
         document.getElementById('parte-foto-preview').innerHTML = '';
@@ -130,9 +77,35 @@ class PartesDiariosManager {
                 return;
             }
 
-            const fotoData = await this.readFileAsDataURL(fotoInput.files[0]);
+            const foto = await this.readFileAsDataURL(fotoInput.files[0]);
+            const id = `parte_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-            this.addParte({ fecha, observaciones, fotoData });
+            const parteData = {
+                id,
+                fecha,
+                observaciones,
+                foto,
+                collectorId: this.collectorId,
+                collectorName: this.collectorName
+            };
+
+            // Save locally first (always visible to collector)
+            const local = this.getLocalPartes();
+            local.unshift({ ...parteData, createdAt: new Date().toISOString() });
+            this.saveLocalPartes(local);
+
+            // Try to POST to backend
+            const sent = await this.postToBackend(parteData);
+            if (!sent) {
+                // Queue for later sync
+                const pending = this.getPending();
+                pending.push(parteData);
+                this.savePending(pending);
+                alert('Parte guardado localmente. Se enviará al servidor cuando haya conexión.');
+            } else {
+                alert('Parte enviado correctamente.');
+            }
+
             this.closeModal();
             this.renderPartes();
         } catch (err) {
@@ -144,12 +117,44 @@ class PartesDiariosManager {
         }
     }
 
+    async postToBackend(parteData) {
+        try {
+            const resp = await fetch(`${this.BACKEND_URL}/api/collector/partes-diarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...parteData,
+                    collectorId: this.collectorId,
+                    collectorName: this.collectorName
+                })
+            });
+            return resp.ok;
+        } catch {
+            return false;
+        }
+    }
+
+    async flushPending() {
+        const pending = this.getPending();
+        if (pending.length === 0) return;
+
+        const remaining = [];
+        for (const parte of pending) {
+            const sent = await this.postToBackend(parte);
+            if (!sent) remaining.push(parte);
+        }
+        this.savePending(remaining);
+        if (remaining.length < pending.length) {
+            console.log(`${pending.length - remaining.length} partes pendientes enviados al servidor.`);
+        }
+    }
+
     renderPartes() {
         const container = document.getElementById('partes-diarios-list');
         const countEl = document.getElementById('count-partes');
         if (!container) return;
 
-        const partes = this.getPartes();
+        const partes = this.getLocalPartes();
         if (countEl) countEl.textContent = `${partes.length} parte${partes.length !== 1 ? 's' : ''}`;
 
         if (partes.length === 0) {
@@ -164,80 +169,36 @@ class PartesDiariosManager {
             card.style.cursor = 'pointer';
             card.innerHTML = `
                 <div style="width:60px;height:60px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#eee;">
-                    <img src="${parte.fotoData}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">
+                    <img src="${parte.foto}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">
                 </div>
                 <div class="data-info">
                     <h4>📋 Parte del ${this.formatDate(parte.fecha)}</h4>
                     <small>${parte.observaciones ? parte.observaciones.substring(0, 60) + (parte.observaciones.length > 60 ? '...' : '') : 'Sin observaciones'}</small>
-                    <small style="display:block;color:var(--text-muted);margin-top:4px;">${parte.collectorName || parte.collectorId}</small>
                 </div>
-                <button class="btn-danger btn-small" data-id="${parte.id}" style="flex-shrink:0;padding:6px 10px;font-size:0.8rem;">🗑️</button>
             `;
-            // View on card click (not delete)
-            card.addEventListener('click', (e) => {
-                if (e.target.closest('button')) return;
-                this.viewParte(parte);
-            });
-            // Delete button
-            card.querySelector('button[data-id]').addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm('¿Eliminar este parte diario?')) {
-                    this.deleteParte(parte.id);
-                    this.renderPartes();
-                }
-            });
+            card.addEventListener('click', () => this.viewParte(parte));
             container.appendChild(card);
         });
     }
 
     viewParte(parte) {
-        // Reuse the detail-modal from existing UI
         const modal = document.getElementById('detail-modal');
         if (!modal) return;
 
         document.getElementById('detail-title').textContent = `📋 Parte del ${this.formatDate(parte.fecha)}`;
         document.getElementById('detail-content').innerHTML = `
             <div style="text-align:center; margin-bottom:16px;">
-                <img src="${parte.fotoData}" alt="Parte Diario" style="max-width:100%;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+                <img src="${parte.foto}" alt="Parte Diario" style="max-width:100%;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
             </div>
             ${parte.observaciones ? `
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:14px;">
                 <strong>Observaciones:</strong>
                 <p style="margin:8px 0 0;color:#444;">${parte.observaciones}</p>
             </div>` : ''}
-            <div style="display:flex;gap:8px;margin-top:12px;">
-                <button id="btn-parte-share" class="btn-secondary" style="flex:1;justify-content:center;">📤 Compartir Foto</button>
-            </div>
         `;
-
-        // Hide edit/delete buttons from default modal actions (delete handled inside)
         document.getElementById('btn-delete-item').style.display = 'none';
         document.getElementById('btn-edit-item').style.display = 'none';
-
-        // Share button
-        document.getElementById('btn-parte-share').onclick = () => this.shareParte(parte);
-
         modal.classList.remove('hidden');
-    }
-
-    async shareParte(parte) {
-        try {
-            if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                const { Filesystem, Share } = window.Capacitor.Plugins;
-                const base64 = parte.fotoData.split(',')[1];
-                const ext = parte.fotoData.includes('jpeg') ? 'jpg' : 'png';
-                const fileName = `parte_${parte.fecha}.${ext}`;
-                const result = await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
-                await Share.share({ title: `Parte Diario ${parte.fecha}`, files: [result.uri] });
-            } else {
-                const link = document.createElement('a');
-                link.href = parte.fotoData;
-                link.download = `parte_${parte.fecha}.jpg`;
-                link.click();
-            }
-        } catch (e) {
-            console.error('Error compartiendo parte:', e);
-        }
     }
 
     formatDate(dateStr) {

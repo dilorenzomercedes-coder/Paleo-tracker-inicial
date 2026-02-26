@@ -976,111 +976,76 @@ class AdminPanel {
     }
 
     // ── Partes Diarios (local storage, read from collector device key) ──────
-    loadPartesAdmin() {
+    async loadPartesAdmin() {
         const grid = document.getElementById('partes-diarios-admin-grid');
         const collectorFilter = document.getElementById('filter-partes-collector');
         if (!grid) return;
 
-        // Wire up Import JSON input (once)
-        const importInput = document.getElementById('import-partes-json');
-        if (importInput && !importInput._wired) {
-            importInput._wired = true;
-            importInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    try {
-                        const imported = JSON.parse(ev.target.result);
-                        if (!Array.isArray(imported)) throw new Error('Formato inválido');
-                        // Merge with existing (avoid duplicates by id)
-                        const existing = this._getAdminPartes();
-                        const existingIds = new Set(existing.map(p => p.id));
-                        const newOnes = imported.filter(p => !existingIds.has(p.id));
-                        const merged = [...newOnes, ...existing];
-                        localStorage.setItem('admin_partes_diarios', JSON.stringify(merged));
-                        importInput.value = ''; // reset so same file can be re-imported
-                        this.loadPartesAdmin(); // re-render
-                        alert(`✅ ${newOnes.length} parte(s) importado(s) correctamente.`);
-                    } catch (err) {
-                        alert('❌ Error al leer el archivo. Asegurate de que sea un JSON válido exportado desde la app.');
-                    }
-                };
-                reader.readAsText(file);
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#888;">Cargando partes...</div>';
+
+        try {
+            const resp = await this.apiRequest('/api/admin/partes-diarios');
+            let partes = resp.data || [];
+
+            // Populate collector filter
+            if (collectorFilter) {
+                const collectors = [...new Set(partes.map(p => p.collector?.name || p.collector?.collectorId).filter(Boolean))];
+                const currentVal = collectorFilter.value;
+                collectorFilter.innerHTML = '<option value="">Todos los colectores</option>' +
+                    collectors.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+                collectorFilter.onchange = () => this.loadPartesAdmin();
+            }
+
+            // Apply filter
+            const selectedCollector = collectorFilter ? collectorFilter.value : '';
+            const filtered = selectedCollector
+                ? partes.filter(p => (p.collector?.name || p.collector?.collectorId) === selectedCollector)
+                : partes;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">No hay partes diarios. Los colectores los envían desde la app.</div>';
+                return;
+            }
+
+            // Render thumbnail grid
+            grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
+            grid.style.gap = '16px';
+            grid.innerHTML = '';
+
+            filtered.forEach(parte => {
+                const thumb = document.createElement('div');
+                thumb.style.cssText = `
+                    position:relative; border-radius:10px; overflow:hidden;
+                    cursor:pointer; aspect-ratio:1;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.12);
+                    background:#f0f0f0;
+                    transition:transform 0.15s, box-shadow 0.15s;
+                `;
+                thumb.innerHTML = `
+                    <img src="${parte.foto}" alt="Parte ${parte.fecha}"
+                        style="width:100%; height:100%; object-fit:cover; display:block;">
+                `;
+                thumb.addEventListener('mouseenter', () => { thumb.style.transform = 'scale(1.03)'; thumb.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)'; });
+                thumb.addEventListener('mouseleave', () => { thumb.style.transform = ''; thumb.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'; });
+                thumb.addEventListener('click', () => this._openLightbox(parte));
+                grid.appendChild(thumb);
             });
+        } catch (err) {
+            console.error('Error cargando partes diarios:', err);
+            grid.innerHTML = '<div style="grid-column:1/-1;color:#e74c3c;text-align:center;padding:40px;">Error al cargar partes. Verificá la conexión con el servidor.</div>';
         }
-
-        // Wire up Limpiar button (once)
-        const btnLimpiar = document.getElementById('btn-limpiar-partes');
-        if (btnLimpiar && !btnLimpiar._wired) {
-            btnLimpiar._wired = true;
-            btnLimpiar.addEventListener('click', () => {
-                if (confirm('¿Eliminar todos los partes importados del panel admin?')) {
-                    localStorage.removeItem('admin_partes_diarios');
-                    this.loadPartesAdmin();
-                }
-            });
-        }
-
-        // Read from admin-specific localStorage key
-        let partes = this._getAdminPartes();
-
-        // Populate collector filter
-        if (collectorFilter) {
-            const collectors = [...new Set(partes.map(p => p.collectorName || p.collectorId).filter(Boolean))];
-            const currentVal = collectorFilter.value;
-            collectorFilter.innerHTML = '<option value="">Todos los colectores</option>' +
-                collectors.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
-            collectorFilter.onchange = () => this.loadPartesAdmin();
-        }
-
-        // Apply filter
-        // Wire up lightbox controls (once)
-        this._setupLightbox();
-
-        const selectedCollector = collectorFilter ? collectorFilter.value : '';
-        const filtered = selectedCollector
-            ? partes.filter(p => (p.collectorName || p.collectorId) === selectedCollector)
-            : partes;
-
-        if (filtered.length === 0) {
-            grid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">Importá un archivo JSON desde la app para ver los partes aquí.</div>';
-            return;
-        }
-
-        // Update grid to square-thumbnail layout
-        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
-        grid.style.gap = '16px';
-        grid.innerHTML = '';
-
-        filtered.forEach(parte => {
-            const thumb = document.createElement('div');
-            thumb.style.cssText = `
-                position:relative; border-radius:10px; overflow:hidden;
-                cursor:pointer; aspect-ratio:1;
-                box-shadow:0 2px 8px rgba(0,0,0,0.12);
-                background:#f0f0f0;
-                transition:transform 0.15s, box-shadow 0.15s;
-            `;
-            thumb.innerHTML = `
-                <img src="${parte.fotoData}" alt="Parte ${parte.fecha}"
-                    style="width:100%; height:100%; object-fit:cover; display:block;">
-            `;
-            thumb.addEventListener('mouseenter', () => { thumb.style.transform = 'scale(1.03)'; thumb.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)'; });
-            thumb.addEventListener('mouseleave', () => { thumb.style.transform = ''; thumb.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'; });
-            thumb.addEventListener('click', () => this._openLightbox(parte));
-            grid.appendChild(thumb);
-        });
     }
+
 
     _setupLightbox() { /* unused – we reuse photo-modal like Hallazgos */ }
 
     _openLightbox(parte) {
         const fecha = this.formatParteDate(parte.fecha);
-        const title = `📋 Parte del ${fecha} – ${parte.collectorName || parte.collectorId || ''}`;
+        const collector = parte.collector?.name || parte.collector?.collectorId || parte.collectorName || parte.collectorId || '';
+        const title = `📋 Parte del ${fecha} – ${collector}`;
+        const fotoSrc = parte.foto || parte.fotoData;
 
-        // Reuse the same viewPhoto modal as Hallazgos
-        this.viewPhoto(parte.fotoData, title);
+        this.viewPhoto(fotoSrc, title);
 
         // Add/update PDF button in the modal actions (once)
         let pdfBtn = document.getElementById('parte-pdf-btn');
@@ -1112,7 +1077,8 @@ class AdminPanel {
         // Build a hidden printable window
         const printWin = window.open('', '_blank', 'width=800,height=1000');
         const fecha = this.formatParteDate(parte.fecha);
-        const collector = parte.collectorName || parte.collectorId || 'Desconocido';
+        const collector = parte.collector?.name || parte.collector?.collectorId || parte.collectorName || parte.collectorId || 'Desconocido';
+        const fotoSrc = parte.foto || parte.fotoData;
         const obs = parte.observaciones ? parte.observaciones.replace(/\n/g, '<br>') : '—';
 
         printWin.document.write(`<!DOCTYPE html>
@@ -1141,7 +1107,7 @@ class AdminPanel {
       <div class="meta">Paleo Heritage · ${fecha} · ${collector}</div>
     </div>
   </div>
-  <img src="${parte.fotoData}" class="photo" alt="Foto del parte">
+  <img src="${fotoSrc}" class="photo" alt="Foto del parte">
   <div class="section">
     <div class="label">Observaciones</div>
     <div class="value">${obs}</div>
