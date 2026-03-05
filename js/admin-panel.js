@@ -236,6 +236,7 @@ class AdminPanel {
         document.getElementById('filter-routes-collector')?.addEventListener('change', () => this.loadRoutes());
         document.getElementById('filter-documents-collector')?.addEventListener('change', () => this.loadDocuments());
         document.getElementById('filter-documents-category')?.addEventListener('change', () => this.loadDocuments());
+        document.getElementById('filter-partes-collector')?.addEventListener('change', () => this.loadPartesAdmin());
 
         // Advanced filters for hallazgos
         let searchDebounce;
@@ -718,7 +719,8 @@ class AdminPanel {
                 'filter-hallazgos-collector',
                 'filter-fragmentos-collector',
                 'filter-routes-collector',
-                'filter-documents-collector'
+                'filter-documents-collector',
+                'filter-partes-collector'
             ];
 
             filterIds.forEach(id => {
@@ -3449,6 +3451,107 @@ class AdminPanel {
         }
     }
 
+    async loadPartesAdmin() {
+        const grid = document.getElementById('partes-diarios-admin-grid');
+        if (!grid) return;
+
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:60px; color:#999;">Cargando...</div>';
+
+        try {
+            const collector = document.getElementById('filter-partes-collector')?.value || '';
+            const params = new URLSearchParams();
+            if (collector) params.append('collector', collector);
+
+            const data = await this.apiRequest(`/api/admin/partes-diarios?${params}`);
+            const partes = data.data;
+
+            if (!partes || partes.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">
+                        No hay partes diarios registrados.
+                    </div>`;
+                return;
+            }
+
+            grid.innerHTML = partes.map(p => {
+                const fecha = p.fecha
+                    ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-AR')
+                    : new Date(p.createdAt).toLocaleDateString('es-AR');
+                const colector = p.collector?.name || p.collector?.collectorId || 'Desconocido';
+                const obs = p.observaciones
+                    ? p.observaciones.substring(0, 60) + (p.observaciones.length > 60 ? '...' : '')
+                    : 'Sin observaciones';
+                const fotoSrc = p.foto || '';
+
+                return `
+                <div class="parte-card" style="
+                    background:#fff;
+                    border:1px solid #e0e0e0;
+                    border-radius:12px;
+                    overflow:hidden;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.07);
+                    cursor:pointer;
+                    transition:transform 0.15s, box-shadow 0.15s;
+                    display:flex;
+                    flex-direction:column;
+                " onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.13)'"
+                   onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'"
+                   onclick="window.adminPanel.viewParteAdmin('${p.id}')">
+                    <div style="width:100%; aspect-ratio:4/3; background:#f0f0f0; overflow:hidden;">
+                        ${fotoSrc
+                        ? `<img src="${fotoSrc}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">`
+                        : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;">📋</div>`
+                    }
+                    </div>
+                    <div style="padding:12px;">
+                        <strong style="display:block;margin-bottom:4px;">📅 ${fecha}</strong>
+                        <small style="color:#666;display:block;margin-bottom:4px;">👤 ${colector}</small>
+                        <small style="color:#888;font-size:0.78rem;">${obs}</small>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Guardar partes para uso en viewParteAdmin
+            this._partesCache = partes;
+
+        } catch (error) {
+            console.error('Error cargando partes diarios:', error);
+            grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:#e74c3c;">Error al cargar partes diarios: ${error.message}</div>`;
+        }
+    }
+
+    viewParteAdmin(parteId) {
+        if (!this._partesCache) return;
+        const parte = this._partesCache.find(p => p.id === parteId);
+        if (!parte) return;
+
+        const fecha = parte.fecha
+            ? new Date(parte.fecha + 'T12:00:00').toLocaleDateString('es-AR')
+            : new Date(parte.createdAt).toLocaleDateString('es-AR');
+        const colector = parte.collector?.name || parte.collector?.collectorId || 'Desconocido';
+
+        // Reusar el viewer de fotos de hallazgos si existe, sino mostrar en ventana
+        const photoModal = document.getElementById('photo-modal');
+        if (photoModal) {
+            const img = document.getElementById('photo-modal-img');
+            const title = document.getElementById('photo-modal-title');
+            if (img) img.src = parte.foto || '';
+            if (title) title.textContent = `📋 Parte del ${fecha} — ${colector}`;
+            photoModal.style.display = 'flex';
+        } else {
+            // Fallback: abrir imagen en nueva pestaña
+            if (parte.foto) {
+                const win = window.open();
+                win.document.write(`
+                    <html><head><title>Parte ${fecha}</title></head><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;">
+                        <p style="color:#fff;font-family:sans-serif;margin-bottom:12px;">📋 Parte del ${fecha} — 👤 ${colector}</p>
+                        ${parte.observaciones ? `<p style="color:#aaa;font-family:sans-serif;margin-bottom:16px;">${parte.observaciones}</p>` : ''}
+                        <img src="${parte.foto}" style="max-width:90vw;max-height:85vh;border-radius:8px;">
+                    </body></html>
+                `);
+            }
+        }
+    }
 
 }
 
