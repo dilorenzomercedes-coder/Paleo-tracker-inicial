@@ -404,10 +404,17 @@
                 <div id="view-partes-diarios" class="view">
                     <div class="view-header">
                         <h1>&#128203; Partes Diarios</h1>
-                        <div class="filters" style="display:flex; gap:8px; align-items:center;">
+                        <div class="filters" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                             <select id="filter-partes-collector" class="filter-select">
                                 <option value="">Todos los colectores</option>
                             </select>
+                            <input type="text" id="filter-partes-empresa" class="filter-select"
+                                placeholder="Filtrar por empresa..." style="width:180px;" list="admin-empresas-list">
+                            <datalist id="admin-empresas-list"></datalist>
+                            <input type="text" id="filter-partes-locacion" class="filter-select"
+                                placeholder="Filtrar por locación..." style="width:180px;" list="admin-locaciones-list">
+                            <datalist id="admin-locaciones-list"></datalist>
+                            <button id="btn-limpiar-partes-filtros" class="btn btn-secondary btn-sm">× Limpiar</button>
                         </div>
                     </div>
                     <div id="partes-diarios-admin-grid"

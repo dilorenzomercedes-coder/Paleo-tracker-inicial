@@ -549,6 +549,19 @@
                 <input type="date" name="fecha" id="parte-fecha" required>
               </div>
               <div class="form-group">
+                <label>Empresa</label>
+                <input type="text" name="empresa" id="parte-empresa" placeholder="Ej. YPF, Pan American Energy..."
+                  list="parte-empresas-list" autocomplete="off">
+                <datalist id="parte-empresas-list"></datalist>
+              </div>
+              <div class="form-group">
+                <label>Locación</label>
+                <input type="text" name="locacion" id="parte-locacion"
+                  placeholder="Ej. Cerro Dragón, Anticlinal Campamento..." list="parte-locaciones-list"
+                  autocomplete="off">
+                <datalist id="parte-locaciones-list"></datalist>
+              </div>
+              <div class="form-group">
                 <label>Observaciones</label>
                 <textarea name="observaciones" id="parte-observaciones" rows="4"
                   placeholder="Descripción de las actividades del día..."

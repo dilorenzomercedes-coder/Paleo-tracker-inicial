@@ -45,6 +45,16 @@ class PartesDiariosManager {
         document.getElementById('form-parte-diario').reset();
         fechaInput.value = new Date().toISOString().split('T')[0];
         document.getElementById('parte-foto-preview').innerHTML = '';
+
+        // Poblar datalists con valores previos
+        const partes = this.getLocalPartes();
+        const empresas = [...new Set(partes.map(p => p.empresa).filter(Boolean))];
+        const locaciones = [...new Set(partes.map(p => p.locacion).filter(Boolean))];
+        const dlEmpresas = document.getElementById('parte-empresas-list');
+        const dlLocaciones = document.getElementById('parte-locaciones-list');
+        if (dlEmpresas) dlEmpresas.innerHTML = empresas.map(e => `<option value="${e}">`).join('');
+        if (dlLocaciones) dlLocaciones.innerHTML = locaciones.map(l => `<option value="${l}">`).join('');
+
         modal.classList.remove('hidden');
     }
 
@@ -70,6 +80,8 @@ class PartesDiariosManager {
         try {
             const fecha = form.querySelector('[name="fecha"]').value;
             const observaciones = form.querySelector('[name="observaciones"]').value;
+            const empresa = form.querySelector('[name="empresa"]')?.value?.trim() || '';
+            const locacion = form.querySelector('[name="locacion"]')?.value?.trim() || '';
             const fotoInput = form.querySelector('[name="foto"]');
 
             if (!fotoInput.files[0]) {
@@ -84,6 +96,8 @@ class PartesDiariosManager {
                 id,
                 fecha,
                 observaciones,
+                empresa,
+                locacion,
                 foto,
                 collectorId: this.collectorId,
                 collectorName: this.collectorName
@@ -173,6 +187,7 @@ class PartesDiariosManager {
                 </div>
                 <div class="data-info">
                     <h4>📋 Parte del ${this.formatDate(parte.fecha)}</h4>
+                    ${parte.empresa ? `<small style="color:#555;">🏢 ${parte.empresa}${parte.locacion ? ' — 📍 ' + parte.locacion : ''}</small><br>` : ''}
                     <small>${parte.observaciones ? parte.observaciones.substring(0, 60) + (parte.observaciones.length > 60 ? '...' : '') : 'Sin observaciones'}</small>
                 </div>
             `;

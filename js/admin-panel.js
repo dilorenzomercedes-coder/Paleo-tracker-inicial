@@ -237,6 +237,17 @@ class AdminPanel {
         document.getElementById('filter-documents-collector')?.addEventListener('change', () => this.loadDocuments());
         document.getElementById('filter-documents-category')?.addEventListener('change', () => this.loadDocuments());
         document.getElementById('filter-partes-collector')?.addEventListener('change', () => this.loadPartesAdmin());
+        document.getElementById('filter-partes-empresa')?.addEventListener('input', () => this.loadPartesAdmin());
+        document.getElementById('filter-partes-locacion')?.addEventListener('input', () => this.loadPartesAdmin());
+        document.getElementById('btn-limpiar-partes-filtros')?.addEventListener('click', () => {
+            const e = document.getElementById('filter-partes-empresa');
+            const l = document.getElementById('filter-partes-locacion');
+            const c = document.getElementById('filter-partes-collector');
+            if (e) e.value = '';
+            if (l) l.value = '';
+            if (c) c.value = '';
+            this.loadPartesAdmin();
+        });
 
         // Advanced filters for hallazgos
         let searchDebounce;
@@ -3459,60 +3470,89 @@ class AdminPanel {
 
         try {
             const collector = document.getElementById('filter-partes-collector')?.value || '';
+            const empresaFiltro = document.getElementById('filter-partes-empresa')?.value?.trim() || '';
+            const locacionFiltro = document.getElementById('filter-partes-locacion')?.value?.trim() || '';
+
             const params = new URLSearchParams();
             if (collector) params.append('collector', collector);
+            if (empresaFiltro) params.append('empresa', empresaFiltro);
+            if (locacionFiltro) params.append('locacion', locacionFiltro);
 
             const data = await this.apiRequest(`/api/admin/partes-diarios?${params}`);
             const partes = data.data;
 
             if (!partes || partes.length === 0) {
-                grid.innerHTML = `
-                    <div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">
-                        No hay partes diarios registrados.
-                    </div>`;
+                grid.innerHTML = `<div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">No hay partes diarios registrados.</div>`;
                 return;
             }
 
-            grid.innerHTML = partes.map(p => {
-                const fecha = p.fecha
-                    ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-AR')
-                    : new Date(p.createdAt).toLocaleDateString('es-AR');
-                const colector = p.collector?.name || p.collector?.collectorId || 'Desconocido';
-                const obs = p.observaciones
-                    ? p.observaciones.substring(0, 60) + (p.observaciones.length > 60 ? '...' : '')
-                    : 'Sin observaciones';
-                const fotoSrc = p.foto || '';
+            // Poblar datalists
+            const empresas = [...new Set(partes.map(p => p.empresa).filter(Boolean))];
+            const locaciones = [...new Set(partes.map(p => p.locacion).filter(Boolean))];
+            const dlEmp = document.getElementById('admin-empresas-list');
+            const dlLoc = document.getElementById('admin-locaciones-list');
+            if (dlEmp) dlEmp.innerHTML = empresas.map(e => `<option value="${e}">`).join('');
+            if (dlLoc) dlLoc.innerHTML = locaciones.map(l => `<option value="${l}">`).join('');
 
-                return `
-                <div class="parte-card" style="
-                    background:#fff;
-                    border:1px solid #e0e0e0;
-                    border-radius:12px;
-                    overflow:hidden;
-                    box-shadow:0 2px 8px rgba(0,0,0,0.07);
-                    cursor:pointer;
-                    transition:transform 0.15s, box-shadow 0.15s;
-                    display:flex;
-                    flex-direction:column;
-                " onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.13)'"
-                   onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'"
-                   onclick="window.adminPanel.viewParteAdmin('${p.id}')">
-                    <div style="width:100%; aspect-ratio:4/3; background:#f0f0f0; overflow:hidden;">
-                        ${fotoSrc
-                        ? `<img src="${fotoSrc}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">`
-                        : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;">📋</div>`
-                    }
-                    </div>
-                    <div style="padding:12px;">
-                        <strong style="display:block;margin-bottom:4px;">📅 ${fecha}</strong>
-                        <small style="color:#666;display:block;margin-bottom:4px;">👤 ${colector}</small>
-                        <small style="color:#888;font-size:0.78rem;">${obs}</small>
-                    </div>
-                </div>`;
-            }).join('');
+            // Agrupar por empresa → locación
+            const grupos = {};
+            partes.forEach(p => {
+                const emp = p.empresa || '(Sin empresa)';
+                const loc = p.locacion || '(Sin locación)';
+                if (!grupos[emp]) grupos[emp] = {};
+                if (!grupos[emp][loc]) grupos[emp][loc] = [];
+                grupos[emp][loc].push(p);
+            });
 
-            // Guardar partes para uso en viewParteAdmin
             this._partesCache = partes;
+
+            let html = '';
+            for (const [empresa, locaciones] of Object.entries(grupos)) {
+                html += `<div style="grid-column:1/-1; margin-top:24px; margin-bottom:8px; padding:10px 16px; background:linear-gradient(135deg,#2c5364,#203a43); color:#fff; border-radius:10px; font-size:1rem; font-weight:600;">
+                    🏢 ${empresa}
+                </div>`;
+
+                for (const [locacion, items] of Object.entries(locaciones)) {
+                    html += `<div style="grid-column:1/-1; margin-bottom:4px; padding:6px 16px; background:#f0f4f8; border-left:4px solid #4a8fa8; font-weight:500; font-size:0.9rem; color:#334;">
+                        📍 ${locacion} <span style="color:#888;font-weight:normal;">(${items.length} parte${items.length !== 1 ? 's' : ''})</span>
+                    </div>`;
+
+                    items.forEach(p => {
+                        const fecha = p.fecha
+                            ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-AR')
+                            : new Date(p.createdAt).toLocaleDateString('es-AR');
+                        const colector = p.collector?.name || p.collector?.collectorId || 'Desconocido';
+                        const obs = p.observaciones
+                            ? p.observaciones.substring(0, 60) + (p.observaciones.length > 60 ? '...' : '')
+                            : 'Sin observaciones';
+                        const fotoSrc = p.foto || '';
+
+                        html += `
+                        <div style="
+                            background:#fff; border:1px solid #e0e0e0; border-radius:12px;
+                            overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.07);
+                            cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;
+                            display:flex; flex-direction:column;
+                        " onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.13)'"
+                           onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'"
+                           onclick="window.adminPanel.viewParteAdmin('${p.id}')">
+                            <div style="width:100%; aspect-ratio:4/3; background:#f0f0f0; overflow:hidden;">
+                                ${fotoSrc
+                                ? `<img src="${fotoSrc}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">`
+                                : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;">📋</div>`
+                            }
+                            </div>
+                            <div style="padding:12px;">
+                                <strong style="display:block;margin-bottom:4px;">📅 ${fecha}</strong>
+                                <small style="color:#666;display:block;margin-bottom:4px;">👤 ${colector}</small>
+                                <small style="color:#888;font-size:0.78rem;">${obs}</small>
+                            </div>
+                        </div>`;
+                    });
+                }
+            }
+
+            grid.innerHTML = html;
 
         } catch (error) {
             console.error('Error cargando partes diarios:', error);
