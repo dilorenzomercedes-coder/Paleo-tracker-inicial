@@ -238,12 +238,15 @@ class AdminPanel {
         document.getElementById('filter-documents-category')?.addEventListener('change', () => this.loadDocuments());
         document.getElementById('filter-partes-collector')?.addEventListener('change', () => this.loadPartesAdmin());
         document.getElementById('filter-partes-empresa')?.addEventListener('input', () => this.loadPartesAdmin());
+        document.getElementById('filter-partes-yacimiento')?.addEventListener('input', () => this.loadPartesAdmin());
         document.getElementById('filter-partes-locacion')?.addEventListener('input', () => this.loadPartesAdmin());
         document.getElementById('btn-limpiar-partes-filtros')?.addEventListener('click', () => {
             const e = document.getElementById('filter-partes-empresa');
+            const y = document.getElementById('filter-partes-yacimiento');
             const l = document.getElementById('filter-partes-locacion');
             const c = document.getElementById('filter-partes-collector');
             if (e) e.value = '';
+            if (y) y.value = '';
             if (l) l.value = '';
             if (c) c.value = '';
             this.loadPartesAdmin();
@@ -3471,11 +3474,13 @@ class AdminPanel {
         try {
             const collector = document.getElementById('filter-partes-collector')?.value || '';
             const empresaFiltro = document.getElementById('filter-partes-empresa')?.value?.trim() || '';
+            const yacimientoFiltro = document.getElementById('filter-partes-yacimiento')?.value?.trim() || '';
             const locacionFiltro = document.getElementById('filter-partes-locacion')?.value?.trim() || '';
 
             const params = new URLSearchParams();
             if (collector) params.append('collector', collector);
             if (empresaFiltro) params.append('empresa', empresaFiltro);
+            if (yacimientoFiltro) params.append('yacimiento', yacimientoFiltro);
             if (locacionFiltro) params.append('locacion', locacionFiltro);
 
             const data = await this.apiRequest(`/api/admin/partes-diarios?${params}`);
@@ -3488,67 +3493,86 @@ class AdminPanel {
 
             // Poblar datalists
             const empresas = [...new Set(partes.map(p => p.empresa).filter(Boolean))];
+            const yacimientos = [...new Set(partes.map(p => p.yacimiento).filter(Boolean))];
             const locaciones = [...new Set(partes.map(p => p.locacion).filter(Boolean))];
             const dlEmp = document.getElementById('admin-empresas-list');
+            const dlYac = document.getElementById('admin-yacimientos-list');
             const dlLoc = document.getElementById('admin-locaciones-list');
             if (dlEmp) dlEmp.innerHTML = empresas.map(e => `<option value="${e}">`).join('');
+            if (dlYac) dlYac.innerHTML = yacimientos.map(y => `<option value="${y}">`).join('');
             if (dlLoc) dlLoc.innerHTML = locaciones.map(l => `<option value="${l}">`).join('');
 
-            // Agrupar por empresa → locación
+            // Agrupar: Empresa → Yacimiento → Locación
             const grupos = {};
             partes.forEach(p => {
                 const emp = p.empresa || '(Sin empresa)';
+                const yac = p.yacimiento || '(Sin yacimiento)';
                 const loc = p.locacion || '(Sin locación)';
                 if (!grupos[emp]) grupos[emp] = {};
-                if (!grupos[emp][loc]) grupos[emp][loc] = [];
-                grupos[emp][loc].push(p);
+                if (!grupos[emp][yac]) grupos[emp][yac] = {};
+                if (!grupos[emp][yac][loc]) grupos[emp][yac][loc] = [];
+                grupos[emp][yac][loc].push(p);
             });
 
             this._partesCache = partes;
 
             let html = '';
-            for (const [empresa, locaciones] of Object.entries(grupos)) {
-                html += `<div style="grid-column:1/-1; margin-top:24px; margin-bottom:8px; padding:10px 16px; background:linear-gradient(135deg,#2c5364,#203a43); color:#fff; border-radius:10px; font-size:1rem; font-weight:600;">
+            for (const [empresa, yacimientos] of Object.entries(grupos)) {
+                // Encabezado Empresa (nivel 1)
+                html += `<div style="grid-column:1/-1; margin-top:24px; margin-bottom:4px; padding:10px 16px;
+                    background:linear-gradient(135deg,#1a3a4a,#2c5364); color:#fff;
+                    border-radius:10px; font-size:1rem; font-weight:700; letter-spacing:0.3px;">
                     🏢 ${empresa}
                 </div>`;
 
-                for (const [locacion, items] of Object.entries(locaciones)) {
-                    html += `<div style="grid-column:1/-1; margin-bottom:4px; padding:6px 16px; background:#f0f4f8; border-left:4px solid #4a8fa8; font-weight:500; font-size:0.9rem; color:#334;">
-                        📍 ${locacion} <span style="color:#888;font-weight:normal;">(${items.length} parte${items.length !== 1 ? 's' : ''})</span>
+                for (const [yacimiento, locaciones] of Object.entries(yacimientos)) {
+                    // Sub-encabezado Yacimiento (nivel 2)
+                    html += `<div style="grid-column:1/-1; margin-top:8px; margin-bottom:2px; padding:6px 20px;
+                        background:linear-gradient(135deg,#2d6a4f,#1b4332); color:#d8f3dc;
+                        border-radius:8px; font-size:0.92rem; font-weight:600;">
+                        ⛏️ ${yacimiento}
                     </div>`;
 
-                    items.forEach(p => {
-                        const fecha = p.fecha
-                            ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-AR')
-                            : new Date(p.createdAt).toLocaleDateString('es-AR');
-                        const colector = p.collector?.name || p.collector?.collectorId || 'Desconocido';
-                        const obs = p.observaciones
-                            ? p.observaciones.substring(0, 60) + (p.observaciones.length > 60 ? '...' : '')
-                            : 'Sin observaciones';
-                        const fotoSrc = p.foto || '';
-
-                        html += `
-                        <div style="
-                            background:#fff; border:1px solid #e0e0e0; border-radius:12px;
-                            overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.07);
-                            cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;
-                            display:flex; flex-direction:column;
-                        " onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.13)'"
-                           onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'"
-                           onclick="window.adminPanel.viewParteAdmin('${p.id}')">
-                            <div style="width:100%; aspect-ratio:4/3; background:#f0f0f0; overflow:hidden;">
-                                ${fotoSrc
-                                ? `<img src="${fotoSrc}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">`
-                                : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;">📋</div>`
-                            }
-                            </div>
-                            <div style="padding:12px;">
-                                <strong style="display:block;margin-bottom:4px;">📅 ${fecha}</strong>
-                                <small style="color:#666;display:block;margin-bottom:4px;">👤 ${colector}</small>
-                                <small style="color:#888;font-size:0.78rem;">${obs}</small>
-                            </div>
+                    for (const [locacion, items] of Object.entries(locaciones)) {
+                        // Sub-sub-encabezado Locación (nivel 3)
+                        html += `<div style="grid-column:1/-1; margin-bottom:6px; padding:4px 28px;
+                            background:#f0f4f8; border-left:4px solid #4a8fa8;
+                            font-size:0.85rem; color:#445; font-weight:500;">
+                            📍 ${locacion} <span style="color:#888;font-weight:normal;">(${items.length} parte${items.length !== 1 ? 's' : ''})</span>
                         </div>`;
-                    });
+
+                        items.forEach(p => {
+                            const fecha = p.fecha
+                                ? new Date(p.fecha + 'T12:00:00').toLocaleDateString('es-AR')
+                                : new Date(p.createdAt).toLocaleDateString('es-AR');
+                            const colector = p.collector?.name || p.collector?.collectorId || 'Desconocido';
+                            const obs = p.observaciones
+                                ? p.observaciones.substring(0, 60) + (p.observaciones.length > 60 ? '...' : '')
+                                : 'Sin observaciones';
+                            const fotoSrc = p.foto || '';
+
+                            html += `
+                            <div style="background:#fff; border:1px solid #e0e0e0; border-radius:12px;
+                                overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.07);
+                                cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;
+                                display:flex; flex-direction:column;"
+                                onmouseover="this.style.transform='translateY(-3px)';this.style.boxShadow='0 6px 18px rgba(0,0,0,0.13)'"
+                                onmouseout="this.style.transform='';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.07)'"
+                                onclick="window.adminPanel.viewParteAdmin('${p.id}')">
+                                <div style="width:100%; aspect-ratio:4/3; background:#f0f0f0; overflow:hidden;">
+                                    ${fotoSrc
+                                    ? `<img src="${fotoSrc}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">`
+                                    : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:3rem;">📋</div>`
+                                }
+                                </div>
+                                <div style="padding:12px;">
+                                    <strong style="display:block;margin-bottom:4px;">📅 ${fecha}</strong>
+                                    <small style="color:#666;display:block;margin-bottom:4px;">👤 ${colector}</small>
+                                    <small style="color:#888;font-size:0.78rem;">${obs}</small>
+                                </div>
+                            </div>`;
+                        });
+                    }
                 }
             }
 

@@ -49,10 +49,13 @@ class PartesDiariosManager {
         // Poblar datalists con valores previos
         const partes = this.getLocalPartes();
         const empresas = [...new Set(partes.map(p => p.empresa).filter(Boolean))];
+        const yacimientos = [...new Set(partes.map(p => p.yacimiento).filter(Boolean))];
         const locaciones = [...new Set(partes.map(p => p.locacion).filter(Boolean))];
         const dlEmpresas = document.getElementById('parte-empresas-list');
+        const dlYacimientos = document.getElementById('parte-yacimientos-list');
         const dlLocaciones = document.getElementById('parte-locaciones-list');
         if (dlEmpresas) dlEmpresas.innerHTML = empresas.map(e => `<option value="${e}">`).join('');
+        if (dlYacimientos) dlYacimientos.innerHTML = yacimientos.map(y => `<option value="${y}">`).join('');
         if (dlLocaciones) dlLocaciones.innerHTML = locaciones.map(l => `<option value="${l}">`).join('');
 
         modal.classList.remove('hidden');
@@ -81,6 +84,7 @@ class PartesDiariosManager {
             const fecha = form.querySelector('[name="fecha"]').value;
             const observaciones = form.querySelector('[name="observaciones"]').value;
             const empresa = form.querySelector('[name="empresa"]')?.value?.trim() || '';
+            const yacimiento = form.querySelector('[name="yacimiento"]')?.value?.trim() || '';
             const locacion = form.querySelector('[name="locacion"]')?.value?.trim() || '';
             const fotoInput = form.querySelector('[name="foto"]');
 
@@ -97,6 +101,7 @@ class PartesDiariosManager {
                 fecha,
                 observaciones,
                 empresa,
+                yacimiento,
                 locacion,
                 foto,
                 collectorId: this.collectorId,
@@ -187,7 +192,7 @@ class PartesDiariosManager {
                 </div>
                 <div class="data-info">
                     <h4>📋 Parte del ${this.formatDate(parte.fecha)}</h4>
-                    ${parte.empresa ? `<small style="color:#555;">🏢 ${parte.empresa}${parte.locacion ? ' — 📍 ' + parte.locacion : ''}</small><br>` : ''}
+                    ${parte.empresa ? `<small style="color:#555;">🏢 ${parte.empresa}${parte.yacimiento ? ' › ⛏️ ' + parte.yacimiento : ''}${parte.locacion ? ' › 📍 ' + parte.locacion : ''}</small><br>` : ''}
                     <small>${parte.observaciones ? parte.observaciones.substring(0, 60) + (parte.observaciones.length > 60 ? '...' : '') : 'Sin observaciones'}</small>
                 </div>
             `;
