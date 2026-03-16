@@ -5,10 +5,12 @@ class SyncManager {
         this.store = store;
         this.syncInterval = null;
         this.AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutos
+        console.log('SyncManager constructor called');
     }
 
     // Iniciar sincronización automática
     startAutoSync() {
+        console.log('startAutoSync called');
         this.stopAutoSync(); // Detener si ya existe
 
         // Sincronizar inmediatamente

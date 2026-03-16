@@ -1,12 +1,14 @@
 // window.onerror removed to use the one in index.html
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('App DOMContentLoaded');
     const store = new Store();
     const ui = new UI(store);
     const syncManager = new SyncManager(store);
     const mapManager = new MapManager(store);
 
     ui.init();
+    console.log('UI initialized, starting sync...');
     syncManager.startAutoSync();
 
     // --- Map Filters & Persistence ---
@@ -876,29 +878,4 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check initial status
     updateOnlineStatus();
 
-    // --- PWA Registration ---
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            // Use relative path for service worker
-            const swPath = './public/service-worker.js';
-            navigator.serviceWorker.register(swPath)
-                .then(registration => {
-                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
-
-                    // Check for updates
-                    registration.addEventListener('updatefound', () => {
-                        const newWorker = registration.installing;
-                        newWorker.addEventListener('statechange', () => {
-                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                // New version available
-                                console.log('New version available! Refresh to update.');
-                            }
-                        });
-                    });
-                })
-                .catch(err => {
-                    console.log('ServiceWorker registration failed: ', err);
-                });
-        });
-    }
 });
