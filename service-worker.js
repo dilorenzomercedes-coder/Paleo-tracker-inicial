@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paleo-heritage-v15';
+const CACHE_NAME = 'paleo-heritage-v16';
 const TILES_CACHE = 'map-tiles-v1';
 
 const ASSETS = [

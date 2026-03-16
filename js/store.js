@@ -1,5 +1,6 @@
 class Store {
     constructor() {
+        console.log('Store initialized v2.2.2');
         this.STORAGE_KEY_HALLAZGOS = 'paleo_hallazgos';
         this.STORAGE_KEY_FRAGMENTOS = 'paleo_fragmentos';
         this.STORAGE_KEY_ROUTES = 'paleo_routes';
@@ -415,6 +416,7 @@ class Store {
             documents: { synced: 0, failed: 0 },
             partes: { synced: 0, failed: 0 }
         };
+        console.log('syncAll: results object initialized with keys:', Object.keys(results));
 
         if (!collectorId) {
             console.warn('syncAll: no collectorId configurado');
