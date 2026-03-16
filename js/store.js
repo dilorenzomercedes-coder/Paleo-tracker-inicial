@@ -411,7 +411,8 @@ class Store {
             { key: 'hallazgos', data: this.getHallazgos(), url: `${backendUrl}/api/collector/hallazgos` },
             { key: 'fragmentos', data: this.getFragmentos(), url: `${backendUrl}/api/collector/fragmentos` },
             { key: 'routes', data: this.getRoutes(), url: `${backendUrl}/api/collector/routes` },
-            { key: 'documents', data: this.getDocuments(), url: `${backendUrl}/api/collector/documents` }
+            { key: 'documents', data: this.getDocuments(), url: `${backendUrl}/api/collector/documents` },
+            { key: 'partes', data: this._getData('partes_diarios_local'), url: `${backendUrl}/api/collector/partes-diarios` }
         ];
 
         for (const { key, data, url } of endpoints) {
