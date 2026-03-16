@@ -27,11 +27,11 @@ class Store {
             }
         }
 
-        // Migration: Ensure all items have a unique ID
-        this._ensureIds();
+        // Migration: Ensure all items have a unique ID and correct format
+        this._migrateData();
     }
 
-    _ensureIds() {
+    _migrateData() {
         const keys = [
             this.STORAGE_KEY_HALLAZGOS,
             this.STORAGE_KEY_FRAGMENTOS,
@@ -51,19 +51,31 @@ class Store {
 
                 if (Array.isArray(data)) {
                     data.forEach(item => {
-                        if (item && typeof item === 'object' && !item.id) {
+                        if (!item || typeof item !== 'object') return;
+
+                        // 1. Ensure ID
+                        if (!item.id) {
                             item.id = this._generateId();
                             changed = true;
                         }
+
+                        // 2. Flatten photo objects (foto, foto1, foto2, foto3, fileData)
+                        ['foto', 'foto1', 'foto2', 'foto3', 'fileData', 'file'].forEach(field => {
+                            if (item[field] && typeof item[field] === 'object' && item[field].data) {
+                                console.log(`Aplanando objeto en ${key}.${field} para ${item.id}`);
+                                item[field] = item[field].data;
+                                changed = true;
+                            }
+                        });
                     });
 
                     if (changed) {
                         localStorage.setItem(key, JSON.stringify(data));
-                        console.log(`IDs generados para ítems en ${key}`);
+                        console.log(`Migración completada para ${key}`);
                     }
                 }
             } catch (e) {
-                console.error(`Error migrando IDs en ${key}:`, e);
+                console.error(`Error migrando datos en ${key}:`, e);
             }
         });
     }
