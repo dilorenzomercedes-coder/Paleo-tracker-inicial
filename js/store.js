@@ -26,6 +26,46 @@ class Store {
                 try { localStorage.setItem('paleo_astillas', oldAstillas); } catch (i) { }
             }
         }
+
+        // Migration: Ensure all items have a unique ID
+        this._ensureIds();
+    }
+
+    _ensureIds() {
+        const keys = [
+            this.STORAGE_KEY_HALLAZGOS,
+            this.STORAGE_KEY_FRAGMENTOS,
+            this.STORAGE_KEY_ROUTES,
+            this.STORAGE_KEY_DOCUMENTS,
+            'partes_diarios_local',
+            'partes_diarios_pending'
+        ];
+
+        keys.forEach(key => {
+            const dataStr = localStorage.getItem(key);
+            if (!dataStr) return;
+
+            try {
+                const data = JSON.parse(dataStr);
+                let changed = false;
+
+                if (Array.isArray(data)) {
+                    data.forEach(item => {
+                        if (item && typeof item === 'object' && !item.id) {
+                            item.id = this._generateId();
+                            changed = true;
+                        }
+                    });
+
+                    if (changed) {
+                        localStorage.setItem(key, JSON.stringify(data));
+                        console.log(`IDs generados para ítems en ${key}`);
+                    }
+                }
+            } catch (e) {
+                console.error(`Error migrando IDs en ${key}:`, e);
+            }
+        });
     }
 
     // --- Helpers ---
