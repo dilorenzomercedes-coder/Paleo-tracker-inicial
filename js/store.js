@@ -400,7 +400,8 @@ class Store {
                 hallazgos: this.getHallazgos().length,
                 fragmentos: this.getFragmentos().length,
                 routes: this.getRoutes().length,
-                documents: this.getDocuments().length
+                documents: this.getDocuments().length,
+                partes: this._getData('partes_diarios_local').length
             }
         };
     }
@@ -411,7 +412,8 @@ class Store {
             hallazgos: { synced: 0, failed: 0 },
             fragmentos: { synced: 0, failed: 0 },
             routes: { synced: 0, failed: 0 },
-            documents: { synced: 0, failed: 0 }
+            documents: { synced: 0, failed: 0 },
+            partes: { synced: 0, failed: 0 }
         };
 
         if (!collectorId) {

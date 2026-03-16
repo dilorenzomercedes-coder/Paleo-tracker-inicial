@@ -44,7 +44,7 @@ class SyncManager {
                 // Contar items pendientes
                 const stats = this.store.getSyncStats();
                 const totalPending = stats.pending.hallazgos + stats.pending.fragmentos +
-                    stats.pending.routes + stats.pending.documents;
+                    stats.pending.routes + stats.pending.documents + (stats.pending.partes || 0);
 
                 if (totalPending === 0) {
                     // No hay nada que sincronizar
@@ -62,9 +62,9 @@ class SyncManager {
 
             // Calcular totales
             const totalSynced = results.hallazgos.synced + results.fragmentos.synced +
-                results.routes.synced + results.documents.synced;
+                results.routes.synced + results.documents.synced + (results.partes?.synced || 0);
             const totalFailed = results.hallazgos.failed + results.fragmentos.failed +
-                results.routes.failed + results.documents.failed;
+                results.routes.failed + results.documents.failed + (results.partes?.failed || 0);
 
             if (totalFailed > 0) {
                 this.updateSyncStatus('error', `${totalFailed} errores`);
