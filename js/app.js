@@ -3,9 +3,11 @@
 document.addEventListener('DOMContentLoaded', () => {
     const store = new Store();
     const ui = new UI(store);
+    const syncManager = new SyncManager(store);
     const mapManager = new MapManager(store);
 
     ui.init();
+    syncManager.startAutoSync();
 
     // --- Map Filters & Persistence ---
     const defaultFilters = {
@@ -249,6 +251,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('❌ ' + result.message);
             }
         });
+    }
+
+
+    // --- Sync ---
+    const btnSync = document.getElementById('btn-sync');
+    if (btnSync) {
+        btnSync.addEventListener('click', () => syncManager.syncNow());
     }
 
 

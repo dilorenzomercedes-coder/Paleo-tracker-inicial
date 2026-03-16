@@ -316,4 +316,98 @@ class Store {
 
         return { added: addedCount, skipped: skippedCount };
     }
+
+    // --- Backend / Sync Methods ---
+
+    getCollectorInfo() {
+        return {
+            collectorId: localStorage.getItem('collector_id') || null,
+            collectorName: localStorage.getItem('collector_name') || '',
+            backendUrl: localStorage.getItem('backend_url') || 'https://paleo-tracker-backend.onrender.com'
+        };
+    }
+
+    async checkBackendConnection() {
+        const { backendUrl } = this.getCollectorInfo();
+        try {
+            const response = await fetch(`${backendUrl}/health`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000) // 5s timeout
+            });
+            return response.ok;
+        } catch {
+            return false;
+        }
+    }
+
+    getSyncStats() {
+        // Returns counts of local items (all are considered pending
+        // since we don't track synced state locally)
+        return {
+            pending: {
+                hallazgos: this.getHallazgos().length,
+                fragmentos: this.getFragmentos().length,
+                routes: this.getRoutes().length,
+                documents: this.getDocuments().length
+            }
+        };
+    }
+
+    async syncAll() {
+        const { collectorId, collectorName, backendUrl } = this.getCollectorInfo();
+        const results = {
+            hallazgos: { synced: 0, failed: 0 },
+            fragmentos: { synced: 0, failed: 0 },
+            routes: { synced: 0, failed: 0 },
+            documents: { synced: 0, failed: 0 }
+        };
+
+        if (!collectorId) {
+            console.warn('syncAll: no collectorId configurado');
+            return results;
+        }
+
+        const endpoints = [
+            { key: 'hallazgos', data: this.getHallazgos(), url: `${backendUrl}/api/collector/hallazgos` },
+            { key: 'fragmentos', data: this.getFragmentos(), url: `${backendUrl}/api/collector/fragmentos` },
+            { key: 'routes', data: this.getRoutes(), url: `${backendUrl}/api/collector/routes` },
+            { key: 'documents', data: this.getDocuments(), url: `${backendUrl}/api/collector/documents` }
+        ];
+
+        for (const { key, data, url } of endpoints) {
+            for (const item of data) {
+                try {
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...item, collectorId, collectorName }),
+                        signal: AbortSignal.timeout(10000)
+                    });
+                    if (resp.ok) {
+                        results[key].synced++;
+                    } else {
+                        results[key].failed++;
+                    }
+                } catch {
+                    results[key].failed++;
+                }
+            }
+        }
+
+        return results;
+    }
+
+    async fetchSharedDocuments() {
+        const { backendUrl } = this.getCollectorInfo();
+        try {
+            const resp = await fetch(`${backendUrl}/api/collector/shared-documents`, {
+                signal: AbortSignal.timeout(8000)
+            });
+            if (!resp.ok) return [];
+            const data = await resp.json();
+            return data.data || [];
+        } catch {
+            return [];
+        }
+    }
 }
