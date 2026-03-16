@@ -60,11 +60,19 @@ class SyncManager {
             // Sincronizar todos los datos pendientes
             const results = await this.store.syncAll();
 
-            // Calcular totales
-            const totalSynced = results.hallazgos.synced + results.fragmentos.synced +
-                results.routes.synced + results.documents.synced + (results.partes?.synced || 0);
-            const totalFailed = results.hallazgos.failed + results.fragmentos.failed +
-                results.routes.failed + results.documents.failed + (results.partes?.failed || 0);
+            const totalSynced =
+                (results.hallazgos?.synced || 0) +
+                (results.fragmentos?.synced || 0) +
+                (results.routes?.synced || 0) +
+                (results.documents?.synced || 0) +
+                (results.partes?.synced || 0);
+
+            const totalFailed =
+                (results.hallazgos?.failed || 0) +
+                (results.fragmentos?.failed || 0) +
+                (results.routes?.failed || 0) +
+                (results.documents?.failed || 0) +
+                (results.partes?.failed || 0);
 
             if (totalFailed > 0) {
                 this.updateSyncStatus('error', `${totalFailed} errores`);

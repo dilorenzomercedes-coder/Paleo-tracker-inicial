@@ -1,6 +1,6 @@
 class Store {
     constructor() {
-        console.log('Store initialized v2.2.2');
+        console.log('Store initialized v2.2.3');
         this.STORAGE_KEY_HALLAZGOS = 'paleo_hallazgos';
         this.STORAGE_KEY_FRAGMENTOS = 'paleo_fragmentos';
         this.STORAGE_KEY_ROUTES = 'paleo_routes';
@@ -60,25 +60,52 @@ class Store {
                             changed = true;
                         }
 
-                        // 2. Flatten photo objects (foto, foto1, foto2, foto3, fileData)
-                        ['foto', 'foto1', 'foto2', 'foto3', 'fileData', 'file'].forEach(field => {
-                            if (item[field] && typeof item[field] === 'object' && item[field].data) {
-                                console.log(`Aplanando objeto en ${key}.${field} para ${item.id}`);
-                                item[field] = item[field].data;
-                                changed = true;
-                            }
-                        });
+                        // 2. Deep Clean photo fields
+                        const before = JSON.stringify(item);
+                        this._deepClean(item);
+                        const after = JSON.stringify(item);
+                        if (before !== after) {
+                            console.log(`Datos corregidos en ${key} para item ${item.id}`);
+                            changed = true;
+                        }
                     });
 
                     if (changed) {
                         localStorage.setItem(key, JSON.stringify(data));
-                        console.log(`Migración completada para ${key}`);
+                        console.log(`Migración y limpieza completada para ${key}`);
                     }
                 }
             } catch (e) {
                 console.error(`Error migrando datos en ${key}:`, e);
             }
         });
+    }
+
+    _deepClean(item) {
+        if (!item || typeof item !== 'object') return item;
+        const photoFields = ['foto', 'foto1', 'foto2', 'foto3', 'fileData', 'file'];
+        photoFields.forEach(f => {
+            if (item[f] && typeof item[f] === 'object') {
+                console.warn(`Limpiando campo ${f} (era objeto/array)`, item[f]);
+                if (item[f].data) {
+                    item[f] = item[f].data;
+                } else if (item[f].file) {
+                    item[f] = item[f].file;
+                } else if (Array.isArray(item[f])) {
+                    item[f] = item[f][0]?.data || item[f][0];
+                }
+
+                // Si sigue siendo objeto, forzar string o vaciar
+                if (item[f] && typeof item[f] === 'object') {
+                    try {
+                        item[f] = JSON.stringify(item[f]);
+                    } catch (e) {
+                        item[f] = "";
+                    }
+                }
+            }
+        });
+        return item;
     }
 
     // --- Helpers ---
@@ -433,18 +460,22 @@ class Store {
 
         for (const { key, data, url } of endpoints) {
             for (const item of data) {
+                // Ensure cleaned data right before sending
+                const cleanItem = this._deepClean({ ...item });
+
                 try {
                     const resp = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...item, collectorId, collectorName }),
-                        signal: AbortSignal.timeout(10000)
+                        body: JSON.stringify({ ...cleanItem, collectorId, collectorName }),
+                        signal: AbortSignal.timeout(15000)
                     });
                     if (resp.ok) {
                         results[key].synced++;
                     } else {
                         const errData = await resp.json().catch(() => ({ error: resp.statusText }));
                         console.error(`Error sincronizando ${key} (${item.id}):`, resp.status, errData);
+                        console.log('Dato enviado que falló:', cleanItem); // Log malformed data
                         results[key].failed++;
                     }
                 } catch (err) {
