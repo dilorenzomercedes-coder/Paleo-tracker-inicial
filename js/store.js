@@ -386,9 +386,12 @@ class Store {
                     if (resp.ok) {
                         results[key].synced++;
                     } else {
+                        const errData = await resp.json().catch(() => ({ error: resp.statusText }));
+                        console.error(`Error sincronizando ${key} (${item.id}):`, resp.status, errData);
                         results[key].failed++;
                     }
-                } catch {
+                } catch (err) {
+                    console.error(`Excepción sincronizando ${key} (${item.id}):`, err);
                     results[key].failed++;
                 }
             }
