@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paleo-heritage-v14';
+const CACHE_NAME = 'paleo-heritage-v15';
 const TILES_CACHE = 'map-tiles-v1';
 
 const ASSETS = [
@@ -9,6 +9,7 @@ const ASSETS = [
     './js/map.js',
     './js/ui.js',
     './js/store.js',
+    './js/sync-manager.js',
     './js/export.js',
     './js/documentation.js',
     './js/partes-diarios.js',
