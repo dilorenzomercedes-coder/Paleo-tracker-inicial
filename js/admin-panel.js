@@ -980,7 +980,7 @@ class AdminPanel {
           <td>${new Date(d.createdAt).toLocaleDateString()}</td>
           <td><span class="badge ${d.isActive ? 'badge-success' : 'badge-secondary'}">${d.isActive ? 'Activo' : 'Inactivo'}</span></td>
           <td>
-            <button class="btn btn-danger btn-sm" onclick="adminPanel.deleteSharedDoc(${d.id})">
+            <button class="btn btn-danger btn-sm" onclick="adminPanel.deleteSharedDoc('${d.id}')">
               Eliminar
             </button>
           </td>
