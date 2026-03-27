@@ -54,21 +54,28 @@ class DocumentationManager {
         }
 
         try {
-            const response = await fetch(`${collectorInfo.backendUrl}/api/collector/shared-documents`);
+            // Timeout de 10 segundos para la petición
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(`${collectorInfo.backendUrl}/api/collector/shared-documents`, {
+                signal: controller.signal
+            }).finally(() => clearTimeout(timeoutId));
 
             if (!response.ok) {
-                throw new Error('Error al cargar documentos compartidos');
+                throw new Error(`Error servidor: ${response.status}`);
             }
 
             const data = await response.json();
             const docs = data.data || [];
+
+            container.innerHTML = ''; // Limpiar "Cargando..."
 
             if (docs.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay documentos compartidos disponibles</div>';
                 return;
             }
 
-            container.innerHTML = '';
             docs.forEach(doc => {
                 const item = document.createElement('div');
                 item.className = 'data-card';
@@ -85,8 +92,13 @@ class DocumentationManager {
             });
         } catch (error) {
             console.error('Error loading shared documents:', error);
-            container.innerHTML = '<div class="empty-state">Error al cargar documentos compartidos. Verifica la conexión.</div>';
+            if (error.name === 'AbortError') {
+                container.innerHTML = '<div class="empty-state">La conexión tardó demasiado. Reintenta.</div>';
+            } else {
+                container.innerHTML = `<div class="empty-state">Error al cargar: ${error.message}.<br><small>URL: ${collectorInfo.backendUrl}</small></div>`;
+            }
         }
+
     }
 
     viewSharedDocument(doc) {
