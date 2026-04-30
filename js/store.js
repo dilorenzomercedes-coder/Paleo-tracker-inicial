@@ -1,13 +1,14 @@
 class Store {
     constructor() {
-        console.log('Store initialized v2.2.3');
+        console.log('Store initialized v2.3.0');
         this.STORAGE_KEY_HALLAZGOS = 'paleo_hallazgos';
         this.STORAGE_KEY_FRAGMENTOS = 'paleo_fragmentos';
         this.STORAGE_KEY_ROUTES = 'paleo_routes';
         this.STORAGE_KEY_DOCUMENTS = 'paleo_documents';
-        // Max image dimension for compression
-        this.MAX_IMAGE_DIMENSION = 800;
-        this.IMAGE_QUALITY = 0.6;
+        this.STORAGE_KEY_RESCATES = 'paleo_rescates';
+        // Compresión agresiva para ahorrar espacio (fix QuotaExceededError)
+        this.MAX_IMAGE_DIMENSION = 640;
+        this.IMAGE_QUALITY = 0.45;
 
         // Migration: Check for old "astillas" data and move it to "fragmentos"
         const oldAstillas = localStorage.getItem('paleo_astillas');
@@ -38,6 +39,7 @@ class Store {
             this.STORAGE_KEY_FRAGMENTOS,
             this.STORAGE_KEY_ROUTES,
             this.STORAGE_KEY_DOCUMENTS,
+            this.STORAGE_KEY_RESCATES,
             'partes_diarios_local',
             'partes_diarios_pending'
         ];
@@ -319,6 +321,37 @@ class Store {
         this._saveData(this.STORAGE_KEY_DOCUMENTS, filtered);
     }
 
+    // --- Rescates ---
+    getRescates() {
+        return this._getData(this.STORAGE_KEY_RESCATES);
+    }
+
+    addRescate(rescate) {
+        const list = this.getRescates();
+        rescate.id = `r_${this._generateId()}`;
+        rescate.timestamp = new Date().toISOString();
+        list.push(rescate);
+        this._saveData(this.STORAGE_KEY_RESCATES, list);
+        return rescate;
+    }
+
+    updateRescate(id, updatedData) {
+        const list = this.getRescates();
+        const index = list.findIndex(r => r.id === id);
+        if (index !== -1) {
+            list[index] = { ...list[index], ...updatedData };
+            this._saveData(this.STORAGE_KEY_RESCATES, list);
+            return list[index];
+        }
+        return null;
+    }
+
+    deleteRescate(id) {
+        const list = this.getRescates();
+        const filtered = list.filter(r => r.id !== id);
+        this._saveData(this.STORAGE_KEY_RESCATES, filtered);
+    }
+
     // --- Folders ---
     getFolders() {
         const hallazgos = this.getHallazgos();
@@ -421,14 +454,13 @@ class Store {
     }
 
     getSyncStats() {
-        // Returns counts of local items (all are considered pending
-        // since we don't track synced state locally)
         return {
             pending: {
                 hallazgos: this.getHallazgos().length,
                 fragmentos: this.getFragmentos().length,
                 routes: this.getRoutes().length,
                 documents: this.getDocuments().length,
+                rescates: this.getRescates().length,
                 partes: this._getData('partes_diarios_local').length
             }
         };
@@ -455,6 +487,7 @@ class Store {
             { key: 'fragmentos', data: this.getFragmentos(), url: `${backendUrl}/api/collector/fragmentos` },
             { key: 'routes', data: this.getRoutes(), url: `${backendUrl}/api/collector/routes` },
             { key: 'documents', data: this.getDocuments(), url: `${backendUrl}/api/collector/documents` },
+            { key: 'rescates', data: this.getRescates(), url: `${backendUrl}/api/collector/rescates` },
             { key: 'partes', data: this._getData('partes_diarios_local'), url: `${backendUrl}/api/collector/partes-diarios` }
         ];
 

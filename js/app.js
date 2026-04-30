@@ -878,4 +878,69 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check initial status
     updateOnlineStatus();
 
+    // --- Rescates ---
+    const openRescateBtn = document.getElementById('btn-new-rescate');
+    if (openRescateBtn) {
+        openRescateBtn.addEventListener('click', () => {
+            ui.toggleModal('rescates-form-container', true);
+        });
+    }
+
+    const closeRescateBtn = document.getElementById('btn-close-rescate');
+    if (closeRescateBtn) {
+        closeRescateBtn.addEventListener('click', () => ui.toggleModal('rescates-form-container', false));
+    }
+
+    const btnCaptureRescate = document.getElementById('btn-capture-rescate');
+    if (btnCaptureRescate) {
+        btnCaptureRescate.addEventListener('click', () => captureLocation('rescate-gps-status', 'form-rescate'));
+    }
+
+    ['rescate-foto1', 'rescate-foto2', 'rescate-foto3'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('change', (e) => ui.handleImagePreview(e.target, `${id}-preview`));
+        }
+    });
+
+    const formRescate = document.getElementById('form-rescate');
+    if (formRescate) {
+        formRescate.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+
+            for (const field of ['foto1', 'foto2', 'foto3']) {
+                const input = document.getElementById(`rescate-${field}`);
+                if (input && input.files[0]) {
+                    const base64 = await toBase64(input.files[0]);
+                    data[field] = await store.compressImage(base64);
+                }
+            }
+
+            const editingId = e.target.dataset.editingId;
+            if (editingId) {
+                store.updateRescate(editingId, data);
+                delete e.target.dataset.editingId;
+            } else {
+                store.addRescate(data);
+            }
+
+            ui.renderRescates();
+            ui.toggleModal('rescates-form-container', false);
+            e.target.reset();
+            ['rescate-foto1-preview', 'rescate-foto2-preview', 'rescate-foto3-preview'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+            const gpsStatus = document.getElementById('rescate-gps-status');
+            if (gpsStatus) gpsStatus.textContent = '';
+        });
+    }
+
+    // Migracion de fotos a IndexedDB al iniciar
+    if (window.photoStore) {
+        window.photoStore.migrateFromLocalStorage().catch(err => console.warn('Error migracion fotos:', err));
+    }
+
 });

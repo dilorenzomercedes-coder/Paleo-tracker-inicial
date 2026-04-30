@@ -648,6 +648,9 @@ class AdminPanel {
             case 'partes-diarios':
                 this.loadPartesAdmin();
                 break;
+            case 'rescates':
+                this.loadRescates();
+                break;
             case 'export':
                 this.loadExportFilters();
                 break;
@@ -810,9 +813,7 @@ class AdminPanel {
             }
 
             tbody.innerHTML = filteredData.map(h => {
-                // Check for any of the photo fields (foto1, foto2, foto3)
                 const foto = h.foto1 || h.foto2 || h.foto3;
-                // Use ID for onclick to avoid passing massive base64 string
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${h.id}', 'hallazgo')">` :
                     '<span style="color:#999;">Sin foto</span>';
@@ -830,6 +831,9 @@ class AdminPanel {
           <td>
             <button class="btn-icon" onclick="window.adminPanel.editHallazgo('${h.id}')" title="Editar">
               ✏️
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('hallazgos', '${h.id}', 'Hallazgo')" title="Eliminar">
+              🗑️
             </button>
           </td>
         </tr>
@@ -865,9 +869,7 @@ class AdminPanel {
             this.currentFragmentos = data.data;
 
             tbody.innerHTML = data.data.map(f => {
-                // Display photo if available
                 const foto = f.foto;
-                // Use ID for onclick
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')">` :
                     '<span style="color:#999;">Sin foto</span>';
@@ -884,6 +886,7 @@ class AdminPanel {
           <td>
             ${foto ? `<button class="btn-icon" onclick="window.adminPanel.downloadPhotoById('${f.id}', 'fragmento')" title="Descargar foto">📥</button>` : ''}
             <button class="btn-icon" onclick="window.adminPanel.editFragmento('${f.id}')" title="Editar">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('fragmentos', '${f.id}', 'Fragmento')" title="Eliminar">🗑️</button>
           </td>
         </tr>
       `;
@@ -919,6 +922,9 @@ class AdminPanel {
             <button class="btn btn-primary btn-sm" onclick="adminPanel.downloadRoute(${r.id}, '${r.name}')">
               Descargar
             </button>
+            <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('routes', '${r.id}', 'Ruta')">
+              🗑️ Eliminar
+            </button>
           </td>
         </tr>
       `).join('');
@@ -953,6 +959,9 @@ class AdminPanel {
           <td>
             <button class="btn btn-primary btn-sm" onclick="adminPanel.viewDocument(${d.id})">
               Ver
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('documents', '${d.id}', 'Documento')">
+              🗑️
             </button>
           </td>
         </tr>
@@ -1720,6 +1729,69 @@ class AdminPanel {
             this.loadSharedDocs();
         } catch (error) {
             alert('Error al eliminar: ' + error.message);
+        }
+    }
+
+    async deleteItem(type, id, label) {
+        if (!confirm(`¿Eliminar este ${label}? Esta acción no se puede deshacer.`)) return;
+
+        try {
+            await this.apiRequest(`/api/admin/${type}/${id}`, { method: 'DELETE' });
+            alert(`${label} eliminado exitosamente`);
+            // Reload the current view
+            const view = this.currentView;
+            if (view) this.loadView(view);
+        } catch (error) {
+            alert(`Error al eliminar ${label}: ` + error.message);
+        }
+    }
+
+    async loadRescates() {
+        try {
+            const collector = document.getElementById('filter-rescates-collector')?.value || '';
+            const folder = document.getElementById('filter-rescates-folder')?.value || '';
+
+            const params = new URLSearchParams();
+            if (collector) params.append('collector', collector);
+            if (folder) params.append('folder', folder);
+
+            const rawData = await this.apiRequest(`/api/admin/rescates?${params}`);
+            const tbody = document.getElementById('rescates-table-body');
+
+            if (!rawData.data || rawData.data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9">No hay rescates</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = rawData.data.map(r => {
+                const foto = r.foto1 || r.foto2 || r.foto3;
+                const fotoHTML = foto ?
+                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;">` :
+                    '<span style="color:#999;">Sin foto</span>';
+
+                return `
+        <tr>
+          <td>${fotoHTML}</td>
+          <td>${r.fecha || 'N/A'}</td>
+          <td>${r.collector?.name || r.collector?.collectorId || 'N/A'}</td>
+          <td>${r.localidad || 'N/A'}</td>
+          <td>${r.folder || 'N/A'}</td>
+          <td>${r.tipo_material || 'N/A'}</td>
+          <td>${r.codigo || 'N/A'}</td>
+          <td>${r.lat && r.lng ? `${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}` : 'N/A'}</td>
+          <td>
+            <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('rescates', '${r.id}', 'Rescate')">
+              🗑️ Eliminar
+            </button>
+          </td>
+        </tr>
+      `;
+            }).join('');
+
+            this.updateFolderFilter(rawData.data, 'filter-rescates-folder');
+        } catch (error) {
+            console.error('Error loading rescates:', error);
+            alert('Error cargando rescates: ' + error.message);
         }
     }
 

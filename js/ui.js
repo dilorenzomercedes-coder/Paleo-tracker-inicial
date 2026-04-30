@@ -10,6 +10,7 @@ class UI {
     init() {
         this.renderHallazgos();
         this.renderFragmentos();
+        this.renderRescates();
         this.updateFolderLists();
         this.renderRoutesList();
         this.renderDocumentFolders();
@@ -28,8 +29,7 @@ class UI {
 
         if (tabId === 'tab-hallazgos') this.renderHallazgos();
         if (tabId === 'tab-fragmentos') this.renderFragmentos();
-        if (tabId === 'tab-hallazgos') this.renderHallazgos();
-        if (tabId === 'tab-fragmentos') this.renderFragmentos();
+        if (tabId === 'tab-rescates') this.renderRescates();
         if (tabId === 'tab-caminos') this.renderRoutesList();
         if (tabId === 'tab-documentacion') this.renderDocumentFolders();
     }
@@ -169,6 +169,9 @@ class UI {
         } else if (this.currentDetailType === 'fragmento') {
             this.store.deleteFragmento(this.currentDetailItem.id);
             this.renderFragmentos();
+        } else if (this.currentDetailType === 'rescate') {
+            this.store.deleteRescate(this.currentDetailItem.id);
+            this.renderRescates();
         }
 
         this.toggleModal('detail-modal', false);
@@ -179,16 +182,17 @@ class UI {
     editItem() {
         if (!this.currentDetailItem) return;
 
-        // Close detail modal
         this.toggleModal('detail-modal', false);
 
-        // Open the appropriate form and populate it
         if (this.currentDetailType === 'hallazgo') {
             this.toggleModal('hallazgos-form-container', true);
             this.populateForm('form-hallazgo', this.currentDetailItem);
         } else if (this.currentDetailType === 'fragmento') {
             this.toggleModal('fragmentos-form-container', true);
             this.populateForm('form-fragmento', this.currentDetailItem);
+        } else if (this.currentDetailType === 'rescate') {
+            this.toggleModal('rescates-form-container', true);
+            this.populateForm('form-rescate', this.currentDetailItem);
         }
     }
 
@@ -434,6 +438,10 @@ class UI {
 
     renderFragmentos() {
         this._renderList('fragmentos-list', this.store.getFragmentos(), 'fragmento');
+    }
+
+    renderRescates() {
+        this._renderList('rescates-list', this.store.getRescates(), 'rescate');
     }
 
     renderRoutesList() {
