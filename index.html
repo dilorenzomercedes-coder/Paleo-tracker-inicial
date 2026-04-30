@@ -231,7 +231,150 @@
         </div>
       </section>
 
-      <!-- Tab: Fragmentos (antes Astillas) -->
+      <!-- Tab: Rescates -->
+      <section id="tab-rescates" class="tab-content">
+        <div class="section-header">
+          <h2>🦕 Rescates</h2>
+          <button class="btn-primary" id="btn-new-rescate">+ Nuevo Rescate</button>
+        </div>
+
+        <div id="rescates-list" class="data-list">
+          <div class="empty-state">No hay rescates registrados.</div>
+        </div>
+
+        <!-- Form View (Hidden by default) -->
+        <div id="rescates-form-container" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>Nuevo Rescate</h3>
+              <button class="btn-close" id="btn-close-rescate">&times;</button>
+            </div>
+            <form id="form-rescate">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Localidad</label>
+                <input type="text" name="localidad" placeholder="Ej. Cañadón Asfalto" required>
+              </div>
+              <div class="form-group">
+                <label>Carpeta / Lugar</label>
+                <input type="text" name="folder" placeholder="Nombre de carpeta para agrupar" list="folder-list">
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Tipo de Material</label>
+                  <select name="tipo_material">
+                    <option value="VS">VS</option>
+                    <option value="VS-F">VS-F</option>
+                    <option value="VR">VR</option>
+                    <option value="VR-F">VR-F</option>
+                    <option value="IS">IS</option>
+                    <option value="IS-F">IS-F</option>
+                    <option value="IR">IR</option>
+                    <option value="XS">XS</option>
+                    <option value="XR">XR</option>
+                    <option value="PI">PI</option>
+                    <option value="Huella">Huella</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Código</label>
+                  <input type="text" name="codigo" placeholder="Ej. PV-001">
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Formación Geológica</label>
+                <input type="text" name="formacion">
+              </div>
+              <div class="form-group">
+                <label>Coordinador</label>
+                <input type="text" value="Porfiri-Dos Santos" readonly class="readonly-input">
+              </div>
+              <div class="form-group">
+                <label>Colector</label>
+                <input type="text" name="colector">
+              </div>
+              <div class="form-group">
+                <label>Consolidante</label>
+                <select name="consolidante">
+                  <option value="nada">Nada</option>
+                  <option value="laca">Laca</option>
+                  <option value="cianoacrilato">Cianoacrilato</option>
+                  <option value="poxipol">Poxipol</option>
+                  <option value="b72">B72</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Acción de Rescate</label>
+                <div class="radio-group">
+                  <label><input type="radio" name="accion" value="extraccion"> Extracción</label>
+                  <label><input type="radio" name="accion" value="consolidacion"> Consolidación</label>
+                  <label><input type="radio" name="accion" value="embalaje"> Embalaje</label>
+                  <label><input type="radio" name="accion" value="traslado"> Traslado</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Clasificación Taxonómica</label>
+                <input type="text" name="taxonomia">
+              </div>
+              <div class="form-group">
+                <label>Fotos (hasta 3)</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto1" accept="image/*" capture="environment" id="rescate-foto1">
+                  <label for="rescate-foto1" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 1
+                  </label>
+                </div>
+                <div id="rescate-foto1-preview" class="image-preview"></div>
+
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto2" accept="image/*" capture="environment" id="rescate-foto2">
+                  <label for="rescate-foto2" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 2
+                  </label>
+                </div>
+                <div id="rescate-foto2-preview" class="image-preview"></div>
+
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto3" accept="image/*" capture="environment" id="rescate-foto3">
+                  <label for="rescate-foto3" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 3
+                  </label>
+                </div>
+                <div id="rescate-foto3-preview" class="image-preview"></div>
+              </div>
+              <div class="form-group">
+                <label>Ubicación (GPS)</label>
+                <div class="gps-controls">
+                  <button type="button" class="btn-secondary btn-small" id="btn-capture-rescate">📍 Capturar GPS</button>
+                  <span class="gps-status" id="rescate-gps-status"></span>
+                </div>
+                <div class="coords-row">
+                  <div class="coord-input">
+                    <label>Latitud</label>
+                    <input type="number" step="any" name="lat" placeholder="-43.xxx">
+                  </div>
+                  <div class="coord-input">
+                    <label>Longitud</label>
+                    <input type="number" step="any" name="lng" placeholder="-65.xxx">
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea name="observaciones" rows="3" placeholder="Notas adicionales (opcional)"></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">Guardar Rescate</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+
       <section id="tab-fragmentos" class="tab-content">
         <div class="section-header">
           <h2>Registro de Fragmentos</h2>
@@ -617,6 +760,10 @@
       <span class="icon">📍</span>
       <span class="label">Hallazgos</span>
     </button>
+    <button class="nav-item" data-target="tab-rescates">
+      <span class="icon">🦕</span>
+      <span class="label">Rescates</span>
+    </button>
     <button class="nav-item" data-target="tab-fragmentos">
       <span class="icon">🦴</span>
       <span class="label">Fragmentos</span>
@@ -637,15 +784,16 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
   <script src="js/dexie.js"></script>
-  <script src="js/store.js?v=2.2.3"></script>
-  <script src="js/sync-manager.js?v=2.2.3"></script>
-  <script src="js/export.js?v=2.2.3"></script>
-  <script src="js/ui.js?v=2.2.3"></script>
-  <script src="js/map.js?v=2.2.3"></script>
-  <script src="js/documentation.js?v=2.2.3"></script>
-  <script src="js/partes-diarios.js?v=2.2.3"></script>
-  <script src="js/app.js?v=2.2.3"></script>
-  <script src="js/migrate.js?v=2.2.3"></script>
+  <script src="js/photo-store.js?v=2.3.0"></script>
+  <script src="js/store.js?v=2.3.0"></script>
+  <script src="js/sync-manager.js?v=2.3.0"></script>
+  <script src="js/export.js?v=2.3.0"></script>
+  <script src="js/ui.js?v=2.3.0"></script>
+  <script src="js/map.js?v=2.3.0"></script>
+  <script src="js/documentation.js?v=2.3.0"></script>
+  <script src="js/partes-diarios.js?v=2.3.0"></script>
+  <script src="js/app.js?v=2.3.0"></script>
+  <script src="js/migrate.js?v=2.3.0"></script>
 
   <script>
     // Repair Button Logic

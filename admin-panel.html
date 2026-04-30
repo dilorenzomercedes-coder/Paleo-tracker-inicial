@@ -99,6 +99,10 @@
                         <span class="icon">📋</span>
                         <span>Partes Diarios</span>
                     </a>
+                    <a href="#" class="menu-item" data-view="rescates">
+                        <span class="icon">🦕</span>
+                        <span>Rescates</span>
+                    </a>
                     <a href="#" class="menu-item" data-view="documents">
                         <span class="icon">📄</span>
                         <span>Documentos</span>
@@ -426,6 +430,43 @@
                         <div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px;">
                             Cargando partes diarios...
                         </div>
+                    </div>
+                </div>
+
+                <!-- Rescates View -->
+                <div id="view-rescates" class="view">
+                    <div class="view-header">
+                        <h1>🦕 Rescates</h1>
+                        <div class="filters">
+                            <select id="filter-rescates-collector" class="filter-select">
+                                <option value="">Todos los colectores</option>
+                            </select>
+                            <select id="filter-rescates-folder" class="filter-select">
+                                <option value="">Todas las carpetas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Foto</th>
+                                    <th>Fecha</th>
+                                    <th>Colector</th>
+                                    <th>Localidad</th>
+                                    <th>Carpeta</th>
+                                    <th>Tipo</th>
+                                    <th>Código</th>
+                                    <th>Coordenadas</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rescates-table-body">
+                                <tr>
+                                    <td colspan="9">Cargando...</td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
