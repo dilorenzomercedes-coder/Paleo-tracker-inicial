@@ -1072,9 +1072,10 @@ class AdminPanel {
 
         this.viewPhoto(fotoSrc, title);
 
-        // Add/update PDF button in the modal actions (once)
-        let pdfBtn = document.getElementById('parte-pdf-btn');
         const actions = document.querySelector('#photo-modal .modal-actions');
+
+        // PDF button
+        let pdfBtn = document.getElementById('parte-pdf-btn');
         if (actions && !pdfBtn) {
             pdfBtn = document.createElement('button');
             pdfBtn.id = 'parte-pdf-btn';
@@ -1083,6 +1084,160 @@ class AdminPanel {
             actions.prepend(pdfBtn);
         }
         if (pdfBtn) pdfBtn.onclick = () => this.downloadPartePDF(parte);
+
+        // Editar button
+        let editBtn = document.getElementById('parte-edit-btn');
+        if (actions && !editBtn) {
+            editBtn = document.createElement('button');
+            editBtn.id = 'parte-edit-btn';
+            editBtn.className = 'btn btn-primary';
+            editBtn.textContent = '✏️ Editar';
+            actions.prepend(editBtn);
+        }
+        if (editBtn) editBtn.onclick = () => {
+            this.closeModal('photo-modal');
+            this._openEditParteModal(parte);
+        };
+
+        // Eliminar button
+        let delBtn = document.getElementById('parte-delete-btn');
+        if (actions && !delBtn) {
+            delBtn = document.createElement('button');
+            delBtn.id = 'parte-delete-btn';
+            delBtn.className = 'btn btn-danger';
+            delBtn.textContent = '🗑️ Eliminar';
+            actions.prepend(delBtn);
+        }
+        if (delBtn) delBtn.onclick = () => this._deleteParteAdmin(parte);
+    }
+
+    async _deleteParteAdmin(parte) {
+        const fecha = this.formatParteDate(parte.fecha);
+        const collector = parte.collector?.name || parte.collectorName || '';
+        if (!confirm(`¿Eliminar el parte del ${fecha}${collector ? ' de ' + collector : ''}? Esta acción no se puede deshacer.`)) return;
+        try {
+            await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, { method: 'DELETE' });
+            this.closeModal('photo-modal');
+            this.showNotification('Parte diario eliminado.', 'success');
+            this.loadPartesAdmin();
+        } catch (err) {
+            console.error('Error eliminando parte:', err);
+            this.showNotification('Error al eliminar el parte.', 'error');
+        }
+    }
+
+    _openEditParteModal(parte) {
+        let modal = document.getElementById('modal-edit-parte');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-edit-parte';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:480px;">
+                    <div class="modal-header">
+                        <h2>✏️ Editar Parte Diario</h2>
+                        <button class="btn-close" onclick="window.adminPanel.closeModal('modal-edit-parte')">&times;</button>
+                    </div>
+                    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Fecha</label>
+                            <input type="date" id="edit-parte-fecha" class="form-control" style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Empresa</label>
+                            <input type="text" id="edit-parte-empresa" class="form-control" placeholder="Empresa..." style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Yacimiento</label>
+                            <input type="text" id="edit-parte-yacimiento" class="form-control" placeholder="Yacimiento..." style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Locación</label>
+                            <input type="text" id="edit-parte-locacion" class="form-control" placeholder="Locación..." style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Observaciones</label>
+                            <textarea id="edit-parte-observaciones" class="form-control" rows="3" placeholder="Observaciones..." style="width:100%;margin-top:4px;resize:vertical;"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Reemplazar foto (opcional)</label>
+                            <input type="file" id="edit-parte-foto" accept="image/*" style="margin-top:4px;">
+                            <div id="edit-parte-foto-preview" style="margin-top:8px;text-align:center;"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                        <button class="btn btn-secondary" onclick="window.adminPanel.closeModal('modal-edit-parte')">Cancelar</button>
+                        <button class="btn btn-primary" id="btn-guardar-parte-edit">💾 Guardar Cambios</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('edit-parte-foto').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    document.getElementById('edit-parte-foto-preview').innerHTML =
+                        `<img src="${ev.target.result}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;">`;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Poblar con datos del parte
+        document.getElementById('edit-parte-fecha').value = parte.fecha || '';
+        document.getElementById('edit-parte-empresa').value = parte.empresa || '';
+        document.getElementById('edit-parte-yacimiento').value = parte.yacimiento || '';
+        document.getElementById('edit-parte-locacion').value = parte.locacion || '';
+        document.getElementById('edit-parte-observaciones').value = parte.observaciones || '';
+        document.getElementById('edit-parte-foto-preview').innerHTML = parte.foto
+            ? `<img src="${parte.foto}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;"><small style="color:#888;display:block;margin-top:4px;">Foto actual</small>`
+            : '';
+        document.getElementById('edit-parte-foto').value = '';
+
+        document.getElementById('btn-guardar-parte-edit').onclick = async () => {
+            const btn = document.getElementById('btn-guardar-parte-edit');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            try {
+                const updatedData = {
+                    fecha: document.getElementById('edit-parte-fecha').value,
+                    empresa: document.getElementById('edit-parte-empresa').value.trim(),
+                    yacimiento: document.getElementById('edit-parte-yacimiento').value.trim(),
+                    locacion: document.getElementById('edit-parte-locacion').value.trim(),
+                    observaciones: document.getElementById('edit-parte-observaciones').value,
+                };
+
+                const newFotoFile = document.getElementById('edit-parte-foto').files[0];
+                if (newFotoFile) {
+                    updatedData.foto = await new Promise((resolve, reject) => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(r.result);
+                        r.onerror = reject;
+                        r.readAsDataURL(newFotoFile);
+                    });
+                }
+
+                await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+
+                this.closeModal('modal-edit-parte');
+                this.showNotification('Parte diario actualizado.', 'success');
+                this.loadPartesAdmin();
+            } catch (err) {
+                console.error('Error editando parte:', err);
+                this.showNotification('Error al guardar los cambios.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💾 Guardar Cambios';
+            }
+        };
+
+        this.openModal('modal-edit-parte');
     }
 
     _closeLightbox() { this.closeModal('photo-modal'); }
