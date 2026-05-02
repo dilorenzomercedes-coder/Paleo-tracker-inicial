@@ -1067,12 +1067,19 @@ class AdminPanel {
     _openLightbox(parte) {
         const fecha = this.formatParteDate(parte.fecha);
         const collector = parte.collector?.name || parte.collector?.collectorId || parte.collectorName || parte.collectorId || '';
-        const title = `📋 Parte del ${fecha} – ${collector}`;
         const fotoSrc = parte.foto || parte.fotoData;
 
-        this.viewPhoto(fotoSrc, title);
+        // Usar el modal-photo-viewer que ya existe en el HTML
+        const modal = document.getElementById('modal-photo-viewer');
+        const img = document.getElementById('photo-viewer-image');
+        const title = document.getElementById('photo-viewer-title');
+        if (!modal || !img) return;
 
-        const actions = document.querySelector('#photo-modal .modal-actions');
+        if (title) title.textContent = `📋 Parte del ${fecha} – ${collector}`;
+        img.src = fotoSrc;
+        modal.style.display = 'block';
+
+        const actions = modal.querySelector('.modal-actions');
 
         // PDF button
         let pdfBtn = document.getElementById('parte-pdf-btn');
@@ -1095,7 +1102,7 @@ class AdminPanel {
             actions.prepend(editBtn);
         }
         if (editBtn) editBtn.onclick = () => {
-            this.closeModal('photo-modal');
+            modal.style.display = 'none';
             this._openEditParteModal(parte);
         };
 
@@ -1117,7 +1124,7 @@ class AdminPanel {
         if (!confirm(`¿Eliminar el parte del ${fecha}${collector ? ' de ' + collector : ''}? Esta acción no se puede deshacer.`)) return;
         try {
             await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, { method: 'DELETE' });
-            this.closeModal('photo-modal');
+            document.getElementById('modal-photo-viewer').style.display = 'none';
             this.showNotification('Parte diario eliminado.', 'success');
             this.loadPartesAdmin();
         } catch (err) {
@@ -1166,7 +1173,7 @@ class AdminPanel {
                         </div>
                     </div>
                     <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                        <button class="btn btn-secondary" onclick="window.adminPanel.closeModal('modal-edit-parte')">Cancelar</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('modal-edit-parte').style.display='none'">Cancelar</button>
                         <button class="btn btn-primary" id="btn-guardar-parte-edit">💾 Guardar Cambios</button>
                     </div>
                 </div>
@@ -1225,7 +1232,7 @@ class AdminPanel {
                     body: JSON.stringify(updatedData)
                 });
 
-                this.closeModal('modal-edit-parte');
+                document.getElementById('modal-edit-parte').style.display = 'none';
                 this.showNotification('Parte diario actualizado.', 'success');
                 this.loadPartesAdmin();
             } catch (err) {
@@ -1237,7 +1244,7 @@ class AdminPanel {
             }
         };
 
-        this.openModal('modal-edit-parte');
+        modal.style.display = 'block';
     }
 
     _closeLightbox() { this.closeModal('photo-modal'); }
