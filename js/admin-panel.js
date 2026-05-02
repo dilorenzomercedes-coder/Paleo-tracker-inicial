@@ -1067,22 +1067,14 @@ class AdminPanel {
     _openLightbox(parte) {
         const fecha = this.formatParteDate(parte.fecha);
         const collector = parte.collector?.name || parte.collector?.collectorId || parte.collectorName || parte.collectorId || '';
+        const title = `📋 Parte del ${fecha} – ${collector}`;
         const fotoSrc = parte.foto || parte.fotoData;
 
-        // Usar el modal-photo-viewer que ya existe en el HTML
-        const modal = document.getElementById('modal-photo-viewer');
-        const img = document.getElementById('photo-viewer-image');
-        const title = document.getElementById('photo-viewer-title');
-        if (!modal || !img) return;
+        this.viewPhoto(fotoSrc, title);
 
-        if (title) title.textContent = `📋 Parte del ${fecha} – ${collector}`;
-        img.src = fotoSrc;
-        modal.style.display = 'block';
-
-        const actions = modal.querySelector('.modal-actions');
-
-        // PDF button
+        // Add/update PDF button in the modal actions (once)
         let pdfBtn = document.getElementById('parte-pdf-btn');
+        const actions = document.querySelector('#photo-modal .modal-actions');
         if (actions && !pdfBtn) {
             pdfBtn = document.createElement('button');
             pdfBtn.id = 'parte-pdf-btn';
@@ -1091,160 +1083,6 @@ class AdminPanel {
             actions.prepend(pdfBtn);
         }
         if (pdfBtn) pdfBtn.onclick = () => this.downloadPartePDF(parte);
-
-        // Editar button
-        let editBtn = document.getElementById('parte-edit-btn');
-        if (actions && !editBtn) {
-            editBtn = document.createElement('button');
-            editBtn.id = 'parte-edit-btn';
-            editBtn.className = 'btn btn-primary';
-            editBtn.textContent = '✏️ Editar';
-            actions.prepend(editBtn);
-        }
-        if (editBtn) editBtn.onclick = () => {
-            modal.style.display = 'none';
-            this._openEditParteModal(parte);
-        };
-
-        // Eliminar button
-        let delBtn = document.getElementById('parte-delete-btn');
-        if (actions && !delBtn) {
-            delBtn = document.createElement('button');
-            delBtn.id = 'parte-delete-btn';
-            delBtn.className = 'btn btn-danger';
-            delBtn.textContent = '🗑️ Eliminar';
-            actions.prepend(delBtn);
-        }
-        if (delBtn) delBtn.onclick = () => this._deleteParteAdmin(parte);
-    }
-
-    async _deleteParteAdmin(parte) {
-        const fecha = this.formatParteDate(parte.fecha);
-        const collector = parte.collector?.name || parte.collectorName || '';
-        if (!confirm(`¿Eliminar el parte del ${fecha}${collector ? ' de ' + collector : ''}? Esta acción no se puede deshacer.`)) return;
-        try {
-            await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, { method: 'DELETE' });
-            document.getElementById('modal-photo-viewer').style.display = 'none';
-            this.showNotification('Parte diario eliminado.', 'success');
-            this.loadPartesAdmin();
-        } catch (err) {
-            console.error('Error eliminando parte:', err);
-            this.showNotification('Error al eliminar el parte.', 'error');
-        }
-    }
-
-    _openEditParteModal(parte) {
-        let modal = document.getElementById('modal-edit-parte');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'modal-edit-parte';
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="modal-content" style="max-width:480px;">
-                    <div class="modal-header">
-                        <h2>✏️ Editar Parte Diario</h2>
-                        <button class="btn-close" onclick="window.adminPanel.closeModal('modal-edit-parte')">&times;</button>
-                    </div>
-                    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;">Fecha</label>
-                            <input type="date" id="edit-parte-fecha" class="form-control" style="width:100%;margin-top:4px;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;">Empresa</label>
-                            <input type="text" id="edit-parte-empresa" class="form-control" placeholder="Empresa..." style="width:100%;margin-top:4px;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;">Yacimiento</label>
-                            <input type="text" id="edit-parte-yacimiento" class="form-control" placeholder="Yacimiento..." style="width:100%;margin-top:4px;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;">Locación</label>
-                            <input type="text" id="edit-parte-locacion" class="form-control" placeholder="Locación..." style="width:100%;margin-top:4px;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;">Observaciones</label>
-                            <textarea id="edit-parte-observaciones" class="form-control" rows="3" placeholder="Observaciones..." style="width:100%;margin-top:4px;resize:vertical;"></textarea>
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;">Reemplazar foto (opcional)</label>
-                            <input type="file" id="edit-parte-foto" accept="image/*" style="margin-top:4px;">
-                            <div id="edit-parte-foto-preview" style="margin-top:8px;text-align:center;"></div>
-                        </div>
-                    </div>
-                    <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
-                        <button class="btn btn-secondary" onclick="document.getElementById('modal-edit-parte').style.display='none'">Cancelar</button>
-                        <button class="btn btn-primary" id="btn-guardar-parte-edit">💾 Guardar Cambios</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            document.getElementById('edit-parte-foto').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    document.getElementById('edit-parte-foto-preview').innerHTML =
-                        `<img src="${ev.target.result}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;">`;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // Poblar con datos del parte
-        document.getElementById('edit-parte-fecha').value = parte.fecha || '';
-        document.getElementById('edit-parte-empresa').value = parte.empresa || '';
-        document.getElementById('edit-parte-yacimiento').value = parte.yacimiento || '';
-        document.getElementById('edit-parte-locacion').value = parte.locacion || '';
-        document.getElementById('edit-parte-observaciones').value = parte.observaciones || '';
-        document.getElementById('edit-parte-foto-preview').innerHTML = parte.foto
-            ? `<img src="${parte.foto}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;"><small style="color:#888;display:block;margin-top:4px;">Foto actual</small>`
-            : '';
-        document.getElementById('edit-parte-foto').value = '';
-
-        document.getElementById('btn-guardar-parte-edit').onclick = async () => {
-            const btn = document.getElementById('btn-guardar-parte-edit');
-            btn.disabled = true;
-            btn.textContent = 'Guardando...';
-            try {
-                const updatedData = {
-                    fecha: document.getElementById('edit-parte-fecha').value,
-                    empresa: document.getElementById('edit-parte-empresa').value.trim(),
-                    yacimiento: document.getElementById('edit-parte-yacimiento').value.trim(),
-                    locacion: document.getElementById('edit-parte-locacion').value.trim(),
-                    observaciones: document.getElementById('edit-parte-observaciones').value,
-                };
-
-                const newFotoFile = document.getElementById('edit-parte-foto').files[0];
-                if (newFotoFile) {
-                    updatedData.foto = await new Promise((resolve, reject) => {
-                        const r = new FileReader();
-                        r.onload = () => resolve(r.result);
-                        r.onerror = reject;
-                        r.readAsDataURL(newFotoFile);
-                    });
-                }
-
-                await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedData)
-                });
-
-                document.getElementById('modal-edit-parte').style.display = 'none';
-                this.showNotification('Parte diario actualizado.', 'success');
-                this.loadPartesAdmin();
-            } catch (err) {
-                console.error('Error editando parte:', err);
-                this.showNotification('Error al guardar los cambios.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '💾 Guardar Cambios';
-            }
-        };
-
-        modal.style.display = 'block';
     }
 
     _closeLightbox() { this.closeModal('photo-modal'); }
@@ -3828,27 +3666,181 @@ class AdminPanel {
             : new Date(parte.createdAt).toLocaleDateString('es-AR');
         const colector = parte.collector?.name || parte.collector?.collectorId || 'Desconocido';
 
-        // Reusar el viewer de fotos de hallazgos si existe, sino mostrar en ventana
-        const photoModal = document.getElementById('photo-modal');
-        if (photoModal) {
-            const img = document.getElementById('photo-modal-img');
-            const title = document.getElementById('photo-modal-title');
-            if (img) img.src = parte.foto || '';
-            if (title) title.textContent = `📋 Parte del ${fecha} — ${colector}`;
-            photoModal.style.display = 'flex';
-        } else {
-            // Fallback: abrir imagen en nueva pestaña
-            if (parte.foto) {
-                const win = window.open();
-                win.document.write(`
-                    <html><head><title>Parte ${fecha}</title></head><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;">
-                        <p style="color:#fff;font-family:sans-serif;margin-bottom:12px;">📋 Parte del ${fecha} — 👤 ${colector}</p>
-                        ${parte.observaciones ? `<p style="color:#aaa;font-family:sans-serif;margin-bottom:16px;">${parte.observaciones}</p>` : ''}
-                        <img src="${parte.foto}" style="max-width:90vw;max-height:85vh;border-radius:8px;">
-                    </body></html>
-                `);
-            }
+        const modal = document.getElementById('modal-photo-viewer');
+        const img = document.getElementById('photo-viewer-image');
+        const title = document.getElementById('photo-viewer-title');
+        if (!modal || !img) return;
+
+        if (title) title.textContent = `📋 Parte del ${fecha} — ${colector}`;
+        img.src = parte.foto || '';
+        modal.style.display = 'block';
+
+        const actions = modal.querySelector('.modal-actions');
+
+        // PDF button
+        let pdfBtn = document.getElementById('parte-pdf-btn');
+        if (actions && !pdfBtn) {
+            pdfBtn = document.createElement('button');
+            pdfBtn.id = 'parte-pdf-btn';
+            pdfBtn.className = 'btn btn-success';
+            pdfBtn.textContent = '📥 Descargar PDF';
+            actions.prepend(pdfBtn);
         }
+        if (pdfBtn) pdfBtn.onclick = () => this.downloadPartePDF(parte);
+
+        // Editar button
+        let editBtn = document.getElementById('parte-edit-btn');
+        if (actions && !editBtn) {
+            editBtn = document.createElement('button');
+            editBtn.id = 'parte-edit-btn';
+            editBtn.className = 'btn btn-primary';
+            editBtn.textContent = '✏️ Editar';
+            actions.prepend(editBtn);
+        }
+        if (editBtn) editBtn.onclick = () => {
+            modal.style.display = 'none';
+            this._openEditParteModal(parte);
+        };
+
+        // Eliminar button
+        let delBtn = document.getElementById('parte-delete-btn');
+        if (actions && !delBtn) {
+            delBtn = document.createElement('button');
+            delBtn.id = 'parte-delete-btn';
+            delBtn.className = 'btn btn-danger';
+            delBtn.textContent = '🗑️ Eliminar';
+            actions.prepend(delBtn);
+        }
+        if (delBtn) delBtn.onclick = () => this._deleteParteAdmin(parte);
+    }
+
+    async _deleteParteAdmin(parte) {
+        const fecha = this.formatParteDate ? this.formatParteDate(parte.fecha) : parte.fecha;
+        const collector = parte.collector?.name || parte.collectorName || '';
+        if (!confirm(`¿Eliminar el parte del ${fecha}${collector ? ' de ' + collector : ''}? Esta acción no se puede deshacer.`)) return;
+        try {
+            await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, { method: 'DELETE' });
+            document.getElementById('modal-photo-viewer').style.display = 'none';
+            this.showNotification('Parte diario eliminado.', 'success');
+            this.loadPartesAdmin();
+        } catch (err) {
+            console.error('Error eliminando parte:', err);
+            this.showNotification('Error al eliminar el parte.', 'error');
+        }
+    }
+
+    _openEditParteModal(parte) {
+        let modal = document.getElementById('modal-edit-parte');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-edit-parte';
+            modal.className = 'modal';
+            modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:#fff; border-radius:12px; padding:24px; max-width:480px; width:90%; max-height:90vh; overflow-y:auto;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2 style="margin:0; font-size:1.2rem;">✏️ Editar Parte Diario</h2>
+                        <button onclick="document.getElementById('modal-edit-parte').style.display='none'" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:14px;">
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Fecha</label>
+                            <input type="date" id="edit-parte-fecha" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Empresa</label>
+                            <input type="text" id="edit-parte-empresa" placeholder="Empresa..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Yacimiento</label>
+                            <input type="text" id="edit-parte-yacimiento" placeholder="Yacimiento..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Locación</label>
+                            <input type="text" id="edit-parte-locacion" placeholder="Locación..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Observaciones</label>
+                            <textarea id="edit-parte-observaciones" rows="3" placeholder="Observaciones..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;resize:vertical;"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Reemplazar foto (opcional)</label>
+                            <input type="file" id="edit-parte-foto" accept="image/*">
+                            <div id="edit-parte-foto-preview" style="margin-top:8px;text-align:center;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
+                        <button onclick="document.getElementById('modal-edit-parte').style.display='none'" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#f5f5f5;">Cancelar</button>
+                        <button id="btn-guardar-parte-edit" style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#2c5e2e;color:#fff;font-weight:600;">💾 Guardar Cambios</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('edit-parte-foto').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    document.getElementById('edit-parte-foto-preview').innerHTML =
+                        `<img src="${ev.target.result}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;">`;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        document.getElementById('edit-parte-fecha').value = parte.fecha || '';
+        document.getElementById('edit-parte-empresa').value = parte.empresa || '';
+        document.getElementById('edit-parte-yacimiento').value = parte.yacimiento || '';
+        document.getElementById('edit-parte-locacion').value = parte.locacion || '';
+        document.getElementById('edit-parte-observaciones').value = parte.observaciones || '';
+        document.getElementById('edit-parte-foto-preview').innerHTML = parte.foto
+            ? `<img src="${parte.foto}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;"><small style="color:#888;display:block;margin-top:4px;">Foto actual</small>`
+            : '';
+        document.getElementById('edit-parte-foto').value = '';
+
+        document.getElementById('btn-guardar-parte-edit').onclick = async () => {
+            const btn = document.getElementById('btn-guardar-parte-edit');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            try {
+                const updatedData = {
+                    fecha: document.getElementById('edit-parte-fecha').value,
+                    empresa: document.getElementById('edit-parte-empresa').value.trim(),
+                    yacimiento: document.getElementById('edit-parte-yacimiento').value.trim(),
+                    locacion: document.getElementById('edit-parte-locacion').value.trim(),
+                    observaciones: document.getElementById('edit-parte-observaciones').value,
+                };
+
+                const newFotoFile = document.getElementById('edit-parte-foto').files[0];
+                if (newFotoFile) {
+                    updatedData.foto = await new Promise((resolve, reject) => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(r.result);
+                        r.onerror = reject;
+                        r.readAsDataURL(newFotoFile);
+                    });
+                }
+
+                await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+
+                document.getElementById('modal-edit-parte').style.display = 'none';
+                this.showNotification('Parte diario actualizado.', 'success');
+                this.loadPartesAdmin();
+            } catch (err) {
+                console.error('Error editando parte:', err);
+                this.showNotification('Error al guardar los cambios.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💾 Guardar Cambios';
+            }
+        };
+
+        modal.style.display = 'flex';
     }
 
 }
