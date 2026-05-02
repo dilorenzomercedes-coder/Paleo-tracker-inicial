@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const ui = new UI(store);
     const syncManager = new SyncManager(store);
     const mapManager = new MapManager(store);
+    const documentationManager = new DocumentationManager(store);
 
     ui.init();
     console.log('UI initialized, starting sync...');
