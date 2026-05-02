@@ -190,13 +190,25 @@ class PartesDiariosManager {
                 <div style="width:60px;height:60px;border-radius:8px;overflow:hidden;flex-shrink:0;background:#eee;">
                     <img src="${parte.foto}" alt="Parte" style="width:100%;height:100%;object-fit:cover;">
                 </div>
-                <div class="data-info">
+                <div class="data-info" style="flex:1;">
                     <h4>📋 Parte del ${this.formatDate(parte.fecha)}</h4>
                     ${parte.empresa ? `<small style="color:#555;">🏢 ${parte.empresa}${parte.yacimiento ? ' › ⛏️ ' + parte.yacimiento : ''}${parte.locacion ? ' › 📍 ' + parte.locacion : ''}</small><br>` : ''}
                     <small>${parte.observaciones ? parte.observaciones.substring(0, 60) + (parte.observaciones.length > 60 ? '...' : '') : 'Sin observaciones'}</small>
                 </div>
+                <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;" onclick="event.stopPropagation()">
+                    <button class="btn-secondary" style="padding:6px 10px;font-size:0.8rem;" data-action="edit-parte" data-id="${parte.id}">✏️</button>
+                    <button class="btn-secondary" style="padding:6px 10px;font-size:0.8rem;color:#e53935;" data-action="delete-parte" data-id="${parte.id}">🗑️</button>
+                </div>
             `;
             card.addEventListener('click', () => this.viewParte(parte));
+            card.querySelector('[data-action="edit-parte"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.editParte(parte);
+            });
+            card.querySelector('[data-action="delete-parte"]').addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteParte(parte);
+            });
             container.appendChild(card);
         });
     }
@@ -210,15 +222,155 @@ class PartesDiariosManager {
             <div style="text-align:center; margin-bottom:16px;">
                 <img src="${parte.foto}" alt="Parte Diario" style="max-width:100%;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
             </div>
+            ${parte.empresa ? `<div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:14px;">
+                <strong>🏢 Empresa:</strong> ${parte.empresa}
+                ${parte.yacimiento ? `<br><strong>⛏️ Yacimiento:</strong> ${parte.yacimiento}` : ''}
+                ${parte.locacion ? `<br><strong>📍 Locación:</strong> ${parte.locacion}` : ''}
+            </div>` : ''}
             ${parte.observaciones ? `
             <div style="background:#f8f9fa;padding:14px;border-radius:8px;margin-bottom:14px;">
                 <strong>Observaciones:</strong>
                 <p style="margin:8px 0 0;color:#444;">${parte.observaciones}</p>
             </div>` : ''}
         `;
-        document.getElementById('btn-delete-item').style.display = 'none';
-        document.getElementById('btn-edit-item').style.display = 'none';
+
+        const btnDelete = document.getElementById('btn-delete-item');
+        btnDelete.style.display = 'block';
+        btnDelete.onclick = () => {
+            modal.classList.add('hidden');
+            this.deleteParte(parte);
+        };
+
+        const btnEdit = document.getElementById('btn-edit-item');
+        btnEdit.style.display = 'block';
+        btnEdit.onclick = () => {
+            modal.classList.add('hidden');
+            this.editParte(parte);
+        };
+
         modal.classList.remove('hidden');
+    }
+
+    deleteParte(parte) {
+        if (!confirm(`¿Eliminar el parte del ${this.formatDate(parte.fecha)}?`)) return;
+        const list = this.getLocalPartes();
+        const filtered = list.filter(p => p.id !== parte.id);
+        this.saveLocalPartes(filtered);
+        // También eliminar de pending si estaba ahí
+        const pending = this.getPending().filter(p => p.id !== parte.id);
+        this.savePending(pending);
+        this.renderPartes();
+        // Intentar eliminar en backend si hay conexión
+        this.deleteFromBackend(parte.id);
+    }
+
+    async deleteFromBackend(parteId) {
+        try {
+            await fetch(`${this.BACKEND_URL}/api/collector/partes-diarios/${parteId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ collectorId: this.collectorId })
+            });
+        } catch {
+            // Silencioso — el dato local ya fue eliminado
+        }
+    }
+
+    editParte(parte) {
+        const modal = document.getElementById('parte-diario-modal');
+        if (!modal) return;
+
+        // Abrir modal y poblar con datos existentes
+        this.openModal();
+
+        // Poblar campos
+        const form = document.getElementById('form-parte-diario');
+        form.querySelector('[name="fecha"]').value = parte.fecha || '';
+        form.querySelector('[name="empresa"]').value = parte.empresa || '';
+        form.querySelector('[name="yacimiento"]').value = parte.yacimiento || '';
+        form.querySelector('[name="locacion"]').value = parte.locacion || '';
+        form.querySelector('[name="observaciones"]').value = parte.observaciones || '';
+
+        // Mostrar foto actual como preview
+        const preview = document.getElementById('parte-foto-preview');
+        if (parte.foto) {
+            preview.innerHTML = `
+                <img src="${parte.foto}" alt="Foto actual" style="max-width:100%; border-radius:8px; margin-top:8px;">
+                <small style="color:var(--text-muted);display:block;margin-top:4px;">📷 Foto actual — seleccioná otra para reemplazar</small>
+            `;
+        }
+
+        // Hacer la foto opcional para edición
+        const fotoInput = document.getElementById('parte-foto-input');
+        fotoInput.removeAttribute('required');
+
+        // Cambiar título y botón
+        const title = modal.querySelector('h3, .modal-title');
+        if (title) title.textContent = 'Editar Parte Diario';
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalLabel = submitBtn?.innerHTML;
+        if (submitBtn) submitBtn.innerHTML = '💾 Guardar Cambios';
+
+        // Override del submit
+        const originalOnSubmit = form.onsubmit;
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const submitBtnInner = form.querySelector('button[type="submit"]');
+            submitBtnInner.disabled = true;
+            submitBtnInner.textContent = 'Guardando...';
+
+            try {
+                const updatedData = {
+                    fecha: form.querySelector('[name="fecha"]').value,
+                    empresa: form.querySelector('[name="empresa"]')?.value?.trim() || '',
+                    yacimiento: form.querySelector('[name="yacimiento"]')?.value?.trim() || '',
+                    locacion: form.querySelector('[name="locacion"]')?.value?.trim() || '',
+                    observaciones: form.querySelector('[name="observaciones"]').value,
+                };
+
+                // Solo reemplazar foto si seleccionaron una nueva
+                const newFotoInput = form.querySelector('[name="foto"]');
+                if (newFotoInput.files[0]) {
+                    updatedData.foto = await this.readFileAsDataURL(newFotoInput.files[0]);
+                }
+
+                // Actualizar en local
+                const list = this.getLocalPartes();
+                const index = list.findIndex(p => p.id === parte.id);
+                if (index !== -1) {
+                    list[index] = { ...list[index], ...updatedData };
+                    this.saveLocalPartes(list);
+                }
+
+                // Intentar actualizar en backend
+                this.putToBackend(parte.id, { ...list.find(p => p.id === parte.id) });
+
+                this.closeModal();
+                this.renderPartes();
+            } catch (err) {
+                console.error('Error editando parte:', err);
+                alert('Error al guardar los cambios.');
+            } finally {
+                submitBtnInner.disabled = false;
+                // Restaurar estado original del modal para próxima vez
+                fotoInput.setAttribute('required', '');
+                if (title) title.textContent = 'Nuevo Parte Diario';
+                if (submitBtnInner) submitBtnInner.innerHTML = originalLabel;
+                form.onsubmit = originalOnSubmit;
+            }
+        };
+    }
+
+    async putToBackend(parteId, parteData) {
+        try {
+            await fetch(`${this.BACKEND_URL}/api/collector/partes-diarios/${parteId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...parteData, collectorId: this.collectorId, collectorName: this.collectorName })
+            });
+        } catch {
+            // Silencioso — el dato local ya fue actualizado
+        }
     }
 
     formatDate(dateStr) {

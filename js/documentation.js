@@ -302,16 +302,108 @@ class DocumentationManager {
         btnDelete.onclick = async () => {
             if (confirm(`¿Eliminar "${doc.title}"?`)) {
                 await this.store.deleteDocument(doc.id);
+                // Sync backend silencioso
+                try {
+                    const collectorInfo = this.store.getCollectorInfo();
+                    if (collectorInfo.backendUrl && collectorInfo.collectorId) {
+                        await fetch(`${collectorInfo.backendUrl}/api/collector/documents/${doc.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ collectorId: collectorInfo.collectorId })
+                        });
+                    }
+                } catch { /* sin conexión, ok */ }
                 modal.classList.add('hidden');
                 this.renderDocuments(this.currentCategory);
                 this.updateFolderCounts();
             }
         };
 
-        // Hide edit button for documents
-        document.getElementById('btn-edit-item').style.display = 'none';
+        // Edit button
+        const btnEdit = document.getElementById('btn-edit-item');
+        btnEdit.style.display = 'block';
+        btnEdit.onclick = () => {
+            modal.classList.add('hidden');
+            this.showEditDocumentForm(doc);
+        };
 
         modal.classList.remove('hidden');
+    }
+
+    showEditDocumentForm(doc) {
+        // Reuse the add-doc form container but populate with existing data
+        const formContainer = document.getElementById('doc-form-container');
+        const form = document.getElementById('form-doc');
+        form.reset();
+
+        // Set existing values
+        form.querySelector('[name="title"]').value = doc.title || '';
+        form.querySelector('[name="category"]').value = doc.category || '';
+
+        // Change header text and button label
+        const formTitle = formContainer.querySelector('h3, .form-title');
+        if (formTitle) formTitle.textContent = 'Editar Documento';
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.textContent = '💾 Guardar Cambios';
+
+        // Mark file as optional (editing, only replace if new file selected)
+        const fileInput = form.querySelector('input[type="file"]');
+        const fileLabel = fileInput?.previousElementSibling || fileInput?.parentElement?.querySelector('label');
+        if (fileLabel) fileLabel.textContent = 'Reemplazar PDF (opcional)';
+
+        formContainer.classList.remove('hidden');
+
+        // Override submit to update instead of create
+        const originalSubmit = form.onsubmit;
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const newTitle = formData.get('title');
+            const newCategory = formData.get('category');
+            const newFileInput = form.querySelector('input[type="file"]');
+            const updatedData = {
+                title: newTitle,
+                category: newCategory
+            };
+
+            // Only replace file if a new one was selected
+            if (newFileInput.files[0]) {
+                const file = newFileInput.files[0];
+                if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                    alert('Solo se permiten archivos PDF.');
+                    return;
+                }
+                updatedData.fileData = await this.readFileAsDataURL(file);
+                updatedData.fileName = file.name;
+                updatedData.fileType = file.type;
+            }
+
+            this.store.updateDocument(doc.id, updatedData);
+
+            // Intentar sync con backend (silencioso si falla)
+            try {
+                const collectorInfo = this.store.getCollectorInfo();
+                if (collectorInfo.backendUrl && collectorInfo.collectorId) {
+                    await fetch(`${collectorInfo.backendUrl}/api/collector/documents/${doc.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...updatedData, collectorId: collectorInfo.collectorId })
+                    });
+                }
+            } catch { /* sin conexión, ok */ }
+
+            formContainer.classList.add('hidden');
+
+            // Restore button label
+            if (submitBtn) submitBtn.textContent = '💾 Guardar';
+            if (formTitle) formTitle.textContent = 'Agregar Documento';
+
+            // Restore original submit
+            form.onsubmit = originalSubmit;
+
+            this.renderDocuments(this.currentCategory);
+            this.updateFolderCounts();
+        };
     }
 
     base64ToBlob(base64) {

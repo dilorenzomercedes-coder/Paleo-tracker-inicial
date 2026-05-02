@@ -315,10 +315,43 @@ class Store {
         return doc;
     }
 
+    updateDocument(id, updatedData) {
+        const list = this.getDocuments();
+        const index = list.findIndex(d => d.id === id);
+        if (index !== -1) {
+            list[index] = { ...list[index], ...updatedData };
+            this._saveData(this.STORAGE_KEY_DOCUMENTS, list);
+            return list[index];
+        }
+        return null;
+    }
+
     deleteDocument(id) {
         const list = this.getDocuments();
         const filtered = list.filter(d => d.id !== id);
         this._saveData(this.STORAGE_KEY_DOCUMENTS, filtered);
+    }
+
+    // --- Partes Diarios ---
+    getPartesDiarios() {
+        try { return JSON.parse(localStorage.getItem('partes_diarios_local') || '[]'); } catch { return []; }
+    }
+
+    updateParteDiario(id, updatedData) {
+        const list = this.getPartesDiarios();
+        const index = list.findIndex(p => p.id === id);
+        if (index !== -1) {
+            list[index] = { ...list[index], ...updatedData };
+            localStorage.setItem('partes_diarios_local', JSON.stringify(list));
+            return list[index];
+        }
+        return null;
+    }
+
+    deleteParteDiario(id) {
+        const list = this.getPartesDiarios();
+        const filtered = list.filter(p => p.id !== id);
+        localStorage.setItem('partes_diarios_local', JSON.stringify(filtered));
     }
 
     // --- Rescates ---
