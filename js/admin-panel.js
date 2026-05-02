@@ -793,7 +793,7 @@ class AdminPanel {
             this.currentHallazgos = rawData.data;
 
             if (rawData.data.length === 0) {
-                document.getElementById('hallazgos-table-body').innerHTML = '<tr><td colspan="9">No hay hallazgos</td></tr>';
+                document.getElementById('hallazgos-table-body').innerHTML = '<tr><td colspan="10">No hay hallazgos</td></tr>';
                 return;
             }
 
@@ -808,7 +808,7 @@ class AdminPanel {
             const tbody = document.getElementById('hallazgos-table-body');
 
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9">No hay resultados para los filtros aplicados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10">No hay resultados para los filtros aplicados</td></tr>';
                 return;
             }
 
@@ -827,6 +827,7 @@ class AdminPanel {
           <td>${h.folder || 'N/A'}</td>
           <td>${h.tipo_material || 'N/A'}</td>
           <td>${h.codigo || 'N/A'}</td>
+          <td>${h.accion || '—'}</td>
           <td>${h.lat && h.lng ? `${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}` : 'N/A'}</td>
           <td>
             <button class="btn-icon" onclick="window.adminPanel.editHallazgo('${h.id}')" title="Editar">
