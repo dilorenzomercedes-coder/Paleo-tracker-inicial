@@ -1295,17 +1295,20 @@ class AdminPanel {
                 const parsed = this.parseRouteKML(route.content);
                 if (!parsed || parsed.coordinates.length < 2) return;
 
+                const defaultColor = parsed.type === 'Polygon' ? '#9b59b6' : '#3498db';
+                const savedColor = (this._routeColors && this._routeColors[route.id]) || defaultColor;
+
                 let layer;
                 if (parsed.type === 'LineString') {
                     layer = L.polyline(parsed.coordinates, {
-                        color: '#3498db',  // Azul
+                        color: savedColor,
                         weight: 3,
                         opacity: 0.7
                     });
                 } else if (parsed.type === 'Polygon') {
                     layer = L.polygon(parsed.coordinates, {
-                        color: '#9b59b6',  // Morado
-                        fillColor: '#9b59b6',
+                        color: savedColor,
+                        fillColor: savedColor,
                         fillOpacity: 0.2,
                         weight: 2
                     });
