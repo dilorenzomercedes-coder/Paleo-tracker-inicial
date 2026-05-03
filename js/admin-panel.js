@@ -1288,7 +1288,7 @@ class AdminPanel {
 
             // Add routes as polylines/polygons
             this._routesCache = routesData.data; // guardar para la lista
-            this._routeColors = this._routeColors || {}; // persistir colores personalizados
+            this._routeColors = this._routeColors || JSON.parse(localStorage.getItem('admin_route_colors') || '{}'); // persistir colores personalizados
             routesData.data.forEach(route => {
                 if (!route.content) return; // Campo correcto: content
 
@@ -1381,6 +1381,7 @@ class AdminPanel {
                 const routeId = e.target.dataset.routeId;
                 if (!this._routeColors) this._routeColors = {};
                 this._routeColors[routeId] = color;
+                localStorage.setItem('admin_route_colors', JSON.stringify(this._routeColors));
                 const layer = this._routeLayers?.[routeId];
                 if (layer) {
                     layer.setStyle({ color, fillColor: color });
