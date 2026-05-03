@@ -1218,13 +1218,11 @@ class AdminPanel {
                     const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:200px;max-height:150px;margin-top:5px;">` : '';
 
                     const marker = L.marker([h.lat, h.lng], {
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41]
+                        icon: L.divIcon({
+                            className: 'custom-pin',
+                            html: '📍',
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 24]
                         })
                     });
 
@@ -1244,13 +1242,11 @@ class AdminPanel {
             fragmentosData.data.forEach(f => {
                 if (f.lat && f.lng) {
                     const marker = L.marker([f.lat, f.lng], {
-                        icon: L.icon({
-                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
-                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-                            iconSize: [25, 41],
-                            iconAnchor: [12, 41],
-                            popupAnchor: [1, -34],
-                            shadowSize: [41, 41]
+                        icon: L.divIcon({
+                            className: 'custom-bone',
+                            html: '🦴',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
                         })
                     });
 
