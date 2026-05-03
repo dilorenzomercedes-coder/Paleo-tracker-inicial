@@ -1265,6 +1265,8 @@ class AdminPanel {
             });
 
             // Add routes as polylines/polygons
+            this._routesCache = routesData.data; // guardar para la lista
+            this._routeColors = this._routeColors || {}; // persistir colores personalizados
             routesData.data.forEach(route => {
                 if (!route.content) return; // Campo correcto: content
 
@@ -1295,7 +1297,10 @@ class AdminPanel {
                         ${parsed.description ? `<br/>${parsed.description}` : ''}
                     `);
 
+                    layer._routeId = route.id;
                     this.mapLayers.routes.addLayer(layer);
+                    if (!this._routeLayers) this._routeLayers = {};
+                    this._routeLayers[route.id] = layer;
                 }
             });
 
@@ -1306,9 +1311,75 @@ class AdminPanel {
             // Update visibility
             this.updateMapVisibility();
 
+            // Render routes list
+            this.renderRoutesList();
+
         } catch (error) {
             console.error('Error updating map:', error);
         }
+    }
+
+    renderRoutesList() {
+        const container = document.getElementById('admin-routes-list');
+        if (!container) return;
+
+        const routes = this._routesCache || [];
+        if (routes.length === 0) {
+            container.innerHTML = '<p style="color:#999;font-size:.85rem;">No hay rutas cargadas.</p>';
+            return;
+        }
+
+        container.innerHTML = '';
+        routes.forEach(route => {
+            const parsed = this.parseRouteKML(route.content);
+            const name = parsed?.name || route.name || route.id;
+            const fecha = route.createdAt ? new Date(route.createdAt).toLocaleDateString('es-AR') : '';
+            const defaultColor = parsed?.type === 'Polygon' ? '#9b59b6' : '#3498db';
+            const currentColor = (this._routeColors && this._routeColors[route.id]) || defaultColor;
+
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;';
+            row.innerHTML = `
+                <div>
+                    <span style="font-size:.9rem;font-weight:500;">${name}</span>
+                    ${fecha ? `<br><small style="color:#888;">${fecha}</small>` : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="color" value="${currentColor}" title="Cambiar color"
+                        style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:2px;"
+                        data-route-id="${route.id}">
+                    <button title="Eliminar ruta" data-route-id="${route.id}"
+                        style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#e53935;">🗑️</button>
+                </div>
+            `;
+
+            // Color change
+            row.querySelector('input[type="color"]').addEventListener('input', (e) => {
+                const color = e.target.value;
+                const routeId = e.target.dataset.routeId;
+                if (!this._routeColors) this._routeColors = {};
+                this._routeColors[routeId] = color;
+                const layer = this._routeLayers?.[routeId];
+                if (layer) {
+                    layer.setStyle({ color, fillColor: color });
+                }
+            });
+
+            // Delete route
+            row.querySelector('button').addEventListener('click', async (e) => {
+                const routeId = e.currentTarget.dataset.routeId;
+                if (!confirm(`¿Eliminar la ruta "${name}"?`)) return;
+                try {
+                    await this.apiRequest(`/api/admin/routes/${routeId}`, { method: 'DELETE' });
+                    this.showNotification('Ruta eliminada.', 'success');
+                    await this.updateMap();
+                } catch (err) {
+                    this.showNotification('Error al eliminar la ruta.', 'error');
+                }
+            });
+
+            container.appendChild(row);
+        });
     }
 
     updateMapVisibility() {
