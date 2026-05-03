@@ -6,15 +6,72 @@ class SyncManager {
         this.syncInterval = null;
         this.AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutos
         console.log('SyncManager constructor called');
+        this._setupSWMessageListener();
+        this._setupOnlineListener();
+    }
+
+    // Escuchar mensajes del Service Worker
+    _setupSWMessageListener() {
+        if (!navigator.serviceWorker) return;
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data.action === 'background-sync-triggered') {
+                // El SW nos pide que enviemos los pendientes
+                this._sendPendingToSW();
+            }
+            if (event.data.action === 'sync-complete') {
+                console.log('[BG Sync] Completado:', event.data.results);
+                this.store._clearSyncedPending(event.data.results);
+                this.updateSyncStatus('idle', 'Todo sincronizado');
+            }
+            if (event.data.action === 'sync-error') {
+                console.error('[BG Sync] Error:', event.data.error);
+            }
+        });
+    }
+
+    // Registrar Background Sync cuando hay pendientes
+    async registerBackgroundSync() {
+        if (!('serviceWorker' in navigator) || !('SyncManager' in window)) return;
+        try {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.sync.register('paleo-sync');
+            console.log('[BG Sync] Tag registrado: paleo-sync');
+        } catch (err) {
+            console.warn('[BG Sync] No soportado o error:', err);
+        }
+    }
+
+    // Enviar pendientes al SW para que los sincronice
+    async _sendPendingToSW() {
+        // En lugar de pasar datos al SW, simplemente ejecutamos syncAll
+        // que ya tiene toda la lógica correcta
+        try {
+            await this.syncNow();
+        } catch (err) {
+            console.error('[BG Sync] Error en syncNow:', err);
+        }
+    }
+
+    // Escuchar cuando recupera conexión para registrar sync
+    _setupOnlineListener() {
+        window.addEventListener('online', () => {
+            console.log('[BG Sync] Conexión recuperada, registrando sync...');
+            this.registerBackgroundSync();
+            // También intentar sync normal como fallback
+            setTimeout(() => this.syncNow(), 1000);
+        });
     }
 
     // Iniciar sincronización automática
     startAutoSync() {
         console.log('startAutoSync called');
-        this.stopAutoSync(); // Detener si ya existe
+        this.stopAutoSync();
 
         // Sincronizar inmediatamente
         this.syncNow();
+
+        // Registrar background sync por si hay pendientes de sesiones anteriores
+        this.registerBackgroundSync();
 
         // Configurar intervalo
         this.syncInterval = setInterval(() => {
