@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paleo-heritage-v17';
+const CACHE_NAME = 'paleo-heritage-v18';
 const TILES_CACHE = 'map-tiles-v1';
 
 const ASSETS = [
@@ -188,6 +188,31 @@ async function handleAppRequest(request) {
     }
 }
 
+// Background Sync - se dispara automáticamente cuando recupera conexión
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'paleo-sync') {
+        event.waitUntil(backgroundSync());
+    }
+});
+
+async function backgroundSync() {
+    try {
+        const allClients = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+
+        if (allClients.length > 0) {
+            // Notificar al cliente que dispare la sync
+            allClients.forEach(client => {
+                client.postMessage({ action: 'background-sync-triggered' });
+            });
+        } else {
+            console.log('[SW] Background sync: no hay clientes activos, el usuario debe abrir la app');
+        }
+    } catch (error) {
+        console.error('[SW] Background sync failed:', error);
+        throw error;
+    }
+}
+
 // Message handling for cache management
 self.addEventListener('message', (event) => {
     if (event.data.action === 'clearTilesCache') {
@@ -201,6 +226,11 @@ self.addEventListener('message', (event) => {
         getCacheSize().then(size => {
             event.ports[0].postMessage({ size });
         });
+    }
+
+    // Cliente responde al background-sync-triggered — no necesita acción adicional del SW
+    if (event.data.action === 'sync-complete') {
+        console.log('[SW] Sync completado por el cliente');
     }
 });
 
