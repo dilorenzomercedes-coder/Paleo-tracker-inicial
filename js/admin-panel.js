@@ -1238,7 +1238,33 @@ class AdminPanel {
                 }
             });
 
-            // Add fragmentos markers
+            // Add rescates markers
+            const rescatesData = await this.apiRequest(`/api/admin/rescates?${params}`);
+            rescatesData.data?.forEach(r => {
+                if (r.lat && r.lng) {
+                    const marker = L.marker([r.lat, r.lng], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36">
+                                <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z"
+                                    fill="white" stroke="#888" stroke-width="1.5"/>
+                                <circle cx="12" cy="12" r="4" fill="#888"/>
+                            </svg>`,
+                            iconSize: [24, 36],
+                            iconAnchor: [12, 36]
+                        })
+                    });
+
+                    marker.bindPopup(`
+                        <b>${r.codigo || 'Rescate'}</b><br/>
+                        Fecha: ${r.fecha || 'N/A'}<br/>
+                        Localidad: ${r.localidad || 'N/A'}<br/>
+                        Tipo: ${r.tipo_material || 'N/A'}
+                    `);
+
+                    this.mapLayers.hallazgos.addLayer(marker);
+                }
+            });
             fragmentosData.data.forEach(f => {
                 if (f.lat && f.lng) {
                     const marker = L.marker([f.lat, f.lng], {
