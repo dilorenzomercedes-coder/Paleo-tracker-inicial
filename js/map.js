@@ -307,13 +307,22 @@ class MapManager {
     parseAndShowKML(fileContent, saveToStore = true, color = '#FF5722') {
         if (!this.map) return { success: false, message: "Map not initialized" };
 
-        const parser = new DOMParser();
-        const kml = parser.parseFromString(fileContent, 'text/xml');
+        // Limpiar BOM y caracteres invisibles al inicio
+        let cleanContent = fileContent;
+        if (cleanContent.charCodeAt(0) === 0xFEFF) cleanContent = cleanContent.slice(1);
+        cleanContent = cleanContent.trim();
 
-        // Check for parsing errors
-        const parseError = kml.getElementsByTagName('parsererror');
+        const parser = new DOMParser();
+        let kml = parser.parseFromString(cleanContent, 'text/xml');
+
+        // Si falla como text/xml, intentar como application/xml
+        let parseError = kml.getElementsByTagName('parsererror');
         if (parseError.length > 0) {
-            return { success: false, message: "Error al leer el archivo XML/KML." };
+            kml = parser.parseFromString(cleanContent, 'application/xml');
+            parseError = kml.getElementsByTagName('parsererror');
+            if (parseError.length > 0) {
+                return { success: false, message: "Error al leer el archivo XML/KML." };
+            }
         }
 
         let bounds = L.latLngBounds([]);

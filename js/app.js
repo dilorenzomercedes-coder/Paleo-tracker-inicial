@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const ui = new UI(store);
     const syncManager = new SyncManager(store);
     const mapManager = new MapManager(store);
-    const documentationManager = new DocumentationManager(store);
 
     ui.init();
     console.log('UI initialized, starting sync...');
@@ -569,9 +568,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Regular KML file
                     kmlContent = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
-                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onload = (e) => {
+                            // Limpiar BOM UTF-8 si existe (Google Earth lo agrega a veces)
+                            let content = e.target.result;
+                            if (content.charCodeAt(0) === 0xFEFF) {
+                                content = content.slice(1);
+                            }
+                            resolve(content);
+                        };
                         reader.onerror = (e) => reject(e);
-                        reader.readAsText(file);
+                        reader.readAsText(file, 'UTF-8');
                     });
                 }
 
