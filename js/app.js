@@ -597,6 +597,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Configuración ---
+    const configModal = document.getElementById('config-modal');
+    const btnConfig = document.getElementById('btn-config');
+    const btnConfigCancel = document.getElementById('btn-config-cancel');
+    const btnConfigSave = document.getElementById('btn-config-save');
+
+    if (btnConfig && configModal) {
+        btnConfig.addEventListener('click', () => {
+            const info = store.getCollectorInfo();
+            const idEl = document.getElementById('config-collector-id');
+            const nameEl = document.getElementById('config-collector-name');
+            const urlEl = document.getElementById('config-backend-url');
+            if (idEl) idEl.value = info.collectorId || '';
+            if (nameEl) nameEl.value = info.collectorName || '';
+            if (urlEl) urlEl.value = info.backendUrl || '';
+            configModal.style.display = 'flex';
+        });
+    }
+
+    if (btnConfigCancel) {
+        btnConfigCancel.addEventListener('click', () => {
+            configModal.style.display = 'none';
+        });
+    }
+
+    if (btnConfigSave) {
+        btnConfigSave.addEventListener('click', () => {
+            const name = document.getElementById('config-collector-name')?.value.trim();
+            const backendUrl = document.getElementById('config-backend-url')?.value.trim();
+            if (name) localStorage.setItem('collector_name', name);
+            if (backendUrl) localStorage.setItem('backend_url', backendUrl);
+            configModal.style.display = 'none';
+            alert('✅ Configuración guardada. Sincronizá para subir tus datos.');
+            syncManager.syncNow();
+        });
+    }
+
     // --- Utils ---
     const toBase64 = file => new Promise((resolve, reject) => {
         const reader = new FileReader();
