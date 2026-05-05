@@ -53,10 +53,12 @@ class DocumentationManager {
             return;
         }
 
+        container.innerHTML = '<div class="empty-state">Cargando documentos compartidos...</div>';
+
         try {
-            // Timeout de 10 segundos para la petición
+            // Timeout de 30 segundos (Render puede tardar en despertar)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
 
             const response = await fetch(`${collectorInfo.backendUrl}/api/collector/shared-documents`, {
                 signal: controller.signal
@@ -69,7 +71,7 @@ class DocumentationManager {
             const data = await response.json();
             const docs = data.data || [];
 
-            container.innerHTML = ''; // Limpiar "Cargando..."
+            container.innerHTML = '';
 
             if (docs.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay documentos compartidos disponibles</div>';
@@ -92,13 +94,18 @@ class DocumentationManager {
             });
         } catch (error) {
             console.error('Error loading shared documents:', error);
-            if (error.name === 'AbortError') {
-                container.innerHTML = '<div class="empty-state">La conexión tardó demasiado. Reintenta.</div>';
-            } else {
-                container.innerHTML = `<div class="empty-state">Error al cargar: ${error.message}.<br><small>URL: ${collectorInfo.backendUrl}</small></div>`;
-            }
+            const msg = error.name === 'AbortError'
+                ? 'El servidor tardó en responder (puede estar iniciando).'
+                : `Error: ${error.message}`;
+            container.innerHTML = `
+                <div class="empty-state">
+                    ${msg}<br>
+                    <button onclick="window.documentationManager.loadSharedDocuments()"
+                        style="margin-top:12px;padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;">
+                        🔄 Reintentar
+                    </button>
+                </div>`;
         }
-
     }
 
     viewSharedDocument(doc) {
