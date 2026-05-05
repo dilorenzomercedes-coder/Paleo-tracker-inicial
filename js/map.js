@@ -312,6 +312,9 @@ class MapManager {
         if (cleanContent.charCodeAt(0) === 0xFEFF) cleanContent = cleanContent.slice(1);
         cleanContent = cleanContent.trim();
 
+        // Limpiar atributos xsi: no declarados que rompen el DOMParser
+        cleanContent = cleanContent.replace(/\s+xsi:[a-zA-Z]+="[^"]*"/g, '');
+
         const parser = new DOMParser();
         let kml = parser.parseFromString(cleanContent, 'text/xml');
 
