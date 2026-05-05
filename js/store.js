@@ -524,6 +524,9 @@ class Store {
             { key: 'partes', data: this._getData('partes_diarios_local'), url: `${backendUrl}/api/collector/partes-diarios` }
         ];
 
+        // DEBUG TEMPORAL
+        alert(`DEBUG SYNC:\nCollectorId: ${collectorId}\nHallazgos: ${this.getHallazgos().length}\nFragmentos: ${this.getFragmentos().length}\nBackendUrl: ${backendUrl}`);
+
         for (const { key, data, url } of endpoints) {
             for (const item of data) {
                 // Ensure cleaned data right before sending
