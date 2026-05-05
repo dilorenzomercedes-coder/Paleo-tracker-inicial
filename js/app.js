@@ -568,16 +568,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Regular KML file
                     kmlContent = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
-                        reader.onload = (e) => {
-                            // Limpiar BOM UTF-8 si existe (Google Earth lo agrega a veces)
-                            let content = e.target.result;
-                            if (content.charCodeAt(0) === 0xFEFF) {
-                                content = content.slice(1);
-                            }
-                            resolve(content);
-                        };
+                        reader.onload = (e) => resolve(e.target.result);
                         reader.onerror = (e) => reject(e);
-                        reader.readAsText(file, 'UTF-8');
+                        reader.readAsText(file);
                     });
                 }
 
@@ -599,6 +592,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Reset input so same file can be selected again
             e.target.value = '';
+        });
+    }
+
+    // --- Configuración ---
+    const configModal = document.getElementById('config-modal');
+    const btnConfig = document.getElementById('btn-config');
+    const btnConfigCancel = document.getElementById('btn-config-cancel');
+    const btnConfigSave = document.getElementById('btn-config-save');
+
+    if (btnConfig) {
+        btnConfig.addEventListener('click', () => {
+            const info = store.getCollectorInfo();
+            document.getElementById('config-collector-id').value = info.collectorId || '';
+            document.getElementById('config-collector-name').value = info.collectorName || '';
+            document.getElementById('config-backend-url').value = info.backendUrl || '';
+            configModal.style.display = 'flex';
+        });
+    }
+
+    if (btnConfigCancel) {
+        btnConfigCancel.addEventListener('click', () => {
+            configModal.style.display = 'none';
+        });
+    }
+
+    if (btnConfigSave) {
+        btnConfigSave.addEventListener('click', () => {
+            const name = document.getElementById('config-collector-name').value.trim();
+            const backendUrl = document.getElementById('config-backend-url').value.trim();
+            if (name) localStorage.setItem('collector_name', name);
+            if (backendUrl) localStorage.setItem('backend_url', backendUrl);
+            configModal.style.display = 'none';
+            alert('✅ Configuración guardada.');
         });
     }
 
