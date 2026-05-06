@@ -532,7 +532,6 @@ class Store {
 
         for (const { key, data, url } of endpoints) {
             for (const item of data) {
-                // Ensure cleaned data right before sending
                 const cleanItem = this._deepClean({ ...item });
 
                 try {
@@ -547,13 +546,15 @@ class Store {
                     } else {
                         const errData = await resp.json().catch(() => ({ error: resp.statusText }));
                         console.error(`Error sincronizando ${key} (${item.id}):`, resp.status, errData);
-                        console.log('Dato enviado que falló:', cleanItem); // Log malformed data
                         results[key].failed++;
                     }
                 } catch (err) {
                     console.error(`Excepción sincronizando ${key} (${item.id}):`, err);
                     results[key].failed++;
                 }
+
+                // Delay entre requests para evitar rate limiting (429)
+                await new Promise(r => setTimeout(r, 300));
             }
         }
 
