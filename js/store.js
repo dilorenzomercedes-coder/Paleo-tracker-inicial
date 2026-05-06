@@ -16,6 +16,10 @@ class Store {
             console.log('Nuevo collector_id generado:', newId);
         }
 
+        // Migración: marcar items existentes sin campo 'synced' como ya sincronizados
+        // para que no se resuban al servidor en el próximo sync
+        this._migrateSyncedFlag();
+
         // Migration: Check for old "astillas" data and move it to "fragmentos"
         const oldAstillas = localStorage.getItem('paleo_astillas');
         const newFragmentos = localStorage.getItem(this.STORAGE_KEY_FRAGMENTOS);
@@ -37,6 +41,44 @@ class Store {
 
         // Migration: Ensure all items have a unique ID and correct format
         this._migrateData();
+    }
+
+    _migrateSyncedFlag() {
+        const keys = [
+            this.STORAGE_KEY_HALLAZGOS,
+            this.STORAGE_KEY_FRAGMENTOS,
+            this.STORAGE_KEY_ROUTES,
+            this.STORAGE_KEY_DOCUMENTS,
+            this.STORAGE_KEY_RESCATES,
+        ];
+        keys.forEach(key => {
+            const dataStr = localStorage.getItem(key);
+            if (!dataStr) return;
+            try {
+                const data = JSON.parse(dataStr);
+                let changed = false;
+                data.forEach(item => {
+                    if (item.synced === undefined) {
+                        item.synced = true; // ya estaban sincronizados
+                        changed = true;
+                    }
+                });
+                if (changed) localStorage.setItem(key, JSON.stringify(data));
+            } catch { }
+        });
+
+        // También para partes diarios
+        const partesStr = localStorage.getItem('partes_diarios_local');
+        if (partesStr) {
+            try {
+                const partes = JSON.parse(partesStr);
+                let changed = false;
+                partes.forEach(p => {
+                    if (p.synced === undefined) { p.synced = true; changed = true; }
+                });
+                if (changed) localStorage.setItem('partes_diarios_local', JSON.stringify(partes));
+            } catch { }
+        }
     }
 
     _migrateData() {
@@ -221,6 +263,7 @@ class Store {
         const list = this.getHallazgos();
         hallazgo.id = this._generateId();
         hallazgo.timestamp = new Date().toISOString();
+        hallazgo.synced = false;
         list.push(hallazgo);
         this._saveData(this.STORAGE_KEY_HALLAZGOS, list);
         return hallazgo;
@@ -252,6 +295,7 @@ class Store {
         const list = this.getFragmentos();
         fragmento.id = this._generateId();
         fragmento.timestamp = new Date().toISOString();
+        fragmento.synced = false;
         list.push(fragmento);
         this._saveData(this.STORAGE_KEY_FRAGMENTOS, list);
         return fragmento;
@@ -283,8 +327,8 @@ class Store {
         const list = this.getRoutes();
         route.id = this._generateId();
         route.timestamp = new Date().toISOString();
-        // Default color if not present
         if (!route.color) route.color = '#FF5722';
+        route.synced = false;
         list.push(route);
         this._saveData(this.STORAGE_KEY_ROUTES, list);
         return route;
@@ -316,6 +360,7 @@ class Store {
         const list = this.getDocuments();
         doc.id = this._generateId();
         doc.timestamp = new Date().toISOString();
+        doc.synced = false;
         list.push(doc);
         this._saveData(this.STORAGE_KEY_DOCUMENTS, list);
         return doc;
@@ -369,6 +414,7 @@ class Store {
         const list = this.getRescates();
         rescate.id = `r_${this._generateId()}`;
         rescate.timestamp = new Date().toISOString();
+        rescate.synced = false;
         list.push(rescate);
         this._saveData(this.STORAGE_KEY_RESCATES, list);
         return rescate;
@@ -521,16 +567,23 @@ class Store {
             return results;
         }
 
-        const endpoints = [
-            { key: 'hallazgos', data: this.getHallazgos(), url: `${backendUrl}/api/collector/hallazgos` },
-            { key: 'fragmentos', data: this.getFragmentos(), url: `${backendUrl}/api/collector/fragmentos` },
-            { key: 'routes', data: this.getRoutes(), url: `${backendUrl}/api/collector/routes` },
-            { key: 'documents', data: this.getDocuments(), url: `${backendUrl}/api/collector/documents` },
-            { key: 'rescates', data: this.getRescates(), url: `${backendUrl}/api/collector/rescates` },
-            { key: 'partes', data: this._getData('partes_diarios_local'), url: `${backendUrl}/api/collector/partes-diarios` }
+        const allEndpoints = [
+            { key: 'hallazgos', storageKey: this.STORAGE_KEY_HALLAZGOS, data: this.getHallazgos(), url: `${backendUrl}/api/collector/hallazgos` },
+            { key: 'fragmentos', storageKey: this.STORAGE_KEY_FRAGMENTOS, data: this.getFragmentos(), url: `${backendUrl}/api/collector/fragmentos` },
+            { key: 'routes', storageKey: this.STORAGE_KEY_ROUTES, data: this.getRoutes(), url: `${backendUrl}/api/collector/routes` },
+            { key: 'documents', storageKey: this.STORAGE_KEY_DOCUMENTS, data: this.getDocuments(), url: `${backendUrl}/api/collector/documents` },
+            { key: 'rescates', storageKey: this.STORAGE_KEY_RESCATES, data: this.getRescates(), url: `${backendUrl}/api/collector/rescates` },
+            { key: 'partes', storageKey: null, data: this._getData('partes_diarios_local'), url: `${backendUrl}/api/collector/partes-diarios` }
         ];
 
-        for (const { key, data, url } of endpoints) {
+        // Solo sincronizar items no sincronizados (synced !== true)
+        // Items sin el campo synced se consideran viejos y ya sincronizados
+        const endpoints = allEndpoints.map(e => ({
+            ...e,
+            data: e.data.filter(item => item.synced === false)
+        }));
+
+        for (const { key, storageKey, data, url } of endpoints) {
             for (const item of data) {
                 const cleanItem = this._deepClean({ ...item });
 
@@ -543,6 +596,22 @@ class Store {
                     });
                     if (resp.ok) {
                         results[key].synced++;
+                        // Marcar como sincronizado en localStorage
+                        if (storageKey) {
+                            const list = this._getData(storageKey);
+                            const idx = list.findIndex(i => i.id === item.id);
+                            if (idx !== -1) {
+                                list[idx].synced = true;
+                                this._saveData(storageKey, list);
+                            }
+                        } else if (key === 'partes') {
+                            const list = this._getData('partes_diarios_local');
+                            const idx = list.findIndex(i => i.id === item.id);
+                            if (idx !== -1) {
+                                list[idx].synced = true;
+                                localStorage.setItem('partes_diarios_local', JSON.stringify(list));
+                            }
+                        }
                     } else {
                         const errData = await resp.json().catch(() => ({ error: resp.statusText }));
                         console.error(`Error sincronizando ${key} (${item.id}):`, resp.status, errData);
