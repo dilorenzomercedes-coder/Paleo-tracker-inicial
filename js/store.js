@@ -6,9 +6,15 @@ class Store {
         this.STORAGE_KEY_ROUTES = 'paleo_routes';
         this.STORAGE_KEY_DOCUMENTS = 'paleo_documents';
         this.STORAGE_KEY_RESCATES = 'paleo_rescates';
-        // Compresión agresiva para ahorrar espacio (fix QuotaExceededError)
         this.MAX_IMAGE_DIMENSION = 640;
         this.IMAGE_QUALITY = 0.45;
+
+        // Generar collector_id automáticamente si no existe
+        if (!localStorage.getItem('collector_id')) {
+            const newId = `collector_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            localStorage.setItem('collector_id', newId);
+            console.log('Nuevo collector_id generado:', newId);
+        }
 
         // Migration: Check for old "astillas" data and move it to "fragmentos"
         const oldAstillas = localStorage.getItem('paleo_astillas');
@@ -523,9 +529,6 @@ class Store {
             { key: 'rescates', data: this.getRescates(), url: `${backendUrl}/api/collector/rescates` },
             { key: 'partes', data: this._getData('partes_diarios_local'), url: `${backendUrl}/api/collector/partes-diarios` }
         ];
-
-        // DEBUG TEMPORAL
-        alert(`DEBUG SYNC:\nCollectorId: ${collectorId}\nHallazgos: ${this.getHallazgos().length}\nFragmentos: ${this.getFragmentos().length}\nBackendUrl: ${backendUrl}`);
 
         for (const { key, data, url } of endpoints) {
             for (const item of data) {
