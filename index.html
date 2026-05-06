@@ -307,6 +307,15 @@
                 </select>
               </div>
               <div class="form-group">
+                <label>Acción de Rescate</label>
+                <div class="radio-group">
+                  <label><input type="radio" name="accion" value="extraccion"> Extracción</label>
+                  <label><input type="radio" name="accion" value="consolidacion"> Consolidación</label>
+                  <label><input type="radio" name="accion" value="embalaje"> Embalaje</label>
+                  <label><input type="radio" name="accion" value="traslado"> Traslado</label>
+                </div>
+              </div>
+              <div class="form-group">
                 <label>Clasificación Taxonómica</label>
                 <input type="text" name="taxonomia">
               </div>
@@ -948,6 +957,19 @@
       document.getElementById('debug-log').style.display = 'block';
     }
   </script>
+<script>
+// DEBUG TEMPORAL - borrar después
+setTimeout(() => {
+    const keys = Object.keys(localStorage);
+    const hallazgosKey = keys.find(k => k.includes('hallazgo'));
+    const fragmentosKey = keys.find(k => k.includes('fragment'));
+    const collectorId = localStorage.getItem('collector_id');
+    const hallazgos = hallazgosKey ? JSON.parse(localStorage.getItem(hallazgosKey) || '[]').length : 0;
+    const fragmentos = fragmentosKey ? JSON.parse(localStorage.getItem(fragmentosKey) || '[]').length : 0;
+    const allKeys = keys.join(', ');
+    alert(`DEBUG localStorage:\nCollectorId: ${collectorId}\nHallazgos key: ${hallazgosKey} (${hallazgos})\nFragmentos key: ${fragmentosKey} (${fragmentos})\nTodas las keys: ${allKeys}`);
+}, 3000);
+</script>
 </body>
 
 </html>
