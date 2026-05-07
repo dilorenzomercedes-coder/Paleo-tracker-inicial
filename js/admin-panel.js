@@ -1268,12 +1268,32 @@ class AdminPanel {
             fragmentosData.data.forEach(f => {
                 if (f.lat && f.lng) {
                     const esXilopalo = f.observaciones && f.observaciones.toLowerCase().includes('xilopalo');
+                    const xiloPaloSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60" width="32" height="20">
+                        <!-- Tronco principal -->
+                        <ellipse cx="82" cy="30" rx="16" ry="28" fill="#fff" stroke="#333" stroke-width="3"/>
+                        <!-- Anillos internos -->
+                        <ellipse cx="82" cy="30" rx="10" ry="18" fill="none" stroke="#333" stroke-width="1.5"/>
+                        <ellipse cx="82" cy="30" rx="5" ry="9" fill="none" stroke="#333" stroke-width="1.5"/>
+                        <!-- Cuerpo del tronco -->
+                        <rect x="8" y="2" width="74" height="56" rx="4" fill="#fff" stroke="none"/>
+                        <!-- Líneas de la madera -->
+                        <line x1="8" y1="18" x2="82" y2="18" stroke="#333" stroke-width="2"/>
+                        <line x1="8" y1="30" x2="82" y2="30" stroke="#333" stroke-width="2.5"/>
+                        <line x1="8" y1="42" x2="82" y2="42" stroke="#333" stroke-width="2"/>
+                        <!-- Borde izquierdo -->
+                        <ellipse cx="8" cy="30" rx="6" ry="28" fill="#fff" stroke="#333" stroke-width="3"/>
+                        <!-- Borde derecho (cara del corte) -->
+                        <ellipse cx="82" cy="30" rx="16" ry="28" fill="none" stroke="#333" stroke-width="3"/>
+                        <!-- Raíz/ramita arriba -->
+                        <path d="M50 2 Q55 -8 65 -5" stroke="#333" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                    </svg>`;
+
                     const marker = L.marker([f.lat, f.lng], {
                         icon: L.divIcon({
                             className: esXilopalo ? 'custom-wood' : 'custom-bone',
-                            html: esXilopalo ? '🪵' : '🦴',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
+                            html: esXilopalo ? xiloPaloSVG : '🦴',
+                            iconSize: esXilopalo ? [32, 20] : [20, 20],
+                            iconAnchor: esXilopalo ? [16, 10] : [10, 10]
                         })
                     });
 
