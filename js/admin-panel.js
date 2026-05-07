@@ -1267,17 +1267,18 @@ class AdminPanel {
             });
             fragmentosData.data.forEach(f => {
                 if (f.lat && f.lng) {
+                    const esXilopalo = f.observaciones && f.observaciones.toLowerCase().includes('xilopalo');
                     const marker = L.marker([f.lat, f.lng], {
                         icon: L.divIcon({
-                            className: 'custom-bone',
-                            html: '🦴',
+                            className: esXilopalo ? 'custom-wood' : 'custom-bone',
+                            html: esXilopalo ? '🪵' : '🦴',
                             iconSize: [20, 20],
                             iconAnchor: [10, 10]
                         })
                     });
 
                     marker.bindPopup(`
-                        <b>Fragmento</b><br/>
+                        <b>${esXilopalo ? 'Xilopalo' : 'Fragmento'}</b><br/>
                         Fecha: ${f.fecha}<br/>
                         Localidad: ${f.localidad}
                     `);
