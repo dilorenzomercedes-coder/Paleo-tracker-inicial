@@ -7,8 +7,12 @@ class MapManager {
         this.filters = {
             showRoutes: true,
             showHallazgos: true,
-            showHallazgos: true,
+            showHallazgosPicking: true,
             showFragmentos: true,
+            showFragmentosVertebrados: true,
+            showFragmentosInvertebrados: true,
+            showFragmentosIcnofosil: true,
+            showRoutes: true,
             hallazgosFolder: 'all',
             fragmentosFolder: 'all'
         };
@@ -197,79 +201,92 @@ class MapManager {
         this.markersLayer.clearLayers();
         this.routesLayer.clearLayers();
 
-        // Add Hallazgos
-        if (this.filters.showHallazgos) {
-            const hallazgos = this.store.getHallazgos();
-            hallazgos.forEach(h => {
-                // Filter by folder
-                if (this.filters.hallazgosFolder !== 'all' && h.folder !== this.filters.hallazgosFolder) {
-                    return;
+        // Add Hallazgos - color según acción
+        const hallazgos = this.store.getHallazgos();
+        hallazgos.forEach(h => {
+            if (this.filters.hallazgosFolder !== 'all' && h.folder !== this.filters.hallazgosFolder) return;
+            if (!h.lat || !h.lng) return;
+
+            const esRescate = h.accion === 'rescate';
+            const esPicking = h.accion === 'picking';
+
+            if (esRescate && !this.filters.showHallazgos) return;
+            if (esPicking && !this.filters.showHallazgosPicking) return;
+            if (!esRescate && !esPicking && !this.filters.showHallazgos) return;
+
+            const color = esRescate ? '#e53935' : '#43a047';
+            const pinSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
+                <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="${color}"/>
+                <circle cx="12" cy="11" r="4.5" fill="rgba(255,255,255,0.4)"/>
+            </svg>`;
+
+            let popupContent = `<div class="marker-popup">`;
+            popupContent += `<b>${h.codigo || 'Hallazgo'}</b><br>`;
+            popupContent += `<span class="popup-detail">${h.tipo_material || ''}</span>`;
+            if (h.accion) popupContent += `<br><span>${h.accion}</span>`;
+            if (h.folder) popupContent += `<br><span class="popup-folder">📁 ${h.folder}</span>`;
+            if (h.localidad) popupContent += `<br><span class="popup-location">📍 ${h.localidad}</span>`;
+            if (h.foto1) popupContent += `<div class="popup-photo"><img src="${h.foto1}" alt="Foto" style="max-width:150px;border-radius:6px;margin-top:6px;"></div>`;
+            popupContent += `</div>`;
+
+            L.marker([h.lat, h.lng], {
+                icon: L.divIcon({ className: '', html: pinSVG, iconSize: [16, 24], iconAnchor: [8, 24] })
+            }).bindPopup(popupContent, { maxWidth: 200 }).addTo(this.markersLayer);
+        });
+
+        // Add Vestigios (Fragmentos) - color según tipo
+        const VESTIGIO_COLORS = {
+            xilopalo: '#222',
+            vertebrados_fosiles: '#FDD835',
+            invertebrados_fosiles: '#1E88E5',
+            icnofosil: '#FB8C00'
+        };
+
+        const VESTIGIO_FILTER_MAP = {
+            xilopalo: 'showFragmentos',
+            vertebrados_fosiles: 'showFragmentosVertebrados',
+            invertebrados_fosiles: 'showFragmentosInvertebrados',
+            icnofosil: 'showFragmentosIcnofosil'
+        };
+
+        const fragmentos = this.store.getFragmentos();
+        fragmentos.forEach(a => {
+            if (this.filters.fragmentosFolder !== 'all' && a.folder !== this.filters.fragmentosFolder) return;
+            if (!a.lat || !a.lng) return;
+
+            // Determinar tipo: campo tipo_vestigio, o migrar desde observaciones
+            let tipo = a.tipo_vestigio;
+            if (!tipo) {
+                if (a.observaciones && a.observaciones.toLowerCase().includes('xilopalo')) {
+                    tipo = 'xilopalo';
+                } else {
+                    tipo = 'vertebrados_fosiles';
                 }
+            }
 
-                if (h.lat && h.lng) {
-                    // Build popup content with photo
-                    let popupContent = `<div class="marker-popup">`;
-                    popupContent += `<b>${h.codigo || 'Hallazgo'}</b><br>`;
-                    popupContent += `<span class="popup-detail">${h.tipo_material || ''}</span>`;
-                    if (h.folder) popupContent += `<br><span class="popup-folder">📁 ${h.folder}</span>`;
-                    if (h.localidad) popupContent += `<br><span class="popup-location">📍 ${h.localidad}</span>`;
+            const filterKey = VESTIGIO_FILTER_MAP[tipo] || 'showFragmentos';
+            if (!this.filters[filterKey]) return;
 
-                    // Add photo if exists
-                    if (h.foto1) {
-                        popupContent += `<div class="popup-photo"><img src="${h.foto1}" alt="Foto del hallazgo"></div>`;
-                    }
-                    popupContent += `</div>`;
+            const color = VESTIGIO_COLORS[tipo] || '#FDD835';
+            const pinSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
+                <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="${color}" stroke="rgba(0,0,0,0.3)" stroke-width="0.5"/>
+                <circle cx="12" cy="11" r="4.5" fill="rgba(255,255,255,0.3)"/>
+            </svg>`;
 
-                    L.marker([h.lat, h.lng], {
-                        icon: L.divIcon({
-                            className: 'custom-pin',
-                            html: '📍',
-                            iconSize: [24, 24],
-                            iconAnchor: [12, 24]
-                        })
-                    })
-                        .bindPopup(popupContent, { maxWidth: 200 })
-                        .addTo(this.markersLayer);
-                }
-            });
-        }
+            const tipoLabel = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' }[tipo] || tipo;
 
-        // Add Fragmentos
-        if (this.filters.showFragmentos) {
-            const fragmentos = this.store.getFragmentos();
-            fragmentos.forEach(a => {
-                // Filter by folder
-                if (this.filters.fragmentosFolder !== 'all' && a.folder !== this.filters.fragmentosFolder) {
-                    return;
-                }
+            let popupContent = `<div class="marker-popup">`;
+            popupContent += `<b>${tipoLabel}</b><br>`;
+            if (a.localidad) popupContent += `<span class="popup-location">📍 ${a.localidad}</span>`;
+            if (a.folder) popupContent += `<br><span class="popup-folder">📁 ${a.folder}</span>`;
+            if (a.observaciones) popupContent += `<br><span class="popup-obs">${a.observaciones}</span>`;
+            if (a.foto) popupContent += `<div class="popup-photo"><img src="${a.foto}" alt="Foto" style="max-width:150px;border-radius:6px;margin-top:6px;"></div>`;
+            popupContent += `</div>`;
 
-                if (a.lat && a.lng) {
-                    // Build popup content with photo
-                    let popupContent = `<div class="marker-popup">`;
-                    popupContent += `<b>🦴 Fragmento</b><br>`;
-                    if (a.localidad) popupContent += `<span class="popup-location">📍 ${a.localidad}</span>`;
-                    if (a.folder) popupContent += `<br><span class="popup-folder">📁 ${a.folder}</span>`;
-                    if (a.observaciones) popupContent += `<br><span class="popup-obs">${a.observaciones}</span>`;
-
-                    // Add photo if exists
-                    if (a.foto) {
-                        popupContent += `<div class="popup-photo"><img src="${a.foto}" alt="Foto de fragmento"></div>`;
-                    }
-                    popupContent += `</div>`;
-
-                    L.marker([a.lat, a.lng], {
-                        icon: L.divIcon({
-                            className: 'custom-bone',
-                            html: '🦴',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        })
-                    })
-                        .bindPopup(popupContent, { maxWidth: 200 })
-                        .addTo(this.markersLayer);
-                }
-            });
-        }
+            L.marker([a.lat, a.lng], {
+                icon: L.divIcon({ className: '', html: pinSVG, iconSize: [16, 24], iconAnchor: [8, 24] })
+            }).bindPopup(popupContent, { maxWidth: 200 }).addTo(this.markersLayer);
+        });
 
         // Re-add routes
         if (this.filters.showRoutes) {

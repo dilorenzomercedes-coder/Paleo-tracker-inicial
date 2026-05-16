@@ -17,8 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultFilters = {
         showRoutes: true,
         showHallazgos: true,
-        showHallazgos: true,
+        showHallazgosPicking: true,
         showFragmentos: true,
+        showFragmentosVertebrados: true,
+        showFragmentosInvertebrados: true,
+        showFragmentosIcnofosil: true,
         hallazgosFolder: 'all',
         fragmentosFolder: 'all'
     };
@@ -31,51 +34,35 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize Filter UI Controls
     const filterRoutes = document.getElementById('filter-routes');
     const filterHallazgos = document.getElementById('filter-hallazgos');
+    const filterHallazgosPicking = document.getElementById('filter-hallazgos-picking');
     const filterFragmentos = document.getElementById('filter-fragmentos');
-    const filterHallazgosFolder = document.getElementById('filter-hallazgos-folder');
-    const filterFragmentosFolder = document.getElementById('filter-fragmentos-folder');
+    const filterFragmentosVertebrados = document.getElementById('filter-fragmentos-vertebrados');
+    const filterFragmentosInvertebrados = document.getElementById('filter-fragmentos-invertebrados');
+    const filterFragmentosIcnofosil = document.getElementById('filter-fragmentos-icnofosil');
     const toggleFiltersBtn = document.getElementById('toggle-filters');
     const filtersContent = document.getElementById('map-filters-content');
 
     // Set initial UI state
-    if (filterRoutes) filterRoutes.checked = savedFilters.showRoutes;
-    if (filterHallazgos) filterHallazgos.checked = savedFilters.showHallazgos;
-    if (filterRoutes) filterRoutes.checked = savedFilters.showRoutes;
-    if (filterHallazgos) filterHallazgos.checked = savedFilters.showHallazgos;
-    if (filterFragmentos) filterFragmentos.checked = savedFilters.showFragmentos;
-
-    // Populate Folder Dropdowns
-    const populateFolderSelect = (select, items, selectedFolder) => {
-        if (!select) return;
-        const folders = new Set();
-        items.forEach(item => {
-            if (item.folder) folders.add(item.folder);
-        });
-
-        // Keep "all" option
-        select.innerHTML = '<option value="all">Todas las carpetas</option>';
-
-        Array.from(folders).sort().forEach(folder => {
-            const option = document.createElement('option');
-            option.value = folder;
-            option.textContent = folder;
-            if (folder === selectedFolder) option.selected = true;
-            select.appendChild(option);
-        });
-    };
-
-    populateFolderSelect(filterHallazgosFolder, store.getHallazgos(), savedFilters.hallazgosFolder);
-    populateFolderSelect(filterFragmentosFolder, store.getFragmentos(), savedFilters.fragmentosFolder);
+    if (filterRoutes) filterRoutes.checked = savedFilters.showRoutes ?? true;
+    if (filterHallazgos) filterHallazgos.checked = savedFilters.showHallazgos ?? true;
+    if (filterHallazgosPicking) filterHallazgosPicking.checked = savedFilters.showHallazgosPicking ?? true;
+    if (filterFragmentos) filterFragmentos.checked = savedFilters.showFragmentos ?? true;
+    if (filterFragmentosVertebrados) filterFragmentosVertebrados.checked = savedFilters.showFragmentosVertebrados ?? true;
+    if (filterFragmentosInvertebrados) filterFragmentosInvertebrados.checked = savedFilters.showFragmentosInvertebrados ?? true;
+    if (filterFragmentosIcnofosil) filterFragmentosIcnofosil.checked = savedFilters.showFragmentosIcnofosil ?? true;
 
     // Filter Change Handler
     const handleFilterChange = () => {
         const newFilters = {
             showRoutes: filterRoutes ? filterRoutes.checked : true,
             showHallazgos: filterHallazgos ? filterHallazgos.checked : true,
-            showHallazgos: filterHallazgos ? filterHallazgos.checked : true,
+            showHallazgosPicking: filterHallazgosPicking ? filterHallazgosPicking.checked : true,
             showFragmentos: filterFragmentos ? filterFragmentos.checked : true,
-            hallazgosFolder: filterHallazgosFolder ? filterHallazgosFolder.value : 'all',
-            fragmentosFolder: filterFragmentosFolder ? filterFragmentosFolder.value : 'all'
+            showFragmentosVertebrados: filterFragmentosVertebrados ? filterFragmentosVertebrados.checked : true,
+            showFragmentosInvertebrados: filterFragmentosInvertebrados ? filterFragmentosInvertebrados.checked : true,
+            showFragmentosIcnofosil: filterFragmentosIcnofosil ? filterFragmentosIcnofosil.checked : true,
+            hallazgosFolder: 'all',
+            fragmentosFolder: 'all'
         };
 
         mapManager.setFilters(newFilters);
@@ -85,9 +72,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add Listeners
     if (filterRoutes) filterRoutes.addEventListener('change', handleFilterChange);
     if (filterHallazgos) filterHallazgos.addEventListener('change', handleFilterChange);
+    if (filterHallazgosPicking) filterHallazgosPicking.addEventListener('change', handleFilterChange);
     if (filterFragmentos) filterFragmentos.addEventListener('change', handleFilterChange);
-    if (filterHallazgosFolder) filterHallazgosFolder.addEventListener('change', handleFilterChange);
-    if (filterFragmentosFolder) filterFragmentosFolder.addEventListener('change', handleFilterChange);
+    if (filterFragmentosVertebrados) filterFragmentosVertebrados.addEventListener('change', handleFilterChange);
+    if (filterFragmentosInvertebrados) filterFragmentosInvertebrados.addEventListener('change', handleFilterChange);
+    if (filterFragmentosIcnofosil) filterFragmentosIcnofosil.addEventListener('change', handleFilterChange);
 
     // Toggle Panel
     if (toggleFiltersBtn && filtersContent) {

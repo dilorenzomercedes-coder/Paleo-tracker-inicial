@@ -124,7 +124,7 @@ class UI {
                 ${photosHtml}
             `;
         } else if (type === 'fragmento') {
-            title.textContent = `Fragmento - ${item.localidad}`;
+            title.textContent = `Vestigio - ${item.localidad}`;
             content.innerHTML = `
                 <div class="detail-row">
                     <div class="detail-label">Fecha</div>
@@ -149,7 +149,7 @@ class UI {
                 ${item.foto ? `
                 <div class="detail-row">
                     <div class="detail-label">Fotografía</div>
-                    <img src="${item.foto}" class="detail-photo" alt="Foto del fragmento">
+                    <img src="${item.foto}" class="detail-photo" alt="Foto del vestigio">
                 </div>
                 ` : ''}
             `;
@@ -415,7 +415,9 @@ class UI {
             ? `<img src="${item.foto}" alt="Foto">`
             : `<div class="img-placeholder"><span>📷</span></div>`;
 
-        const title = type === 'hallazgo' ? `${item.codigo || 'S/N'} - ${item.tipo_material}` : `Fragmento - ${item.localidad}`;
+        const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
+        const tipoLabel = type === 'fragmento' ? (TIPO_LABELS[item.tipo_vestigio] || (item.observaciones?.toLowerCase().includes('xilopalo') ? 'Xilópalo' : 'Vertebrados Fósiles')) : null;
+        const title = type === 'hallazgo' ? `${item.codigo || 'S/N'} - ${item.tipo_material}` : `${tipoLabel || 'Vestigio'} - ${item.localidad}`;
         const subtitle = type === 'hallazgo' ? item.taxonomia || 'Sin clasificación' : item.fecha;
 
         card.innerHTML = `
