@@ -137,7 +137,6 @@
                     <option value="XS">XS</option>
                     <option value="XR">XR</option>
                     <option value="PI">PI</option>
-                    <option value="Huella">Huella</option>
                   </select>
                 </div>
                 <div class="form-group">
@@ -171,7 +170,6 @@
                 <label>Acción</label>
                 <div class="radio-group">
                   <label><input type="radio" name="accion" value="picking"> Picking</label>
-                  <label><input type="radio" name="accion" value="bochon"> Bochon</label>
                   <label><input type="radio" name="accion" value="rescate"> Rescate pendiente</label>
                 </div>
               </div>
@@ -377,24 +375,34 @@
 
       <section id="tab-fragmentos" class="tab-content">
         <div class="section-header">
-          <h2>Registro de Fragmentos</h2>
-          <button class="btn-primary" id="btn-new-fragmento">+ Nuevo Fragmento</button>
+          <h2>Registro de Vestigios</h2>
+          <button class="btn-primary" id="btn-new-fragmento">+ Nuevo Vestigio</button>
         </div>
 
         <div id="fragmentos-list" class="data-list">
-          <div class="empty-state">No hay fragmentos registrados.</div>
+          <div class="empty-state">No hay vestigios registrados.</div>
         </div>
 
         <div id="fragmentos-form-container" class="form-overlay hidden">
           <div class="form-card">
             <div class="form-header">
-              <h3>Nuevo Fragmento</h3>
+              <h3>Nuevo Vestigio</h3>
               <button class="btn-close" id="btn-close-fragmento">&times;</button>
             </div>
             <form id="form-fragmento">
               <div class="form-group">
                 <label>Fecha</label>
                 <input type="date" name="fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Tipo *</label>
+                <select name="tipo_vestigio" required>
+                  <option value="">Seleccionar...</option>
+                  <option value="xilopalo">Xilópalo</option>
+                  <option value="vertebrados_fosiles">Vertebrados Fósiles</option>
+                  <option value="invertebrados_fosiles">Invertebrados Fósiles</option>
+                  <option value="icnofosil">Icnofósil</option>
+                </select>
               </div>
               <div class="form-group">
                 <label>Localidad</label>
@@ -437,7 +445,7 @@
                 <textarea name="observaciones" rows="3" placeholder="Notas adicionales (opcional)"></textarea>
               </div>
               <div class="form-actions">
-                <button type="submit" class="btn-primary full-width">Guardar Fragmento</button>
+                <button type="submit" class="btn-primary full-width">Guardar Vestigio</button>
               </div>
             </form>
           </div>
@@ -516,20 +524,44 @@
             <div class="filter-row">
               <label class="checkbox-label">
                 <input type="checkbox" id="filter-hallazgos" checked>
-                <span class="icon">📍</span> Hallazgos
+                <span>🔴</span> Rescate Pendiente
               </label>
-              <select id="filter-hallazgos-folder" class="folder-select">
-                <option value="all">Todas las carpetas</option>
-              </select>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-hallazgos-picking" checked>
+                <span>🟢</span> Picking
+              </label>
             </div>
             <div class="filter-row">
               <label class="checkbox-label">
                 <input type="checkbox" id="filter-fragmentos" checked>
-                <span class="icon">🦴</span> Fragmentos
+                <span style="color:#222;">⚫</span> Xilópalo
               </label>
-              <select id="filter-fragmentos-folder" class="folder-select">
-                <option value="all">Todas las carpetas</option>
-              </select>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-fragmentos-vertebrados" checked>
+                <span style="color:#FDD835;">🟡</span> Vertebrados Fósiles
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-fragmentos-invertebrados" checked>
+                <span style="color:#1E88E5;">🔵</span> Invertebrados Fósiles
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-fragmentos-icnofosil" checked>
+                <span style="color:#FB8C00;">🟠</span> Icnofósil
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-routes" checked>
+                <span class="icon" style="color: #FF5722;">━━</span> Rutas
+              </label>
             </div>
           </div>
         </div>
@@ -540,12 +572,28 @@
         <div class="map-legend">
           <h4>Leyenda</h4>
           <div class="legend-item">
-            <span class="legend-icon">📍</span>
-            <span>Hallazgos</span>
+            <span style="color:#e53935;">📍</span>
+            <span>Rescate Pendiente</span>
           </div>
           <div class="legend-item">
-            <span class="legend-icon">🦴</span>
-            <span>Fragmentos</span>
+            <span style="color:#43a047;">📍</span>
+            <span>Picking</span>
+          </div>
+          <div class="legend-item">
+            <span style="color:#222;">📍</span>
+            <span>Xilópalo</span>
+          </div>
+          <div class="legend-item">
+            <span style="color:#FDD835;">📍</span>
+            <span>Vertebrados Fósiles</span>
+          </div>
+          <div class="legend-item">
+            <span style="color:#1E88E5;">📍</span>
+            <span>Invertebrados Fósiles</span>
+          </div>
+          <div class="legend-item">
+            <span style="color:#FB8C00;">📍</span>
+            <span>Icnofósil</span>
           </div>
           <div class="legend-item">
             <span class="legend-icon" style="color: #FF5722;">━━</span>
@@ -766,7 +814,7 @@
     </button>
     <button class="nav-item" data-target="tab-fragmentos">
       <span class="icon">🦴</span>
-      <span class="label">Fragmentos</span>
+      <span class="label">Vestigios</span>
     </button>
     <button class="nav-item" data-target="tab-caminos">
       <span class="icon">🗺️</span>
