@@ -793,7 +793,7 @@ class AdminPanel {
             this.currentHallazgos = rawData.data;
 
             if (rawData.data.length === 0) {
-                document.getElementById('hallazgos-table-body').innerHTML = '<tr><td colspan="10">No hay hallazgos</td></tr>';
+                document.getElementById('hallazgos-table-body').innerHTML = '<tr><td colspan="9">No hay hallazgos</td></tr>';
                 return;
             }
 
@@ -808,7 +808,7 @@ class AdminPanel {
             const tbody = document.getElementById('hallazgos-table-body');
 
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10">No hay resultados para los filtros aplicados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9">No hay resultados para los filtros aplicados</td></tr>';
                 return;
             }
 
@@ -817,6 +817,17 @@ class AdminPanel {
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${h.id}', 'hallazgo')">` :
                     '<span style="color:#999;">Sin foto</span>';
+
+                const esRescatePendiente = h.accion === 'rescate' || h.accion === 'rescate pendiente';
+                const accionBadge = esRescatePendiente
+                    ? `<span style="background:#ffebee;color:#c62828;padding:2px 8px;border-radius:12px;font-size:.8rem;font-weight:600;">🔴 Rescate Pendiente</span>`
+                    : h.accion === 'picking'
+                    ? `<span style="background:#e8f5e9;color:#2e7d32;padding:2px 8px;border-radius:12px;font-size:.8rem;font-weight:600;">🟢 Picking</span>`
+                    : `<span style="color:#999;">${h.accion || '—'}</span>`;
+
+                const btnRescatado = esRescatePendiente
+                    ? `<button class="btn btn-success btn-sm" onclick="window.adminPanel.marcarRescatado('${h.id}')" title="Marcar como Rescatado" style="margin-left:4px;">✅ Rescatado</button>`
+                    : '';
 
                 return `
         <tr>
@@ -827,9 +838,10 @@ class AdminPanel {
           <td>${h.folder || 'N/A'}</td>
           <td>${h.tipo_material || 'N/A'}</td>
           <td>${h.codigo || 'N/A'}</td>
-          <td>${h.accion || '—'}</td>
+          <td>${accionBadge}</td>
           <td>${h.lat && h.lng ? `${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}` : 'N/A'}</td>
           <td>
+            ${btnRescatado}
             <button class="btn-icon" onclick="window.adminPanel.editHallazgo('${h.id}')" title="Editar">
               ✏️
             </button>
@@ -862,18 +874,29 @@ class AdminPanel {
             const tbody = document.getElementById('fragmentos-table-body');
 
             if (data.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8">No hay fragmentos</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9">No hay vestigios</td></tr>';
                 return;
             }
 
             // Store current data for export and photos
             this.currentFragmentos = data.data;
 
+            const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
+            const TIPO_COLORS = { xilopalo: '#222', vertebrados_fosiles: '#F9A825', invertebrados_fosiles: '#1E88E5', icnofosil: '#FB8C00' };
+
             tbody.innerHTML = data.data.map(f => {
                 const foto = f.foto;
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')">` :
                     '<span style="color:#999;">Sin foto</span>';
+
+                // Migración: tipo_vestigio o inferir desde observaciones
+                let tipo = f.tipo_vestigio;
+                if (!tipo) {
+                    tipo = f.observaciones?.toLowerCase().includes('xilopalo') ? 'xilopalo' : 'vertebrados_fosiles';
+                }
+                const tipoLabel = TIPO_LABELS[tipo] || tipo;
+                const tipoColor = TIPO_COLORS[tipo] || '#888';
 
                 return `
         <tr>
@@ -882,12 +905,13 @@ class AdminPanel {
           <td>${f.collector?.name || f.collector?.collectorId || 'N/A'}</td>
           <td>${f.localidad || 'N/A'}</td>
           <td>${f.folder || 'N/A'}</td>
+          <td><span style="color:${tipoColor};font-weight:600;">${tipoLabel}</span></td>
           <td>${f.lat && f.lng ? `${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}` : 'N/A'}</td>
           <td>${f.observaciones || '-'}</td>
           <td>
             ${foto ? `<button class="btn-icon" onclick="window.adminPanel.downloadPhotoById('${f.id}', 'fragmento')" title="Descargar foto">📥</button>` : ''}
             <button class="btn-icon" onclick="window.adminPanel.editFragmento('${f.id}')" title="Editar">✏️</button>
-            <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('fragmentos', '${f.id}', 'Fragmento')" title="Eliminar">🗑️</button>
+            <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('fragmentos', '${f.id}', 'Vestigio')" title="Eliminar">🗑️</button>
           </td>
         </tr>
       `;
@@ -1073,9 +1097,10 @@ class AdminPanel {
 
         this.viewPhoto(fotoSrc, title);
 
-        // Add/update PDF button in the modal actions (once)
-        let pdfBtn = document.getElementById('parte-pdf-btn');
         const actions = document.querySelector('#photo-modal .modal-actions');
+
+        // PDF button
+        let pdfBtn = document.getElementById('parte-pdf-btn');
         if (actions && !pdfBtn) {
             pdfBtn = document.createElement('button');
             pdfBtn.id = 'parte-pdf-btn';
@@ -1084,6 +1109,162 @@ class AdminPanel {
             actions.prepend(pdfBtn);
         }
         if (pdfBtn) pdfBtn.onclick = () => this.downloadPartePDF(parte);
+
+        // Editar button
+        let editBtn = document.getElementById('parte-edit-btn');
+        if (actions && !editBtn) {
+            editBtn = document.createElement('button');
+            editBtn.id = 'parte-edit-btn';
+            editBtn.className = 'btn btn-primary';
+            editBtn.textContent = '✏️ Editar';
+            actions.prepend(editBtn);
+        }
+        if (editBtn) editBtn.onclick = () => {
+            this.closeModal('photo-modal');
+            this._openEditParteModal(parte);
+        };
+
+        // Eliminar button
+        let delBtn = document.getElementById('parte-delete-btn');
+        if (actions && !delBtn) {
+            delBtn = document.createElement('button');
+            delBtn.id = 'parte-delete-btn';
+            delBtn.className = 'btn btn-danger';
+            delBtn.textContent = '🗑️ Eliminar';
+            actions.prepend(delBtn);
+        }
+        if (delBtn) delBtn.onclick = () => this._deleteParteAdmin(parte);
+    }
+
+    async _deleteParteAdmin(parte) {
+        const fecha = this.formatParteDate(parte.fecha);
+        const collector = parte.collector?.name || parte.collectorName || '';
+        if (!confirm(`¿Eliminar el parte del ${fecha}${collector ? ' de ' + collector : ''}? Esta acción no se puede deshacer.`)) return;
+        try {
+            await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, { method: 'DELETE' });
+            this.closeModal('photo-modal');
+            this.showNotification('Parte diario eliminado.', 'success');
+            this.loadPartesAdmin();
+        } catch (err) {
+            console.error('Error eliminando parte:', err);
+            this.showNotification('Error al eliminar el parte.', 'error');
+        }
+    }
+
+    _openEditParteModal(parte) {
+        // Reusar un modal genérico o crear uno inline
+        let modal = document.getElementById('modal-edit-parte');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-edit-parte';
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:480px;">
+                    <div class="modal-header">
+                        <h2>✏️ Editar Parte Diario</h2>
+                        <button class="btn-close" onclick="window.adminPanel.closeModal('modal-edit-parte')">&times;</button>
+                    </div>
+                    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Fecha</label>
+                            <input type="date" id="edit-parte-fecha" class="form-control" style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Empresa</label>
+                            <input type="text" id="edit-parte-empresa" class="form-control" placeholder="Empresa..." style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Yacimiento</label>
+                            <input type="text" id="edit-parte-yacimiento" class="form-control" placeholder="Yacimiento..." style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Locación</label>
+                            <input type="text" id="edit-parte-locacion" class="form-control" placeholder="Locación..." style="width:100%;margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Observaciones</label>
+                            <textarea id="edit-parte-observaciones" class="form-control" rows="3" placeholder="Observaciones..." style="width:100%;margin-top:4px;resize:vertical;"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:.85rem;font-weight:600;color:#555;">Reemplazar foto (opcional)</label>
+                            <input type="file" id="edit-parte-foto" accept="image/*" style="margin-top:4px;">
+                            <div id="edit-parte-foto-preview" style="margin-top:8px;text-align:center;"></div>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                        <button class="btn btn-secondary" onclick="window.adminPanel.closeModal('modal-edit-parte')">Cancelar</button>
+                        <button class="btn btn-primary" id="btn-guardar-parte-edit">💾 Guardar Cambios</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Preview al seleccionar nueva foto
+            document.getElementById('edit-parte-foto').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    document.getElementById('edit-parte-foto-preview').innerHTML =
+                        `<img src="${ev.target.result}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;">`;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Poblar con datos del parte
+        document.getElementById('edit-parte-fecha').value = parte.fecha || '';
+        document.getElementById('edit-parte-empresa').value = parte.empresa || '';
+        document.getElementById('edit-parte-yacimiento').value = parte.yacimiento || '';
+        document.getElementById('edit-parte-locacion').value = parte.locacion || '';
+        document.getElementById('edit-parte-observaciones').value = parte.observaciones || '';
+        document.getElementById('edit-parte-foto-preview').innerHTML =
+            parte.foto ? `<img src="${parte.foto}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;"><small style="color:#888;display:block;margin-top:4px;">Foto actual</small>` : '';
+        document.getElementById('edit-parte-foto').value = '';
+
+        // Guardar cambios
+        document.getElementById('btn-guardar-parte-edit').onclick = async () => {
+            const btn = document.getElementById('btn-guardar-parte-edit');
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            try {
+                const updatedData = {
+                    fecha: document.getElementById('edit-parte-fecha').value,
+                    empresa: document.getElementById('edit-parte-empresa').value.trim(),
+                    yacimiento: document.getElementById('edit-parte-yacimiento').value.trim(),
+                    locacion: document.getElementById('edit-parte-locacion').value.trim(),
+                    observaciones: document.getElementById('edit-parte-observaciones').value,
+                };
+
+                const newFotoFile = document.getElementById('edit-parte-foto').files[0];
+                if (newFotoFile) {
+                    updatedData.foto = await new Promise((resolve, reject) => {
+                        const r = new FileReader();
+                        r.onload = () => resolve(r.result);
+                        r.onerror = reject;
+                        r.readAsDataURL(newFotoFile);
+                    });
+                }
+
+                await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+
+                this.closeModal('modal-edit-parte');
+                this.showNotification('Parte diario actualizado.', 'success');
+                this.loadPartesAdmin();
+            } catch (err) {
+                console.error('Error editando parte:', err);
+                this.showNotification('Error al guardar los cambios.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💾 Guardar Cambios';
+            }
+        };
+
+        this.openModal('modal-edit-parte');
     }
 
     _closeLightbox() { this.closeModal('photo-modal'); }
@@ -1212,117 +1393,87 @@ class AdminPanel {
             ]);
 
             // Add hallazgos markers
+            // Helper para crear pin SVG
+            const makePinSVG = (color) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
+                <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="${color}" stroke="rgba(0,0,0,0.2)" stroke-width="0.5"/>
+                <circle cx="12" cy="11" r="4.5" fill="rgba(255,255,255,0.35)"/>
+            </svg>`;
+
             hallazgosData.data.forEach(h => {
-                if (h.lat && h.lng) {
-                    const foto = h.foto1 || h.foto2 || h.foto3;
-                    const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:200px;max-height:150px;margin-top:5px;">` : '';
+                if (!h.lat || !h.lng) return;
+                // Skip rescatados del mapa
+                if (h.accion === 'rescatado') return;
 
-                    const marker = L.marker([h.lat, h.lng], {
-                        icon: L.divIcon({
-                            className: '',
-                            html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
-                                <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#e53935"/>
-                                <circle cx="12" cy="11" r="4.5" fill="#ffcdd2"/>
-                            </svg>`,
-                            iconSize: [16, 24],
-                            iconAnchor: [8, 24]
-                        })
-                    });
+                const foto = h.foto1 || h.foto2 || h.foto3;
+                const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
+                const color = (h.accion === 'rescate' || h.accion === 'rescate pendiente') ? '#e53935' : '#43a047';
+                const accionLabel = (h.accion === 'rescate' || h.accion === 'rescate pendiente') ? '🔴 Rescate Pendiente' : '🟢 Picking';
 
-                    marker.bindPopup(`
-                        <b>${h.codigo || 'Hallazgo'}</b><br/>
-                        Fecha: ${h.fecha}<br/>
-                        Localidad: ${h.localidad}<br/>
-                        Tipo: ${h.tipo_material || 'N/A'}
-                        ${fotoHTML}
-                    `);
+                const marker = L.marker([h.lat, h.lng], {
+                    icon: L.divIcon({ className: '', html: makePinSVG(color), iconSize: [16, 24], iconAnchor: [8, 24] })
+                });
 
-                    this.mapLayers.hallazgos.addLayer(marker);
-                }
+                marker.bindPopup(`
+                    <b>${h.codigo || 'Hallazgo'}</b><br/>
+                    ${accionLabel}<br/>
+                    Fecha: ${h.fecha || 'N/A'}<br/>
+                    Localidad: ${h.localidad || 'N/A'}<br/>
+                    Tipo: ${h.tipo_material || 'N/A'}
+                    ${fotoHTML}
+                `);
+
+                this.mapLayers.hallazgos.addLayer(marker);
             });
 
-            // Add rescates markers
-            const rescatesData = await this.apiRequest(`/api/admin/rescates?${params}`);
-            rescatesData.data?.forEach(r => {
-                if (r.lat && r.lng) {
-                    const marker = L.marker([r.lat, r.lng], {
-                        icon: L.divIcon({
-                            className: '',
-                            html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="36" viewBox="0 0 24 36">
-                                <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z"
-                                    fill="white" stroke="#888" stroke-width="1.5"/>
-                                <circle cx="12" cy="12" r="4" fill="#888"/>
-                            </svg>`,
-                            iconSize: [16, 24],
-                            iconAnchor: [8, 24]
-                        })
-                    });
+            // Add vestigios (fragmentos) markers - color por tipo
+            const VESTIGIO_COLORS = { xilopalo: '#222', vertebrados_fosiles: '#FDD835', invertebrados_fosiles: '#1E88E5', icnofosil: '#FB8C00' };
+            const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
 
-                    marker.bindPopup(`
-                        <b>${r.codigo || 'Rescate'}</b><br/>
-                        Fecha: ${r.fecha || 'N/A'}<br/>
-                        Localidad: ${r.localidad || 'N/A'}<br/>
-                        Tipo: ${r.tipo_material || 'N/A'}
-                    `);
-
-                    this.mapLayers.hallazgos.addLayer(marker);
-                }
-            });
             fragmentosData.data.forEach(f => {
-                if (f.lat && f.lng) {
-                    const esXilopalo = f.observaciones && f.observaciones.toLowerCase().includes('xilopalo');
-                    const xiloPaloSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
-                        <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#222"/>
-                        <circle cx="12" cy="11" r="4.5" fill="#666"/>
-                    </svg>`;
+                if (!f.lat || !f.lng) return;
 
-                    const fragmentoSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
-                        <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FDD835"/>
-                        <circle cx="12" cy="11" r="4.5" fill="#fff9c4"/>
-                    </svg>`;
-
-                    const marker = L.marker([f.lat, f.lng], {
-                        icon: L.divIcon({
-                            className: '',
-                            html: esXilopalo ? xiloPaloSVG : fragmentoSVG,
-                            iconSize: [16, 24],
-                            iconAnchor: [8, 24]
-                        })
-                    });
-
-                    marker.bindPopup(`
-                        <b>${esXilopalo ? 'Xilopalo' : 'Fragmento'}</b><br/>
-                        Fecha: ${f.fecha}<br/>
-                        Localidad: ${f.localidad}
-                    `);
-
-                    this.mapLayers.fragmentos.addLayer(marker);
+                let tipo = f.tipo_vestigio;
+                if (!tipo) {
+                    tipo = (f.observaciones && f.observaciones.toLowerCase().includes('xilopalo')) ? 'xilopalo' : 'vertebrados_fosiles';
                 }
+
+                const color = VESTIGIO_COLORS[tipo] || '#FDD835';
+                const tipoLabel = TIPO_LABELS[tipo] || tipo;
+                const foto = f.foto;
+                const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
+
+                const marker = L.marker([f.lat, f.lng], {
+                    icon: L.divIcon({ className: '', html: makePinSVG(color), iconSize: [16, 24], iconAnchor: [8, 24] })
+                });
+
+                marker.bindPopup(`
+                    <b>${tipoLabel}</b><br/>
+                    Fecha: ${f.fecha || 'N/A'}<br/>
+                    Localidad: ${f.localidad || 'N/A'}
+                    ${fotoHTML}
+                `);
+
+                this.mapLayers.fragmentos.addLayer(marker);
             });
 
             // Add routes as polylines/polygons
-            this._routesCache = routesData.data; // guardar para la lista
-            this._routeColors = this._routeColors || JSON.parse(localStorage.getItem('admin_route_colors') || '{}'); // persistir colores personalizados
             routesData.data.forEach(route => {
                 if (!route.content) return; // Campo correcto: content
 
                 const parsed = this.parseRouteKML(route.content);
                 if (!parsed || parsed.coordinates.length < 2) return;
 
-                const defaultColor = parsed.type === 'Polygon' ? '#9b59b6' : '#3498db';
-                const savedColor = (this._routeColors && this._routeColors[route.id]) || defaultColor;
-
                 let layer;
                 if (parsed.type === 'LineString') {
                     layer = L.polyline(parsed.coordinates, {
-                        color: savedColor,
+                        color: '#3498db',  // Azul
                         weight: 3,
                         opacity: 0.7
                     });
                 } else if (parsed.type === 'Polygon') {
                     layer = L.polygon(parsed.coordinates, {
-                        color: savedColor,
-                        fillColor: savedColor,
+                        color: '#9b59b6',  // Morado
+                        fillColor: '#9b59b6',
                         fillOpacity: 0.2,
                         weight: 2
                     });
@@ -1336,10 +1487,7 @@ class AdminPanel {
                         ${parsed.description ? `<br/>${parsed.description}` : ''}
                     `);
 
-                    layer._routeId = route.id;
                     this.mapLayers.routes.addLayer(layer);
-                    if (!this._routeLayers) this._routeLayers = {};
-                    this._routeLayers[route.id] = layer;
                 }
             });
 
@@ -1350,76 +1498,9 @@ class AdminPanel {
             // Update visibility
             this.updateMapVisibility();
 
-            // Render routes list
-            this.renderRoutesList();
-
         } catch (error) {
             console.error('Error updating map:', error);
         }
-    }
-
-    renderRoutesList() {
-        const container = document.getElementById('admin-routes-list');
-        if (!container) return;
-
-        const routes = this._routesCache || [];
-        if (routes.length === 0) {
-            container.innerHTML = '<p style="color:#999;font-size:.85rem;">No hay rutas cargadas.</p>';
-            return;
-        }
-
-        container.innerHTML = '';
-        routes.forEach(route => {
-            const parsed = this.parseRouteKML(route.content);
-            const name = parsed?.name || route.name || route.id;
-            const fecha = route.createdAt ? new Date(route.createdAt).toLocaleDateString('es-AR') : '';
-            const defaultColor = parsed?.type === 'Polygon' ? '#9b59b6' : '#3498db';
-            const currentColor = (this._routeColors && this._routeColors[route.id]) || defaultColor;
-
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f0f0;';
-            row.innerHTML = `
-                <div>
-                    <span style="font-size:.9rem;font-weight:500;">${name}</span>
-                    ${fecha ? `<br><small style="color:#888;">${fecha}</small>` : ''}
-                </div>
-                <div style="display:flex;align-items:center;gap:8px;">
-                    <input type="color" value="${currentColor}" title="Cambiar color"
-                        style="width:32px;height:32px;border:none;border-radius:6px;cursor:pointer;padding:2px;"
-                        data-route-id="${route.id}">
-                    <button title="Eliminar ruta" data-route-id="${route.id}"
-                        style="background:none;border:none;cursor:pointer;font-size:1.1rem;color:#e53935;">🗑️</button>
-                </div>
-            `;
-
-            // Color change
-            row.querySelector('input[type="color"]').addEventListener('input', (e) => {
-                const color = e.target.value;
-                const routeId = e.target.dataset.routeId;
-                if (!this._routeColors) this._routeColors = {};
-                this._routeColors[routeId] = color;
-                localStorage.setItem('admin_route_colors', JSON.stringify(this._routeColors));
-                const layer = this._routeLayers?.[routeId];
-                if (layer) {
-                    layer.setStyle({ color, fillColor: color });
-                }
-            });
-
-            // Delete route
-            row.querySelector('button').addEventListener('click', async (e) => {
-                const routeId = e.currentTarget.dataset.routeId;
-                if (!confirm(`¿Eliminar la ruta "${name}"?`)) return;
-                try {
-                    await this.apiRequest(`/api/admin/routes/${routeId}`, { method: 'DELETE' });
-                    this.showNotification('Ruta eliminada.', 'success');
-                    await this.updateMap();
-                } catch (err) {
-                    this.showNotification('Error al eliminar la ruta.', 'error');
-                }
-            });
-
-            container.appendChild(row);
-        });
     }
 
     updateMapVisibility() {
@@ -1855,6 +1936,22 @@ class AdminPanel {
             if (view) this.loadView(view);
         } catch (error) {
             alert(`Error al eliminar ${label}: ` + error.message);
+        }
+    }
+
+    async marcarRescatado(hallazgoId) {
+        if (!confirm('¿Marcar este hallazgo como RESCATADO? Desaparecerá del mapa de rescates pendientes.')) return;
+        try {
+            await this.apiRequest(`/api/admin/hallazgos/${hallazgoId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ accion: 'rescatado' })
+            });
+            this.showNotification('Hallazgo marcado como Rescatado.', 'success');
+            this.loadHallazgos();
+        } catch (err) {
+            console.error('Error marcando rescatado:', err);
+            this.showNotification('Error al actualizar el hallazgo.', 'error');
         }
     }
 
@@ -3778,181 +3875,27 @@ class AdminPanel {
             : new Date(parte.createdAt).toLocaleDateString('es-AR');
         const colector = parte.collector?.name || parte.collector?.collectorId || 'Desconocido';
 
-        const modal = document.getElementById('modal-photo-viewer');
-        const img = document.getElementById('photo-viewer-image');
-        const title = document.getElementById('photo-viewer-title');
-        if (!modal || !img) return;
-
-        if (title) title.textContent = `📋 Parte del ${fecha} — ${colector}`;
-        img.src = parte.foto || '';
-        modal.style.display = 'block';
-
-        const actions = modal.querySelector('.modal-actions');
-
-        // PDF button
-        let pdfBtn = document.getElementById('parte-pdf-btn');
-        if (actions && !pdfBtn) {
-            pdfBtn = document.createElement('button');
-            pdfBtn.id = 'parte-pdf-btn';
-            pdfBtn.className = 'btn btn-success';
-            pdfBtn.textContent = '📥 Descargar PDF';
-            actions.prepend(pdfBtn);
-        }
-        if (pdfBtn) pdfBtn.onclick = () => this.downloadPartePDF(parte);
-
-        // Editar button
-        let editBtn = document.getElementById('parte-edit-btn');
-        if (actions && !editBtn) {
-            editBtn = document.createElement('button');
-            editBtn.id = 'parte-edit-btn';
-            editBtn.className = 'btn btn-primary';
-            editBtn.textContent = '✏️ Editar';
-            actions.prepend(editBtn);
-        }
-        if (editBtn) editBtn.onclick = () => {
-            modal.style.display = 'none';
-            this._openEditParteModal(parte);
-        };
-
-        // Eliminar button
-        let delBtn = document.getElementById('parte-delete-btn');
-        if (actions && !delBtn) {
-            delBtn = document.createElement('button');
-            delBtn.id = 'parte-delete-btn';
-            delBtn.className = 'btn btn-danger';
-            delBtn.textContent = '🗑️ Eliminar';
-            actions.prepend(delBtn);
-        }
-        if (delBtn) delBtn.onclick = () => this._deleteParteAdmin(parte);
-    }
-
-    async _deleteParteAdmin(parte) {
-        const fecha = this.formatParteDate ? this.formatParteDate(parte.fecha) : parte.fecha;
-        const collector = parte.collector?.name || parte.collectorName || '';
-        if (!confirm(`¿Eliminar el parte del ${fecha}${collector ? ' de ' + collector : ''}? Esta acción no se puede deshacer.`)) return;
-        try {
-            await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, { method: 'DELETE' });
-            document.getElementById('modal-photo-viewer').style.display = 'none';
-            this.showNotification('Parte diario eliminado.', 'success');
-            this.loadPartesAdmin();
-        } catch (err) {
-            console.error('Error eliminando parte:', err);
-            this.showNotification('Error al eliminar el parte.', 'error');
-        }
-    }
-
-    _openEditParteModal(parte) {
-        let modal = document.getElementById('modal-edit-parte');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'modal-edit-parte';
-            modal.className = 'modal';
-            modal.style.cssText = 'display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center;';
-            modal.innerHTML = `
-                <div style="background:#fff; border-radius:12px; padding:24px; max-width:480px; width:90%; max-height:90vh; overflow-y:auto;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h2 style="margin:0; font-size:1.2rem;">✏️ Editar Parte Diario</h2>
-                        <button onclick="document.getElementById('modal-edit-parte').style.display='none'" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
-                    </div>
-                    <div style="display:flex; flex-direction:column; gap:14px;">
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Fecha</label>
-                            <input type="date" id="edit-parte-fecha" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Empresa</label>
-                            <input type="text" id="edit-parte-empresa" placeholder="Empresa..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Yacimiento</label>
-                            <input type="text" id="edit-parte-yacimiento" placeholder="Yacimiento..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Locación</label>
-                            <input type="text" id="edit-parte-locacion" placeholder="Locación..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;">
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Observaciones</label>
-                            <textarea id="edit-parte-observaciones" rows="3" placeholder="Observaciones..." style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;resize:vertical;"></textarea>
-                        </div>
-                        <div>
-                            <label style="font-size:.85rem;font-weight:600;color:#555;display:block;margin-bottom:4px;">Reemplazar foto (opcional)</label>
-                            <input type="file" id="edit-parte-foto" accept="image/*">
-                            <div id="edit-parte-foto-preview" style="margin-top:8px;text-align:center;"></div>
-                        </div>
-                    </div>
-                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
-                        <button onclick="document.getElementById('modal-edit-parte').style.display='none'" style="padding:8px 16px;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#f5f5f5;">Cancelar</button>
-                        <button id="btn-guardar-parte-edit" style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer;background:#2c5e2e;color:#fff;font-weight:600;">💾 Guardar Cambios</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            document.getElementById('edit-parte-foto').addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    document.getElementById('edit-parte-foto-preview').innerHTML =
-                        `<img src="${ev.target.result}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;">`;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        document.getElementById('edit-parte-fecha').value = parte.fecha || '';
-        document.getElementById('edit-parte-empresa').value = parte.empresa || '';
-        document.getElementById('edit-parte-yacimiento').value = parte.yacimiento || '';
-        document.getElementById('edit-parte-locacion').value = parte.locacion || '';
-        document.getElementById('edit-parte-observaciones').value = parte.observaciones || '';
-        document.getElementById('edit-parte-foto-preview').innerHTML = parte.foto
-            ? `<img src="${parte.foto}" style="max-width:100%;border-radius:8px;max-height:200px;object-fit:contain;"><small style="color:#888;display:block;margin-top:4px;">Foto actual</small>`
-            : '';
-        document.getElementById('edit-parte-foto').value = '';
-
-        document.getElementById('btn-guardar-parte-edit').onclick = async () => {
-            const btn = document.getElementById('btn-guardar-parte-edit');
-            btn.disabled = true;
-            btn.textContent = 'Guardando...';
-            try {
-                const updatedData = {
-                    fecha: document.getElementById('edit-parte-fecha').value,
-                    empresa: document.getElementById('edit-parte-empresa').value.trim(),
-                    yacimiento: document.getElementById('edit-parte-yacimiento').value.trim(),
-                    locacion: document.getElementById('edit-parte-locacion').value.trim(),
-                    observaciones: document.getElementById('edit-parte-observaciones').value,
-                };
-
-                const newFotoFile = document.getElementById('edit-parte-foto').files[0];
-                if (newFotoFile) {
-                    updatedData.foto = await new Promise((resolve, reject) => {
-                        const r = new FileReader();
-                        r.onload = () => resolve(r.result);
-                        r.onerror = reject;
-                        r.readAsDataURL(newFotoFile);
-                    });
-                }
-
-                await this.apiRequest(`/api/admin/partes-diarios/${parte.id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updatedData)
-                });
-
-                document.getElementById('modal-edit-parte').style.display = 'none';
-                this.showNotification('Parte diario actualizado.', 'success');
-                this.loadPartesAdmin();
-            } catch (err) {
-                console.error('Error editando parte:', err);
-                this.showNotification('Error al guardar los cambios.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '💾 Guardar Cambios';
+        // Reusar el viewer de fotos de hallazgos si existe, sino mostrar en ventana
+        const photoModal = document.getElementById('photo-modal');
+        if (photoModal) {
+            const img = document.getElementById('photo-modal-img');
+            const title = document.getElementById('photo-modal-title');
+            if (img) img.src = parte.foto || '';
+            if (title) title.textContent = `📋 Parte del ${fecha} — ${colector}`;
+            photoModal.style.display = 'flex';
+        } else {
+            // Fallback: abrir imagen en nueva pestaña
+            if (parte.foto) {
+                const win = window.open();
+                win.document.write(`
+                    <html><head><title>Parte ${fecha}</title></head><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;">
+                        <p style="color:#fff;font-family:sans-serif;margin-bottom:12px;">📋 Parte del ${fecha} — 👤 ${colector}</p>
+                        ${parte.observaciones ? `<p style="color:#aaa;font-family:sans-serif;margin-bottom:16px;">${parte.observaciones}</p>` : ''}
+                        <img src="${parte.foto}" style="max-width:90vw;max-height:85vh;border-radius:8px;">
+                    </body></html>
+                `);
             }
-        };
-
-        modal.style.display = 'flex';
+        }
     }
 
 }
