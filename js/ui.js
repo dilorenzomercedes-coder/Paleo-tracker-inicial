@@ -124,8 +124,14 @@ class UI {
                 ${photosHtml}
             `;
         } else if (type === 'fragmento') {
-            title.textContent = `Vestigio - ${item.localidad}`;
+            const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
+            const tipoLabel = TIPO_LABELS[item.tipo_vestigio] || (item.observaciones?.toLowerCase().includes('xilopalo') ? 'Xilópalo' : 'Vertebrados Fósiles');
+            title.textContent = `${tipoLabel} - ${item.localidad}`;
             content.innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label">Tipo</div>
+                    <div class="detail-value">${tipoLabel}</div>
+                </div>
                 <div class="detail-row">
                     <div class="detail-label">Fecha</div>
                     <div class="detail-value">${item.fecha || '-'}</div>
