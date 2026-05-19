@@ -233,6 +233,7 @@ class AdminPanel {
         document.getElementById('filter-hallazgos-folder')?.addEventListener('change', () => this.loadHallazgos());
         document.getElementById('filter-fragmentos-collector')?.addEventListener('change', () => this.loadFragmentos());
         document.getElementById('filter-fragmentos-folder')?.addEventListener('change', () => this.loadFragmentos());
+        document.getElementById('filter-fragmentos-tipo')?.addEventListener('change', () => this.loadFragmentos());
         document.getElementById('filter-routes-collector')?.addEventListener('change', () => this.loadRoutes());
         document.getElementById('filter-documents-collector')?.addEventListener('change', () => this.loadDocuments());
         document.getElementById('filter-documents-category')?.addEventListener('change', () => this.loadDocuments());
@@ -865,6 +866,7 @@ class AdminPanel {
         try {
             const collector = document.getElementById('filter-fragmentos-collector')?.value || '';
             const folder = document.getElementById('filter-fragmentos-folder')?.value || '';
+            const tipoFilter = document.getElementById('filter-fragmentos-tipo')?.value || '';
 
             const params = new URLSearchParams();
             if (collector) params.append('collector', collector);
@@ -873,30 +875,49 @@ class AdminPanel {
             const data = await this.apiRequest(`/api/admin/fragmentos?${params}`);
             const tbody = document.getElementById('fragmentos-table-body');
 
-            if (data.data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9">No hay vestigios</td></tr>';
-                return;
-            }
-
-            // Store current data for export and photos
-            this.currentFragmentos = data.data;
-
             const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
             const TIPO_COLORS = { xilopalo: '#222', vertebrados_fosiles: '#F9A825', invertebrados_fosiles: '#1E88E5', icnofosil: '#FB8C00' };
 
-            tbody.innerHTML = data.data.map(f => {
+            // Normalizar tipo_vestigio con migración
+            const normalized = data.data.map(f => {
+                let tipo = f.tipo_vestigio;
+                if (!tipo) {
+                    tipo = f.observaciones?.toLowerCase().includes('xilopalo') ? 'xilopalo' : 'vertebrados_fosiles';
+                }
+                return { ...f, _tipo: tipo };
+            });
+
+            // Filtrar por tipo si se seleccionó
+            const filtered = tipoFilter ? normalized.filter(f => f._tipo === tipoFilter) : normalized;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9">No hay vestigios</td></tr>';
+                this.currentFragmentos = filtered;
+                return;
+            }
+
+            this.currentFragmentos = filtered;
+
+            // Conteos por tipo para el header
+            const counts = {};
+            normalized.forEach(f => { counts[f._tipo] = (counts[f._tipo] || 0) + 1; });
+
+            // Actualizar badge de conteos si existe
+            const countEl = document.getElementById('fragmentos-tipo-counts');
+            if (countEl) {
+                countEl.innerHTML = Object.entries(TIPO_LABELS).map(([k, label]) =>
+                    `<span style="background:${TIPO_COLORS[k]};color:${k === 'xilopalo' ? '#fff' : '#333'};padding:2px 8px;border-radius:12px;font-size:.75rem;margin-right:6px;">${label}: ${counts[k] || 0}</span>`
+                ).join('');
+            }
+
+            tbody.innerHTML = filtered.map(f => {
                 const foto = f.foto;
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')">` :
                     '<span style="color:#999;">Sin foto</span>';
 
-                // Migración: tipo_vestigio o inferir desde observaciones
-                let tipo = f.tipo_vestigio;
-                if (!tipo) {
-                    tipo = f.observaciones?.toLowerCase().includes('xilopalo') ? 'xilopalo' : 'vertebrados_fosiles';
-                }
-                const tipoLabel = TIPO_LABELS[tipo] || tipo;
-                const tipoColor = TIPO_COLORS[tipo] || '#888';
+                const tipoLabel = TIPO_LABELS[f._tipo] || f._tipo;
+                const tipoColor = TIPO_COLORS[f._tipo] || '#888';
 
                 return `
         <tr>
@@ -905,7 +926,7 @@ class AdminPanel {
           <td>${f.collector?.name || f.collector?.collectorId || 'N/A'}</td>
           <td>${f.localidad || 'N/A'}</td>
           <td>${f.folder || 'N/A'}</td>
-          <td><span style="color:${tipoColor};font-weight:600;">${tipoLabel}</span></td>
+          <td><span style="background:${tipoColor};color:${f._tipo === 'xilopalo' ? '#fff' : '#333'};padding:2px 8px;border-radius:12px;font-size:.8rem;font-weight:600;">${tipoLabel}</span></td>
           <td>${f.lat && f.lng ? `${f.lat.toFixed(5)}, ${f.lng.toFixed(5)}` : 'N/A'}</td>
           <td>${f.observaciones || '-'}</td>
           <td>
@@ -920,7 +941,7 @@ class AdminPanel {
             this.updateFolderFilter(data.data, 'filter-fragmentos-folder');
         } catch (error) {
             console.error('Error loading fragmentos:', error);
-            alert('Error cargando fragmentos: ' + error.message);
+            alert('Error cargando vestigios: ' + error.message);
         }
     }
 
@@ -1343,15 +1364,27 @@ class AdminPanel {
 
                 this.mapLayers = {
                     hallazgos: L.layerGroup().addTo(this.map),
+                    hallazgosRescate: L.layerGroup().addTo(this.map),
+                    rescates: L.layerGroup().addTo(this.map),
+                    hallazgosPicking: L.layerGroup().addTo(this.map),
                     fragmentos: L.layerGroup().addTo(this.map),
+                    fragmentosXilopalo: L.layerGroup().addTo(this.map),
+                    fragmentosVertebrados: L.layerGroup().addTo(this.map),
+                    fragmentosInvertebrados: L.layerGroup().addTo(this.map),
+                    fragmentosIcnofosil: L.layerGroup().addTo(this.map),
                     routes: L.layerGroup().addTo(this.map)
                 };
 
                 // Setup event listeners for filters
                 document.getElementById('filter-map-collector')?.addEventListener('change', () => this.updateMap());
                 document.getElementById('filter-map-folder')?.addEventListener('change', () => this.updateMap());
-                document.getElementById('map-show-hallazgos')?.addEventListener('change', () => this.updateMapVisibility());
-                document.getElementById('map-show-fragmentos')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-hallazgos-rescate')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-rescates')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-hallazgos-picking')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-fragmentos-xilopalo')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-fragmentos-vertebrados')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-fragmentos-invertebrados')?.addEventListener('change', () => this.updateMapVisibility());
+                document.getElementById('map-show-fragmentos-icnofosil')?.addEventListener('change', () => this.updateMapVisibility());
                 document.getElementById('map-show-routes')?.addEventListener('change', () => this.updateMapVisibility());
             }
 
@@ -1382,14 +1415,22 @@ class AdminPanel {
 
             // Clear existing markers
             this.mapLayers.hallazgos.clearLayers();
+            this.mapLayers.hallazgosRescate.clearLayers();
+            this.mapLayers.rescates.clearLayers();
+            this.mapLayers.hallazgosPicking.clearLayers();
             this.mapLayers.fragmentos.clearLayers();
+            this.mapLayers.fragmentosXilopalo.clearLayers();
+            this.mapLayers.fragmentosVertebrados.clearLayers();
+            this.mapLayers.fragmentosInvertebrados.clearLayers();
+            this.mapLayers.fragmentosIcnofosil.clearLayers();
             this.mapLayers.routes.clearLayers();
 
             // Load and display data
-            const [hallazgosData, fragmentosData, routesData] = await Promise.all([
+            const [hallazgosData, fragmentosData, routesData, rescatesData] = await Promise.all([
                 this.apiRequest(`/api/admin/hallazgos?${params}`),
                 this.apiRequest(`/api/admin/fragmentos?${params}`),
-                this.apiRequest(`/api/admin/routes?${params}`)
+                this.apiRequest(`/api/admin/routes?${params}`),
+                this.apiRequest(`/api/admin/rescates?${params}`)
             ]);
 
             // Add hallazgos markers
@@ -1401,13 +1442,14 @@ class AdminPanel {
 
             hallazgosData.data.forEach(h => {
                 if (!h.lat || !h.lng) return;
-                // Skip rescatados del mapa
                 if (h.accion === 'rescatado') return;
 
                 const foto = h.foto1 || h.foto2 || h.foto3;
                 const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
-                const color = (h.accion === 'rescate' || h.accion === 'rescate pendiente') ? '#e53935' : '#43a047';
-                const accionLabel = (h.accion === 'rescate' || h.accion === 'rescate pendiente') ? '🔴 Rescate Pendiente' : '🟢 Picking';
+                const esRescate = h.accion === 'rescate' || h.accion === 'rescate pendiente';
+                const color = esRescate ? '#e53935' : '#43a047';
+                const accionLabel = esRescate ? '🔴 Rescate Pendiente' : '🟢 Picking';
+                const targetLayer = esRescate ? this.mapLayers.hallazgosRescate : this.mapLayers.hallazgosPicking;
 
                 const marker = L.marker([h.lat, h.lng], {
                     icon: L.divIcon({ className: '', html: makePinSVG(color), iconSize: [16, 24], iconAnchor: [8, 24] })
@@ -1422,12 +1464,14 @@ class AdminPanel {
                     ${fotoHTML}
                 `);
 
+                targetLayer.addLayer(marker);
                 this.mapLayers.hallazgos.addLayer(marker);
             });
 
-            // Add vestigios (fragmentos) markers - color por tipo
+            // Vestigios por tipo
             const VESTIGIO_COLORS = { xilopalo: '#222', vertebrados_fosiles: '#FDD835', invertebrados_fosiles: '#1E88E5', icnofosil: '#FB8C00' };
             const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
+            const TIPO_LAYER_MAP = { xilopalo: 'fragmentosXilopalo', vertebrados_fosiles: 'fragmentosVertebrados', invertebrados_fosiles: 'fragmentosInvertebrados', icnofosil: 'fragmentosIcnofosil' };
 
             fragmentosData.data.forEach(f => {
                 if (!f.lat || !f.lng) return;
@@ -1441,6 +1485,7 @@ class AdminPanel {
                 const tipoLabel = TIPO_LABELS[tipo] || tipo;
                 const foto = f.foto;
                 const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
+                const layerKey = TIPO_LAYER_MAP[tipo] || 'fragmentosVertebrados';
 
                 const marker = L.marker([f.lat, f.lng], {
                     icon: L.divIcon({ className: '', html: makePinSVG(color), iconSize: [16, 24], iconAnchor: [8, 24] })
@@ -1453,9 +1498,35 @@ class AdminPanel {
                     ${fotoHTML}
                 `);
 
+                this.mapLayers[layerKey].addLayer(marker);
                 this.mapLayers.fragmentos.addLayer(marker);
             });
 
+            // Rescates (pin blanco con borde gris)
+            if (rescatesData?.data) {
+                rescatesData.data.forEach(r => {
+                    if (!r.lat || !r.lng) return;
+                    const foto = r.foto1 || r.foto2 || r.foto3;
+                    const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
+                    const pinRescateSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
+                        <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="white" stroke="#888" stroke-width="1.5"/>
+                        <circle cx="12" cy="11" r="4.5" fill="rgba(0,0,0,0.12)"/>
+                    </svg>`;
+                    const marker = L.marker([r.lat, r.lng], {
+                        icon: L.divIcon({ className: '', html: pinRescateSVG, iconSize: [16, 24], iconAnchor: [8, 24] })
+                    });
+                    marker.bindPopup(`
+                        <b>⚪ Rescate</b><br/>
+                        Código: ${r.codigo || 'N/A'}<br/>
+                        Fecha: ${r.fecha || 'N/A'}<br/>
+                        Localidad: ${r.localidad || 'N/A'}<br/>
+                        Tipo: ${r.tipo_material || 'N/A'}
+                        ${fotoHTML}
+                    `);
+                    this.mapLayers.rescates.addLayer(marker);
+                });
+            }
+ 
             // Add routes as polylines/polygons
             routesData.data.forEach(route => {
                 if (!route.content) return; // Campo correcto: content
@@ -1492,7 +1563,7 @@ class AdminPanel {
             });
 
             // Update folder filter
-            const allData = [...hallazgosData.data, ...fragmentosData.data, ...routesData.data];
+            const allData = [...hallazgosData.data, ...fragmentosData.data, ...routesData.data, ...(rescatesData?.data || [])];
             this.updateFolderFilter(allData, 'filter-map-folder');
 
             // Update visibility
@@ -1504,27 +1575,28 @@ class AdminPanel {
     }
 
     updateMapVisibility() {
-        const showHallazgos = document.getElementById('map-show-hallazgos')?.checked;
-        const showFragmentos = document.getElementById('map-show-fragmentos')?.checked;
-        const showRoutes = document.getElementById('map-show-routes')?.checked;
+        const showRescate = document.getElementById('map-show-hallazgos-rescate')?.checked ?? true;
+        const showRescates = document.getElementById('map-show-rescates')?.checked ?? true;
+        const showPicking = document.getElementById('map-show-hallazgos-picking')?.checked ?? true;
+        const showXilopalo = document.getElementById('map-show-fragmentos-xilopalo')?.checked ?? true;
+        const showVertebrados = document.getElementById('map-show-fragmentos-vertebrados')?.checked ?? true;
+        const showInvertebrados = document.getElementById('map-show-fragmentos-invertebrados')?.checked ?? true;
+        const showIcnofosil = document.getElementById('map-show-fragmentos-icnofosil')?.checked ?? true;
+        const showRoutes = document.getElementById('map-show-routes')?.checked ?? true;
 
-        if (showHallazgos) {
-            this.map.addLayer(this.mapLayers.hallazgos);
-        } else {
-            this.map.removeLayer(this.mapLayers.hallazgos);
-        }
+        const toggleLayer = (layer, show) => {
+            if (!layer || !this.map) return;
+            if (show) { this.map.addLayer(layer); } else { this.map.removeLayer(layer); }
+        };
 
-        if (showFragmentos) {
-            this.map.addLayer(this.mapLayers.fragmentos);
-        } else {
-            this.map.removeLayer(this.mapLayers.fragmentos);
-        }
-
-        if (showRoutes) {
-            this.map.addLayer(this.mapLayers.routes);
-        } else {
-            this.map.removeLayer(this.mapLayers.routes);
-        }
+        toggleLayer(this.mapLayers.hallazgosRescate, showRescate);
+        toggleLayer(this.mapLayers.rescates, showRescates);
+        toggleLayer(this.mapLayers.hallazgosPicking, showPicking);
+        toggleLayer(this.mapLayers.fragmentosXilopalo, showXilopalo);
+        toggleLayer(this.mapLayers.fragmentosVertebrados, showVertebrados);
+        toggleLayer(this.mapLayers.fragmentosInvertebrados, showInvertebrados);
+        toggleLayer(this.mapLayers.fragmentosIcnofosil, showIcnofosil);
+        toggleLayer(this.mapLayers.routes, showRoutes);
     }
 
     parseRouteKML(kmlString) {
@@ -1735,7 +1807,7 @@ class AdminPanel {
                 </div>
                 <div class="stat-box">
                     <div class="stat-value">${folder.fragmentos.length}</div>
-                    <div class="stat-label">Fragmentos</div>
+                    <div class="stat-label">Vestigios</div>
                 </div>
                 <div class="stat-box">
                     <div class="stat-value">${folder.collectors.length}</div>
@@ -1954,7 +2026,7 @@ class AdminPanel {
             this.showNotification('Error al actualizar el hallazgo.', 'error');
         }
     }
-
+ 
     async loadRescates() {
         try {
             const collector = document.getElementById('filter-rescates-collector')?.value || '';
@@ -2096,7 +2168,7 @@ class AdminPanel {
             }
 
             const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Fragmentos');
+            const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Vestigios');
 
             let data;
             const response = await this.apiRequest(`/api/admin/${type}`);
@@ -2479,7 +2551,7 @@ class AdminPanel {
     async exportExcel(type) {
         try {
             const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Fragmentos');
+            const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Vestigios');
 
             // Always fetch fresh data from API to ensure photos are included
             console.log(`Fetching fresh ${type} data for Excel export...`);
@@ -3388,7 +3460,7 @@ class AdminPanel {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Total (Hallazgos + Fragmentos)',
+                    label: 'Total (Hallazgos + Vestigios)',
                     data: data,
                     backgroundColor: backgroundColors,
                     borderColor: backgroundColors,
@@ -3615,7 +3687,7 @@ class AdminPanel {
                         return;
                     }
                     const concentracionData = this.chartConcentracion.data;
-                    headers = ['Localidad', 'Total (Hallazgos + Fragmentos)'];
+                    headers = ['Localidad', 'Total (Hallazgos + Vestigios)'];
                     rows = concentracionData.labels.map((label, i) => [label, concentracionData.datasets[0].data[i]]);
                     filename = 'concentracion_localidad';
                     break;
