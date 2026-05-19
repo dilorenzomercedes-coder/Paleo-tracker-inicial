@@ -1543,7 +1543,7 @@ class AdminPanel {
                 if (parsed.type === 'LineString') {
                     layer = L.polyline(parsed.coordinates, { color, weight: 3, opacity: 0.8 });
                 } else if (parsed.type === 'Polygon') {
-                    layer = L.polygon(parsed.coordinates, { color, fillColor: color, fillOpacity: 0.2, weight: 2 });
+                    layer = L.polygon(parsed.coordinates, { color, fillColor: color, fillOpacity: 0.08, weight: 3, interactive: true });
                 }
 
                 if (layer) {
@@ -1586,11 +1586,9 @@ class AdminPanel {
 
     setRouteColor(routeId, color) {
         this.routeColors[routeId] = color;
-        // Actualizar la capa en el mapa sin recargar todo
         this.mapLayers.routes.eachLayer(layer => {
             if (layer._routeId === routeId) {
                 layer.setStyle({ color, fillColor: color });
-                // Actualizar el input de color en el popup abierto
                 const input = document.getElementById(`route-color-${routeId}`);
                 if (input) input.value = color;
             }
