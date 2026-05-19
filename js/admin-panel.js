@@ -1362,6 +1362,8 @@ class AdminPanel {
                     maxZoom: 19
                 }).addTo(this.map);
 
+                this.routeColors = {}; // { routeId: '#hexcolor' }
+
                 this.mapLayers = {
                     hallazgos: L.layerGroup().addTo(this.map),
                     hallazgosRescate: L.layerGroup().addTo(this.map),
@@ -1526,36 +1528,44 @@ class AdminPanel {
                     this.mapLayers.rescates.addLayer(marker);
                 });
             }
- 
+
             // Add routes as polylines/polygons
             routesData.data.forEach(route => {
-                if (!route.content) return; // Campo correcto: content
+                if (!route.content) return;
 
                 const parsed = this.parseRouteKML(route.content);
                 if (!parsed || parsed.coordinates.length < 2) return;
 
+                const defaultColor = parsed.type === 'Polygon' ? '#9b59b6' : '#3498db';
+                const color = this.routeColors[route.id] || defaultColor;
+
                 let layer;
                 if (parsed.type === 'LineString') {
-                    layer = L.polyline(parsed.coordinates, {
-                        color: '#3498db',  // Azul
-                        weight: 3,
-                        opacity: 0.7
-                    });
+                    layer = L.polyline(parsed.coordinates, { color, weight: 3, opacity: 0.8 });
                 } else if (parsed.type === 'Polygon') {
-                    layer = L.polygon(parsed.coordinates, {
-                        color: '#9b59b6',  // Morado
-                        fillColor: '#9b59b6',
-                        fillOpacity: 0.2,
-                        weight: 2
-                    });
+                    layer = L.polygon(parsed.coordinates, { color, fillColor: color, fillOpacity: 0.2, weight: 2 });
                 }
 
                 if (layer) {
+                    layer._routeId = route.id;
+                    layer._routeDefaultColor = defaultColor;
+
+                    const popupId = `route-color-${route.id}`;
                     layer.bindPopup(`
                         <b>${parsed.name}</b><br/>
                         Fecha: ${route.fecha || 'N/A'}<br/>
                         ${route.folder ? `Carpeta: ${route.folder}<br/>` : ''}
-                        ${parsed.description ? `<br/>${parsed.description}` : ''}
+                        ${parsed.description ? `<br/>${parsed.description}<br/>` : ''}
+                        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+                            <label style="font-size:.85rem;font-weight:600;">🎨 Color:</label>
+                            <input type="color" id="${popupId}" value="${color}"
+                                style="width:36px;height:28px;border:none;cursor:pointer;padding:0;"
+                                onchange="window.adminPanel.setRouteColor('${route.id}', this.value)">
+                            <button onclick="window.adminPanel.resetRouteColor('${route.id}', '${defaultColor}')"
+                                style="font-size:.75rem;padding:2px 6px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#f5f5f5;">
+                                Reset
+                            </button>
+                        </div>
                     `);
 
                     this.mapLayers.routes.addLayer(layer);
@@ -1572,6 +1582,30 @@ class AdminPanel {
         } catch (error) {
             console.error('Error updating map:', error);
         }
+    }
+
+    setRouteColor(routeId, color) {
+        this.routeColors[routeId] = color;
+        // Actualizar la capa en el mapa sin recargar todo
+        this.mapLayers.routes.eachLayer(layer => {
+            if (layer._routeId === routeId) {
+                layer.setStyle({ color, fillColor: color });
+                // Actualizar el input de color en el popup abierto
+                const input = document.getElementById(`route-color-${routeId}`);
+                if (input) input.value = color;
+            }
+        });
+    }
+
+    resetRouteColor(routeId, defaultColor) {
+        delete this.routeColors[routeId];
+        this.mapLayers.routes.eachLayer(layer => {
+            if (layer._routeId === routeId) {
+                layer.setStyle({ color: defaultColor, fillColor: defaultColor });
+                const input = document.getElementById(`route-color-${routeId}`);
+                if (input) input.value = defaultColor;
+            }
+        });
     }
 
     updateMapVisibility() {
@@ -2026,7 +2060,7 @@ class AdminPanel {
             this.showNotification('Error al actualizar el hallazgo.', 'error');
         }
     }
- 
+
     async loadRescates() {
         try {
             const collector = document.getElementById('filter-rescates-collector')?.value || '';
