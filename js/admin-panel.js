@@ -615,6 +615,17 @@ class AdminPanel {
         });
         document.getElementById(`view-${viewName}`).classList.add('active');
 
+        // Ocultar/mostrar leyenda y mapa según la vista
+        const mapEl = document.getElementById('admin-map');
+        const legendEl = document.getElementById('map-legend');
+        if (viewName === 'map') {
+            if (mapEl) mapEl.style.display = 'block';
+            if (legendEl) legendEl.style.display = 'block';
+        } else {
+            if (mapEl) mapEl.style.display = 'none';
+            if (legendEl) legendEl.style.display = 'none';
+        }
+
         this.currentView = viewName;
 
         // Load data for the view
