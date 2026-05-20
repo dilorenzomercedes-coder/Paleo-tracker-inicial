@@ -636,6 +636,7 @@ class AdminPanel {
                 break;
             case 'map':
                 this.loadMap();
+                setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 100);
                 break;
             case 'folders':
                 this.loadFolders();
