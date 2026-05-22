@@ -558,7 +558,8 @@ class Store {
             fragmentos: { synced: 0, failed: 0 },
             routes: { synced: 0, failed: 0 },
             documents: { synced: 0, failed: 0 },
-            partes: { synced: 0, failed: 0 }
+            partes: { synced: 0, failed: 0 },
+            rescates: { synced: 0, failed: 0 }
         };
         console.log('syncAll: results object initialized with keys:', Object.keys(results));
 
