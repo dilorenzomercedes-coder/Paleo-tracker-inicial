@@ -2,1035 +2,1015 @@
 <html lang="es">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paleo Heritage - Panel de Administración</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paleo Heritage</title>
+  <meta name="description" content="Aplicación de registro paleontológico">
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script>
+    window.onerror = function (msg, url, line, col, error) {
+      if (msg === 'Script error.') return; // Ignore generic cross-origin errors
+      const log = document.getElementById('debug-log');
+      if (log) {
+        log.innerHTML += `<div style="color:red; border-bottom:1px solid #ccc; padding:4px;">
+          <strong>Error:</strong> ${msg}<br>
+          <small>${url}:${line}</small>
+        </div>`;
+      }
+      console.error(msg, url, line);
+    };
+    window.onunhandledrejection = function (event) {
+      const log = document.getElementById('debug-log');
+      if (log) {
+        log.innerHTML += `<div style="color:orange; border-bottom:1px solid #ccc; padding:4px;">
+          <strong>Promise Rejection:</strong> ${event.reason}
+        </div>`;
+      }
+      console.error(event.reason);
+    };
+  </script>
 
-    <link rel="stylesheet" href="css/admin-styles.css">
+  <!-- PWA -->
+  <link rel="manifest" href="public/manifest.json">
+  <meta name="theme-color" content="#4A5D23">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Paleo Heritage">
+  <link rel="apple-touch-icon" href="public/logo paleo heritage.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- JSZip for KMZ support -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <!-- App CSS -->
+  <link rel="stylesheet" href="css/style.css?v=13">
 </head>
 
 <body>
-    <div id="app">
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <img src="public/logo paleo heritage.png" alt="Paleo Heritage Logo" class="app-logo">
+        <h1>Paleo Heritage <small style="font-size: 0.6em; color: #ccc;">v2.2</small></h1>
+      </div>
+      <div id="offline-indicator" class="offline-indicator" style="display: none;">
+        <span>📵 Sin conexión</span>
+      </div>
+      <div class="user-controls">
+        <!-- Indicador de sincronización -->
+        <div id="sync-status" class="sync-status" style="margin-right: 10px;">
+          <span id="sync-icon">⏳</span>
+          <span id="sync-text">Verificando...</span>
+        </div>
+        <!-- Botón de sincronización manual -->
+        <button id="btn-sync" class="btn-primary" style="margin-right: 5px;">
+          🔄 Sincronizar
+        </button>
+        <!-- Botón de configuración -->
+        <button id="btn-config" class="btn-secondary" style="margin-right: 5px;">
+          ⚙️ Configurar
+        </button>
+        <!-- Botón de reparar (mantener) -->
+        <button id="btn-repair" class="btn-danger">
+          🛠️ Reparar
+        </button>
+      </div>
+    </header>
 
-        <!-- Login Screen -->
-        <div id="login-screen" class="screen active">
-            <div class="login-container">
-                <div class="login-card">
-                    <div class="login-header">
-                        <img src="public/logo paleo heritage.png" alt="Paleo Heritage" class="login-logo">
-                        <h1>Panel de Administración</h1>
-                        <p>Paleo Heritage</p>
-                    </div>
-                    <form id="login-form">
-                        <div class="form-group">
-                            <label for="username">Usuario</label>
-                            <input type="text" id="username" name="username" required autocomplete="username">
-                        </div>
-                        <div class="form-group">
-                            <label for="password">Contraseña</label>
-                            <input type="password" id="password" name="password" required
-                                autocomplete="current-password">
-                        </div>
-                        <div class="form-group">
-                            <label for="server-url">URL del Servidor</label>
-                            <input type="text" id="server-url" name="serverUrl"
-                                value="https://paleo-tracker-backend.onrender.com" required>
-                        </div>
-                        <div id="login-error" class="error-message" style="display: none;"></div>
-                        <button type="submit" class="btn btn-primary btn-block">Iniciar Sesión</button>
-                    </form>
-                </div>
-            </div>
+    <!-- Main Content Area -->
+    <main class="app-content">
+
+      <!-- Tab: Hallazgos -->
+      <section id="tab-hallazgos" class="tab-content active">
+        <div class="section-header">
+          <h2>Registro de Hallazgos</h2>
+          <button class="btn-primary" id="btn-new-hallazgo">+ Nuevo Hallazgo</button>
         </div>
 
-        <!-- Main Dashboard -->
-        <div id="dashboard-screen" class="screen">
-            <!-- Top Navigation -->
-            <nav class="top-nav">
-                <div class="nav-brand">
-                    <img src="public/logo paleo heritage.png" alt="Logo" class="nav-logo">
-                    <span class="nav-title">Paleo Heritage Admin</span>
-                </div>
-                <div class="nav-user">
-                    <span id="user-name">Admin</span>
-                    <button id="btn-logout" class="btn btn-secondary btn-sm">Cerrar Sesión</button>
-                </div>
-            </nav>
-
-            <!-- Side Navigation -->
-            <aside class="side-nav">
-                <nav class="side-menu">
-                    <a href="#" class="menu-item active" data-view="overview">
-                        <span class="icon">📊</span>
-                        <span>Resumen</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="collectors">
-                        <span class="icon">👥</span>
-                        <span>Colectores</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="hallazgos">
-                        <span class="icon">📍</span>
-                        <span>Hallazgos</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="fragmentos">
-                        <span class="icon">🦴</span>
-                        <span>Vestigios</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="routes">
-                        <span class="icon">🗺️</span>
-                        <span>Rutas</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="map">
-                        <span class="icon">🌍</span>
-                        <span>Mapa</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="folders">
-                        <span class="icon">📁</span>
-                        <span>Carpetas</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="partes-diarios">
-                        <span class="icon">📋</span>
-                        <span>Partes Diarios</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="rescates">
-                        <span class="icon">🦕</span>
-                        <span>Rescates</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="documents">
-                        <span class="icon">📄</span>
-                        <span>Documentos</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="shared-docs">
-                        <span class="icon">📤</span>
-                        <span>Docs Compartidos</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="export">
-                        <span class="icon">⬇️</span>
-                        <span>Exportar</span>
-                    </a>
-                    <a href="#" class="menu-item" data-view="statistics">
-                        <span class="icon">📊</span>
-                        <span>Estadísticas</span>
-                    </a>
-                </nav>
-            </aside>
-
-            <!-- Main Content -->
-            <main class="main-content">
-
-                <!-- Overview View -->
-                <div id="view-overview" class="view active">
-                    <h1>Resumen General</h1>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-icon">📍</div>
-                            <div class="stat-content">
-                                <h3 id="stat-hallazgos">0</h3>
-                                <p>Hallazgos</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">🦴</div>
-                            <div class="stat-content">
-                                <h3 id="stat-fragmentos">0</h3>
-                                <p>Vestigios</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">🗺️</div>
-                            <div class="stat-content">
-                                <h3 id="stat-routes">0</h3>
-                                <p>Rutas</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">👥</div>
-                            <div class="stat-content">
-                                <h3 id="stat-collectors">0</h3>
-                                <p>Colectores</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Collectors View -->
-                <div id="view-collectors" class="view">
-                    <div class="view-header">
-                        <h1>Colectores</h1>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Nombre</th>
-                                    <th>Última Sync</th>
-                                    <th>Hallazgos</th>
-                                    <th>Fragmentos</th>
-                                    <th>Rutas</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody id="collectors-table-body">
-                                <tr>
-                                    <td colspan="7">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Hallazgos View -->
-                <div id="view-hallazgos" class="view">
-                    <div class="view-header">
-                        <h1>Hallazgos</h1>
-                        <div class="filters">
-                            <select id="filter-hallazgos-collector" class="filter-select">
-                                <option value="">Todos los colectores</option>
-                            </select>
-                            <select id="filter-hallazgos-folder" class="filter-select">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                            <button id="btn-export-hallazgos-kml" class="btn btn-primary btn-sm">⬇️ KML</button>
-                        </div>
-                    </div>
-
-                    <!-- Advanced Filters -->
-                    <div class="advanced-filters">
-                        <div class="filter-row">
-                            <div class="filter-group">
-                                <label>🔍 Buscar</label>
-                                <input type="text" id="filter-hallazgos-search"
-                                    placeholder="Código, tipo, localidad, observaciones...">
-                            </div>
-
-                            <div class="filter-group">
-                                <label>📅 Desde</label>
-                                <input type="date" id="filter-hallazgos-date-from">
-                            </div>
-
-                            <div class="filter-group">
-                                <label>📅 Hasta</label>
-                                <input type="date" id="filter-hallazgos-date-to">
-                            </div>
-
-                            <div class="filter-group">
-                                <button class="btn btn-secondary btn-sm" id="btn-clear-hallazgos-filters">
-                                    × Limpiar
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="filter-summary" id="filter-hallazgos-summary"></div>
-                    </div>
-
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Foto</th>
-                                    <th>Fecha</th>
-                                    <th>Colector</th>
-                                    <th>Localidad</th>
-                                    <th>Carpeta</th>
-                                    <th>Tipo</th>
-                                    <th>Código</th>
-                                    <th>Acción</th>
-                                    <th>Coordenadas</th>
-                                    <th>Acciones</th>
-                                </tr>
-
-                            </thead>
-                            <tbody id="hallazgos-table-body">
-                                <tr>
-                                    <td colspan="10">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Fragmentos View -->
-                <div id="view-fragmentos" class="view">
-                    <div class="view-header">
-                        <h1>Vestigios</h1>
-                        <div class="filters">
-                            <select id="filter-fragmentos-collector" class="filter-select">
-                                <option value="">Todos los colectores</option>
-                            </select>
-                            <select id="filter-fragmentos-folder" class="filter-select">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                            <select id="filter-fragmentos-tipo" class="filter-select">
-                                <option value="">Todos los tipos</option>
-                                <option value="xilopalo">Xilópalo</option>
-                                <option value="vertebrados_fosiles">Vertebrados Fósiles</option>
-                                <option value="invertebrados_fosiles">Invertebrados Fósiles</option>
-                                <option value="icnofosil">Icnofósil</option>
-                            </select>
-                            <button id="btn-export-fragmentos-kml" class="btn btn-primary btn-sm">⬇️ KML</button>
-                        </div>
-                    </div>
-                    <div id="fragmentos-tipo-counts" style="padding:8px 0 12px;display:flex;flex-wrap:wrap;gap:6px;"></div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Foto</th>
-                                    <th>Fecha</th>
-                                    <th>Colector</th>
-                                    <th>Localidad</th>
-                                    <th>Carpeta</th>
-                                    <th>Tipo</th>
-                                    <th>Coordenadas</th>
-                                    <th>Observaciones</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="fragmentos-table-body">
-                                <tr>
-                                    <td colspan="9">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Routes View -->
-                <div id="view-routes" class="view">
-                    <div class="view-header">
-                        <h1>Rutas</h1>
-                        <div class="filters">
-                            <select id="filter-routes-collector" class="filter-select">
-                                <option value="">Todos los colectores</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Colector</th>
-                                    <th>Fecha Creación</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="routes-table-body">
-                                <tr>
-                                    <td colspan="4">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Map View -->
-                <div id="view-map" class="view">
-                    <div class="view-header">
-                        <h1>Mapa Interactivo</h1>
-                        <div class="filters">
-                            <select id="filter-map-collector" class="filter-select">
-                                <option value="">Todos los colectores</option>
-                            </select>
-                            <select id="filter-map-folder" class="filter-select">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                            <div style="display:inline-block;margin-left:10px;">
-                                <label><input type="checkbox" id="map-show-hallazgos-rescate" checked> 
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#e53935"/></svg>
-                                    Rescate Pendiente</label>
-                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-hallazgos-picking" checked>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#43a047"/></svg>
-                                    Picking</label>
-                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-xilopalo" checked>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#222"/></svg>
-                                    Xilópalo</label>
-                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-vertebrados" checked>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FDD835"/></svg>
-                                    Vertebrados Fósiles</label>
-                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-invertebrados" checked>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#1E88E5"/></svg>
-                                    Invertebrados Fósiles</label>
-                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-icnofosil" checked>
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FB8C00"/></svg>
-                                    Icnofósil</label>
-                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-routes" checked> Rutas</label>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="admin-map" style="height:600px;width:100%;border-radius:8px;"></div>
-
-                    <!-- Leyenda -->
-                    <div style="background:#fff;border-radius:10px;padding:16px;margin-top:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-                        <strong style="font-size:.95rem;">Leyenda</strong>
-                        <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;align-items:center;">
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#e53935"/></svg>
-                                <span style="font-size:.82rem;">Rescate Pendiente</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#43a047"/></svg>
-                                <span style="font-size:.82rem;">Picking</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#222"/></svg>
-                                <span style="font-size:.82rem;">Xilópalo</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FDD835"/></svg>
-                                <span style="font-size:.82rem;">Vertebrados Fósiles</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#1E88E5"/></svg>
-                                <span style="font-size:.82rem;">Invertebrados Fósiles</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FB8C00"/></svg>
-                                <span style="font-size:.82rem;">Icnofósil</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:5px;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="white" stroke="#888" stroke-width="1.5"/></svg>
-                                <span style="font-size:.82rem;">Rescates</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Folders View -->
-                <div id="view-folders" class="view">
-                    <div class="view-header">
-                        <h1>Carpetas / Sitios</h1>
-                        <div class="filters">
-                            <select id="filter-folders-sort" class="filter-select">
-                                <option value="name">Por Nombre</option>
-                                <option value="count">Por Cantidad</option>
-                                <option value="activity">Por Actividad</option>
-                            </select>
-                            <input type="text" id="filter-folders-search" class="filter-select"
-                                placeholder="Buscar carpeta..." style="width:200px;">
-                        </div>
-                    </div>
-                    <div id="folders-grid" class="folders-grid">
-                        <div style="grid-column: 1/-1; text-align:center; padding:40px; color:#999;">
-                            Cargando carpetas...
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Documents View -->
-                <div id="view-documents" class="view">
-                    <div class="view-header">
-                        <h1>Documentos de Colectores</h1>
-                        <div class="filters">
-                            <select id="filter-documents-collector" class="filter-select">
-                                <option value="">Todos los colectores</option>
-                            </select>
-                            <select id="filter-documents-category" class="filter-select">
-                                <option value="">Todas las categorías</option>
-                                <option value="Permisos">Permisos</option>
-                                <option value="ATS">ATS</option>
-                                <option value="IPCR">IPCR</option>
-                                <option value="Alta Spot">Alta Spot</option>
-                            </select>
-                            <button id="btn-download-documents-zip" class="btn btn-primary btn-sm">⬇️ ZIP</button>
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Título</th>
-                                    <th>Categoría</th>
-                                    <th>Colector</th>
-                                    <th>Fecha</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="documents-table-body">
-                                <tr>
-                                    <td colspan="5">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Partes Diarios View -->
-                <div id="view-partes-diarios" class="view">
-                    <div class="view-header">
-                        <h1>&#128203; Partes Diarios</h1>
-                        <div class="filters" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                            <select id="filter-partes-collector" class="filter-select">
-                                <option value="">Todos los colectores</option>
-                            </select>
-                            <input type="text" id="filter-partes-empresa" class="filter-select"
-                                placeholder="Filtrar por empresa..." style="width:160px;" list="admin-empresas-list">
-                            <datalist id="admin-empresas-list"></datalist>
-                            <input type="text" id="filter-partes-yacimiento" class="filter-select"
-                                placeholder="Filtrar por yacimiento..." style="width:160px;"
-                                list="admin-yacimientos-list">
-                            <datalist id="admin-yacimientos-list"></datalist>
-                            <input type="text" id="filter-partes-locacion" class="filter-select"
-                                placeholder="Filtrar por locación..." style="width:160px;" list="admin-locaciones-list">
-                            <datalist id="admin-locaciones-list"></datalist>
-                            <button id="btn-limpiar-partes-filtros" class="btn btn-secondary btn-sm">× Limpiar</button>
-                        </div>
-                    </div>
-                    <div id="partes-diarios-admin-grid"
-                        style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:16px; margin-top:16px;">
-                        <div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px;">
-                            Cargando partes diarios...
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Rescates View -->
-                <div id="view-rescates" class="view">
-                    <div class="view-header">
-                        <h1>🦕 Rescates</h1>
-                        <div class="filters">
-                            <select id="filter-rescates-collector" class="filter-select">
-                                <option value="">Todos los colectores</option>
-                            </select>
-                            <select id="filter-rescates-folder" class="filter-select">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Foto</th>
-                                    <th>Fecha</th>
-                                    <th>Colector</th>
-                                    <th>Localidad</th>
-                                    <th>Carpeta</th>
-                                    <th>Tipo</th>
-                                    <th>Código</th>
-                                    <th>Coordenadas</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rescates-table-body">
-                                <tr>
-                                    <td colspan="9">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Shared Documents View -->
-                <div id="view-shared-docs" class="view">
-                    <div class="view-header">
-                        <h1>Documentos Compartidos</h1>
-                        <button id="btn-add-shared-doc" class="btn btn-primary">+ Nuevo Documento</button>
-                    </div>
-                    <div class="table-container">
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    <th>Título</th>
-                                    <th>Categoría</th>
-                                    <th>Descripción</th>
-                                    <th>Fecha</th>
-                                    <th>Estado</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="shared-docs-table-body">
-                                <tr>
-                                    <td colspan="6">Cargando...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Export View -->
-                <div id="view-export" class="view">
-                    <h1>Exportar Datos</h1>
-                    <div class="export-grid">
-                        <div class="export-card">
-                            <div class="export-icon">📍</div>
-                            <h3>Exportar KML Completo</h3>
-                            <p>Todos los hallazgos, vestigios y rutas en formato KML</p>
-                            <select id="filter-kml-folder" class="filter-select" style="margin-bottom:10px;">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                            <button id="btn-export-kml-all" class="btn btn-primary">Descargar KML</button>
-                        </div>
-                        <div class="export-card">
-                            <div class="export-icon">📦</div>
-                            <h3>Backup Completo (JSON)</h3>
-                            <p>Respaldo completo de la base de datos en formato JSON</p>
-                            <button id="btn-export-json-backup" class="btn btn-primary">Descargar
-                                JSON</button>
-                        </div>
-                        <div class="export-card">
-                            <div class="export-icon">📊</div>
-                            <h3>Excel Hallazgos</h3>
-                            <p>Tabla de hallazgos con fotos embebidas</p>
-                            <select id="filter-excel-hallazgos-folder" class="filter-select"
-                                style="margin-bottom:10px;">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                            <button id="btn-export-excel-hallazgos" class="btn btn-primary">Descargar
-                                Excel</button>
-                        </div>
-                        <div class="export-card">
-                            <div class="export-icon">📊</div>
-                            <h3>Excel Vestigios</h3>
-                            <p>Tabla de vestigios con fotos embebidas</p>
-                            <select id="filter-excel-fragmentos-folder" class="filter-select"
-                                style="margin-bottom:10px;">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                            <button id="btn-export-excel-fragmentos" class="btn btn-primary">Descargar
-                                Excel</button>
-                        </div>
-                        <div class="export-card">
-                            <div class="export-icon">📷</div>
-                            <h3>Fotos por Carpeta (ZIP)</h3>
-                            <p>Descarga fotos de una carpeta específica</p>
-                            <select id="filter-photos-folder" class="filter-select" style="margin-bottom:10px;">
-                                <option value="">Todas las carpetas</option>
-                            </select>
-                            <button id="btn-download-photos" class="btn btn-primary">Descargar ZIP</button>
-                        </div>
-                        <div class="export-card">
-                            <div class="export-icon">🎁</div>
-                            <h3>Paquete Completo</h3>
-                            <p>KML, Excel, fotos y documentos en un solo archivo</p>
-                            <button id="btn-download-complete" class="btn btn-success">Descargar
-                                Todo</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Statistics View -->
-                <div id="view-statistics" class="view">
-                    <h1>Estadísticas</h1>
-
-                    <div class="charts-grid">
-                        <!-- Hallazgos por Carpeta -->
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3>Hallazgos por Carpeta</h3>
-                                <div class="chart-controls">
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartPNG('chart-por-carpeta', 'hallazgos_por_carpeta')">💾
-                                        PNG</button>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartExcel('carpeta')">📊
-                                        Excel</button>
-                                </div>
-                            </div>
-                            <canvas id="chart-por-carpeta"></canvas>
-                        </div>
-
-                        <!-- Tipos de Material -->
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3>Tipos de Material</h3>
-                                <div class="chart-controls">
-                                    <label>Carpeta:</label>
-                                    <select id="filter-material-folder" class="filter-select" style="width:150px;">
-                                        <option value="">Todas las carpetas</option>
-                                    </select>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartPNG('chart-tipos-material', 'tipos_de_material')">💾
-                                        PNG</button>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartExcel('material')">📊
-                                        Excel</button>
-                                </div>
-                            </div>
-                            <canvas id="chart-tipos-material"></canvas>
-                        </div>
-
-                        <!-- Formación Geológica -->
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3>Formación Geológica</h3>
-                                <div class="chart-controls">
-                                    <label>Carpeta:</label>
-                                    <select id="filter-formacion-folder" class="filter-select" style="width:150px;">
-                                        <option value="">Todas las carpetas</option>
-                                    </select>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartPNG('chart-formacion', 'formacion_geologica')">💾
-                                        PNG</button>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartExcel('formacion')">📊
-                                        Excel</button>
-                                </div>
-                            </div>
-                            <canvas id="chart-formacion"></canvas>
-                        </div>
-
-                        <!-- Clasificación Taxonómica -->
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3>Clasificación Taxonómica</h3>
-                                <div class="chart-controls">
-                                    <label>Carpeta:</label>
-                                    <select id="filter-taxonomica-folder" class="filter-select" style="width:150px;">
-                                        <option value="">Todas las carpetas</option>
-                                    </select>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartPNG('chart-taxonomica', 'clasificacion_taxonomica')">💾
-                                        PNG</button>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartExcel('taxonomica')">📊
-                                        Excel</button>
-                                </div>
-                            </div>
-                            <canvas id="chart-taxonomica"></canvas>
-                        </div>
-
-                        <!-- Acción -->
-                        <div class="chart-card">
-                            <div class="chart-header">
-                                <h3>Acción</h3>
-                                <div class="chart-controls">
-                                    <label>Carpeta:</label>
-                                    <select id="filter-accion-folder" class="filter-select" style="width:150px;">
-                                        <option value="">Todas las carpetas</option>
-                                    </select>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartPNG('chart-accion', 'accion')">💾
-                                        PNG</button>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartExcel('accion')">📊
-                                        Excel</button>
-                                </div>
-                            </div>
-                            <canvas id="chart-accion"></canvas>
-                        </div>
-
-                        <!-- Tendencia Temporal -->
-                        <div class="chart-card chart-wide">
-                            <div class="chart-header">
-                                <h3>Tendencia Temporal (Hallazgos por Mes)</h3>
-                                <div class="chart-controls">
-                                    <label>Período:</label>
-                                    <select id="period-temporal" class="filter-select" style="width:100px;">
-                                        <option value="day">Día</option>
-                                        <option value="week">Semana</option>
-                                        <option value="month" selected>Mes</option>
-                                    </select>
-                                    <label>Escala:</label>
-                                    <select id="scale-temporal" class="filter-select" style="width:100px;">
-                                        <option value="auto">Auto</option>
-                                        <option value="manual">Manual</option>
-                                    </select>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartPNG('chart-temporal', 'tendencia_temporal')">💾
-                                        PNG</button>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartExcel('temporal')">📊
-                                        Excel</button>
-                                </div>
-                            </div>
-                            <canvas id="chart-temporal"></canvas>
-                        </div>
-
-                        <!-- Concentración por Localidad -->
-                        <div class="chart-card chart-wide">
-                            <div class="chart-header">
-                                <h3>Concentración por Carpeta</h3>
-                                <div class="chart-controls">
-                                    <label>Carpeta:</label>
-                                    <select id="filter-concentration-folder" class="filter-select" style="width:150px;">
-                                        <option value="">Todas las carpetas</option>
-                                    </select>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartPNG('chart-concentracion', 'concentracion_localidad')">💾
-                                        PNG</button>
-                                    <button class="btn btn-sm"
-                                        onclick="window.adminPanel.downloadChartExcel('concentracion')">📊
-                                        Excel</button>
-                                </div>
-                            </div>
-                            <canvas id="chart-concentracion"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-            </main>
+        <!-- List View -->
+        <div id="hallazgos-list" class="data-list">
+          <!-- Items will be injected here -->
+          <div class="empty-state">No hay hallazgos registrados.</div>
         </div>
 
-        <!-- Add Shared Document Modal -->
-        <div id="modal-add-shared-doc" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Nuevo Documento Compartido</h2>
-                    <button class="btn-close" data-close-modal="modal-add-shared-doc">&times;</button>
-                </div>
-                <form id="form-shared-doc">
-                    <div class="form-group">
-                        <label for="shared-doc-title">Título *</label>
-                        <input type="text" id="shared-doc-title" name="title" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="shared-doc-category">Categoría *</label>
-                        <select id="shared-doc-category" name="category" required>
-                            <option value="Permisos">Permisos</option>
-                            <option value="ATS">ATS</option>
-                            <option value="IPCR">IPCR</option>
-                            <option value="Alta Spot">Alta Spot</option>
-                            <option value="General">General</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="shared-doc-description">Descripción</label>
-                        <textarea id="shared-doc-description" name="description" rows="3"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="shared-doc-file">Archivo PDF *</label>
-                        <input type="file" id="shared-doc-file" name="file" accept=".pdf" required>
-                        <small>Solo archivos PDF</small>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary"
-                            data-close-modal="modal-add-shared-doc">Cancelar</button>
-                        <button type="submit" class="btn btn-primary">Guardar</button>
-                    </div>
-                </form>
+        <!-- Form View (Hidden by default) -->
+        <div id="hallazgos-form-container" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>Nuevo Hallazgo</h3>
+              <button class="btn-close" id="btn-close-hallazgo">&times;</button>
             </div>
-        </div>
-
-        <!-- Folder Details Modal -->
-        <div id="modal-folder-details" class="modal">
-            <div class="modal-content modal-large">
-                <div class="modal-header">
-                    <h2 id="folder-modal-title">Carpeta</h2>
-                    <button class="btn-close"
-                        onclick="document.getElementById('modal-folder-details').style.display='none'">×</button>
-                </div>
-                <div id="folder-stats-summary" class="folder-stats-summary">
-                    <!-- Estadísticas dinámicas -->
-                </div>
-                <div class="tabs-container">
-                    <div class="tabs">
-                        <button class="tab-btn active" data-tab="folder-hallazgos">Hallazgos</button>
-                        <button class="tab-btn" data-tab="folder-fragmentos">Fragmentos</button>
-                    </div>
-                    <div id="folder-tab-content" class="tab-content">
-                        <!-- Contenido dinámico de tabs -->
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-primary" id="btn-export-folder-kml">📥 Exportar KML</button>
-                    <button class="btn btn-secondary" id="btn-view-folder-map">🗺️ Ver en Mapa</button>
-                    <button class="btn btn-secondary"
-                        onclick="document.getElementById('modal-folder-details').style.display='none'">Cerrar</button>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <!-- Edit Hallazgo Modal -->
-    <div id="modal-edit-hallazgo" class="modal">
-        <div class="modal-content modal-large">
-            <div class="modal-header">
-                <h2>✏️ Editar Hallazgo</h2>
-                <button class="btn-close"
-                    onclick="document.getElementById('modal-edit-hallazgo').style.display='none'">×</button>
-            </div>
-
-            <form id="form-edit-hallazgo" class="edit-form">
-                <input type="hidden" id="edit-hallazgo-id">
-
+            <form id="form-hallazgo">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Localidad</label>
+                <input type="text" name="localidad" placeholder="Ej. Cañadón Asfalto" required>
+              </div>
+              <div class="form-group">
+                <label>Carpeta / Lugar</label>
+                <input type="text" name="folder" placeholder="Nombre de carpeta para agrupar" list="folder-list">
+                <datalist id="folder-list"></datalist>
+              </div>
+              <div class="form-row">
                 <div class="form-group">
-                    <label>Código *</label>
-                    <input type="text" id="edit-codigo" required>
+                  <label>Tipo de Material</label>
+                  <select name="tipo_material">
+                    <option value="VS">VS</option>
+                    <option value="VS-F">VS-F</option>
+                    <option value="VR">VR</option>
+                    <option value="VR-F">VR-F</option>
+                    <option value="IS">IS</option>
+                    <option value="IS-F">IS-F</option>
+                    <option value="IR">IR</option>
+                    <option value="XS">XS</option>
+                    <option value="XR">XR</option>
+                    <option value="PI">PI</option>
+                    <option value="Huella">Huella</option>
+                  </select>
                 </div>
-
                 <div class="form-group">
-                    <label>Tipo de Material *</label>
-                    <select id="edit-tipo-material" required>
-                        <option value="">Seleccionar...</option>
-                        <option value="VS">VS</option>
-                        <option value="VS-F">VS-F</option>
-                        <option value="VR">VR</option>
-                        <option value="VR-F">VR-F</option>
-                        <option value="IS">IS</option>
-                        <option value="IS-F">IS-F</option>
-                        <option value="IR">IR</option>
-                        <option value="XS">XS</option>
-                        <option value="XR">XR</option>
-                        <option value="PI">PI</option>
-                    </select>
+                  <label>Código</label>
+                  <input type="text" name="codigo" placeholder="Ej. PV-001">
                 </div>
-
-                <div class="form-group">
-                    <label>Localidad *</label>
-                    <input type="text" id="edit-localidad" required>
+              </div>
+              <div class="form-group">
+                <label>Formación Geológica</label>
+                <input type="text" name="formacion">
+              </div>
+              <div class="form-group">
+                <label>Coordinador</label>
+                <input type="text" value="Porfiri-Dos Santos" readonly class="readonly-input">
+              </div>
+              <div class="form-group">
+                <label>Colector</label>
+                <input type="text" name="colector">
+              </div>
+              <div class="form-group">
+                <label>Consolidante</label>
+                <select name="consolidante">
+                  <option value="nada">Nada</option>
+                  <option value="laca">Laca</option>
+                  <option value="cianoacrilato">Cianoacrilato</option>
+                  <option value="poxipol">Poxipol</option>
+                  <option value="b72">B72</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Acción</label>
+                <div class="radio-group">
+                  <label><input type="radio" name="accion" value="picking"> Picking</label>
+                  <label><input type="radio" name="accion" value="bochon"> Bochon</label>
+                  <label><input type="radio" name="accion" value="rescate"> Rescate pendiente</label>
                 </div>
-
-                <div class="form-group">
-                    <label>Formación</label>
-                    <input type="text" id="edit-formacion">
+              </div>
+              <div class="form-group">
+                <label>Clasificación Taxonómica</label>
+                <input type="text" name="taxonomia">
+              </div>
+              <div class="form-group">
+                <label>Fotos (hasta 3)</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto1" accept="image/*" capture="environment" id="hallazgo-foto1">
+                  <label for="hallazgo-foto1" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 1
+                  </label>
                 </div>
+                <div id="hallazgo-foto1-preview" class="image-preview"></div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Latitud *</label>
-                        <input type="number" id="edit-lat" step="0.000001" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Longitud *</label>
-                        <input type="number" id="edit-lng" step="0.000001" required>
-                    </div>
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto2" accept="image/*" capture="environment" id="hallazgo-foto2">
+                  <label for="hallazgo-foto2" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 2
+                  </label>
                 </div>
+                <div id="hallazgo-foto2-preview" class="image-preview"></div>
 
-                <div class="form-group">
-                    <label>Carpeta/Sitio *</label>
-                    <input type="text" id="edit-folder" required>
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto3" accept="image/*" capture="environment" id="hallazgo-foto3">
+                  <label for="hallazgo-foto3" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 3
+                  </label>
                 </div>
-
-                <div class="form-group">
-                    <label>Observaciones</label>
-                    <textarea id="edit-observaciones" rows="3"></textarea>
+                <div id="hallazgo-foto3-preview" class="image-preview"></div>
+              </div>
+              <div class="form-group">
+                <label>Ubicación (GPS)</label>
+                <div class="gps-controls">
+                  <button type="button" class="btn-secondary btn-small" id="btn-capture-hallazgo">📍 Capturar
+                    GPS</button>
+                  <span class="gps-status" id="hallazgo-gps-status"></span>
                 </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary"
-                        onclick="document.getElementById('modal-edit-hallazgo').style.display='none'">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        💾 Guardar Cambios
-                    </button>
+                <div class="coords-row">
+                  <div class="coord-input">
+                    <label>Latitud</label>
+                    <input type="number" step="any" name="lat" placeholder="-43.xxx">
+                  </div>
+                  <div class="coord-input">
+                    <label>Longitud</label>
+                    <input type="number" step="any" name="lng" placeholder="-65.xxx">
+                  </div>
                 </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">Guardar Hallazgo</button>
+              </div>
             </form>
+          </div>
         </div>
-    </div>
+      </section>
 
-    </div>
+      <!-- Tab: Rescates -->
+      <section id="tab-rescates" class="tab-content">
+        <div class="section-header">
+          <h2>🦕 Rescates</h2>
+          <button class="btn-primary" id="btn-new-rescate">+ Nuevo Rescate</button>
+        </div>
 
-    <!-- Modal: Edit Fragmento -->
-    <div id="modal-edit-fragmento" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>✏️ Editar Fragmento</h2>
-                <button class="close-modal"
-                    onclick="document.getElementById('modal-edit-fragmento').style.display='none'">×</button>
+        <div id="rescates-list" class="data-list">
+          <div class="empty-state">No hay rescates registrados.</div>
+        </div>
+
+        <!-- Form View (Hidden by default) -->
+        <div id="rescates-form-container" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>Nuevo Rescate</h3>
+              <button class="btn-close" id="btn-close-rescate">&times;</button>
             </div>
-            <form id="form-edit-fragmento" onsubmit="adminPanel.handleEditFragmento(event)">
-                <input type="hidden" id="edit-fragmento-id">
-
+            <form id="form-rescate">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Localidad</label>
+                <input type="text" name="localidad" placeholder="Ej. Cañadón Asfalto" required>
+              </div>
+              <div class="form-group">
+                <label>Carpeta / Lugar</label>
+                <input type="text" name="folder" placeholder="Nombre de carpeta para agrupar" list="folder-list">
+              </div>
+              <div class="form-row">
                 <div class="form-group">
-                    <label>Fecha</label>
-                    <input type="date" id="edit-fragmento-fecha" required>
+                  <label>Tipo de Material</label>
+                  <select name="tipo_material">
+                    <option value="VS">VS</option>
+                    <option value="VS-F">VS-F</option>
+                    <option value="VR">VR</option>
+                    <option value="VR-F">VR-F</option>
+                    <option value="IS">IS</option>
+                    <option value="IS-F">IS-F</option>
+                    <option value="IR">IR</option>
+                    <option value="XS">XS</option>
+                    <option value="XR">XR</option>
+                    <option value="PI">PI</option>
+                    <option value="Huella">Huella</option>
+                  </select>
                 </div>
-
                 <div class="form-group">
-                    <label>Localidad</label>
-                    <input type="text" id="edit-fragmento-localidad" required>
+                  <label>Código</label>
+                  <input type="text" name="codigo" placeholder="Ej. PV-001">
                 </div>
+              </div>
+              <div class="form-group">
+                <label>Formación Geológica</label>
+                <input type="text" name="formacion">
+              </div>
+              <div class="form-group">
+                <label>Coordinador</label>
+                <input type="text" value="Porfiri-Dos Santos" readonly class="readonly-input">
+              </div>
+              <div class="form-group">
+                <label>Colector</label>
+                <input type="text" name="colector">
+              </div>
+              <div class="form-group">
+                <label>Consolidante</label>
+                <select name="consolidante">
+                  <option value="nada">Nada</option>
+                  <option value="laca">Laca</option>
+                  <option value="cianoacrilato">Cianoacrilato</option>
+                  <option value="poxipol">Poxipol</option>
+                  <option value="b72">B72</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Acción de Rescate</label>
+                <div class="radio-group">
+                  <label><input type="radio" name="accion" value="extraccion"> Extracción</label>
+                  <label><input type="radio" name="accion" value="consolidacion"> Consolidación</label>
+                  <label><input type="radio" name="accion" value="embalaje"> Embalaje</label>
+                  <label><input type="radio" name="accion" value="traslado"> Traslado</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Clasificación Taxonómica</label>
+                <input type="text" name="taxonomia">
+              </div>
+              <div class="form-group">
+                <label>Fotos (hasta 3)</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto1" accept="image/*" capture="environment" id="rescate-foto1">
+                  <label for="rescate-foto1" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 1
+                  </label>
+                </div>
+                <div id="rescate-foto1-preview" class="image-preview"></div>
 
-                <div class="form-group">
-                    <label>Carpeta</label>
-                    <input type="text" id="edit-fragmento-folder" required>
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto2" accept="image/*" capture="environment" id="rescate-foto2">
+                  <label for="rescate-foto2" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 2
+                  </label>
                 </div>
+                <div id="rescate-foto2-preview" class="image-preview"></div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Latitud</label>
-                        <input type="number" id="edit-fragmento-lat" step="any">
-                    </div>
-                    <div class="form-group">
-                        <label>Longitud</label>
-                        <input type="number" id="edit-fragmento-lng" step="any">
-                    </div>
+                <div class="file-upload-wrapper" style="margin-top: 10px;">
+                  <input type="file" name="foto3" accept="image/*" capture="environment" id="rescate-foto3">
+                  <label for="rescate-foto3" class="file-upload-label">
+                    <span class="icon">📷</span> Foto 3
+                  </label>
                 </div>
-
-                <div class="form-group">
-                    <label>Observaciones</label>
-                    <textarea id="edit-fragmento-observaciones" rows="3"></textarea>
+                <div id="rescate-foto3-preview" class="image-preview"></div>
+              </div>
+              <div class="form-group">
+                <label>Ubicación (GPS)</label>
+                <div class="gps-controls">
+                  <button type="button" class="btn-secondary btn-small" id="btn-capture-rescate">📍 Capturar GPS</button>
+                  <span class="gps-status" id="rescate-gps-status"></span>
                 </div>
-
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary"
-                        onclick="document.getElementById('modal-edit-fragmento').style.display='none'">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        💾 Guardar Cambios
-                    </button>
+                <div class="coords-row">
+                  <div class="coord-input">
+                    <label>Latitud</label>
+                    <input type="number" step="any" name="lat" placeholder="-43.xxx">
+                  </div>
+                  <div class="coord-input">
+                    <label>Longitud</label>
+                    <input type="number" step="any" name="lng" placeholder="-65.xxx">
+                  </div>
                 </div>
+              </div>
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea name="observaciones" rows="3" placeholder="Notas adicionales (opcional)"></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">Guardar Rescate</button>
+              </div>
             </form>
+          </div>
         </div>
-    </div>
+      </section>
 
 
-    </div>
-
-    <!-- Photo Viewer Modal -->
-    <div id="modal-photo-viewer" class="modal">
-        <div class="modal-content" style="max-width: 90%; max-height: 90vh;">
-            <div class="modal-header">
-                <h2 id="photo-viewer-title">Vista de Foto</h2>
-                <button class="btn-close"
-                    onclick="document.getElementById('modal-photo-viewer').style.display='none'">×</button>
-            </div>
-            <div style="text-align: center; padding: 20px; overflow: auto; max-height: 70vh;">
-                <img id="photo-viewer-image" src="" alt="Foto"
-                    style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-            </div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary"
-                    onclick="document.getElementById('modal-photo-viewer').style.display='none'">Cerrar</button>
-                <button id="btn-download-photo" class="btn btn-primary">📥 Descargar Foto</button>
-            </div>
+      <section id="tab-fragmentos" class="tab-content">
+        <div class="section-header">
+          <h2>Registro de Vestigios</h2>
+          <button class="btn-primary" id="btn-new-fragmento">+ Nuevo Vestigio</button>
         </div>
-    </div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-    <!-- ExcelJS for export with images -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-    <!-- Chart.js for statistics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-    <script src="js/admin-panel.js?v=11"></script>
-
-    <!-- Color Picker Modal -->
-    <div id="modal-color-picker" class="modal">
-        <div class="modal-content" style="max-width: 300px;">
-            <div class="modal-header">
-                <h2>Elegir Color</h2>
-                <button class="modal-close" data-close-modal="modal-color-picker">×</button>
-            </div>
-            <div class="modal-body">
-                <p id="color-picker-label" style="margin-bottom: 15px; font-weight: bold;"></p>
-                <input type="color" id="color-picker-input" style="width: 100%; height: 50px; cursor: pointer;">
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-close-modal="modal-color-picker">Cancelar</button>
-                <button id="btn-apply-color" class="btn btn-primary">Aplicar</button>
-            </div>
+        <div id="fragmentos-list" class="data-list">
+          <div class="empty-state">No hay fragmentos registrados.</div>
         </div>
-    </div>
 
+        <div id="fragmentos-form-container" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>Nuevo Vestigio</h3>
+              <button class="btn-close" id="btn-close-fragmento">&times;</button>
+            </div>
+            <form id="form-fragmento">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Localidad</label>
+                <input type="text" name="localidad" required>
+              </div>
+              <div class="form-group">
+                <label>Carpeta / Lugar</label>
+                <input type="text" name="folder" list="folder-list">
+              </div>
+              <div class="form-group">
+                <label>Foto</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto" accept="image/*" capture="environment" id="fragmento-foto">
+                  <label for="fragmento-foto" class="file-upload-label">
+                    <span class="icon">📷</span> Tomar/Subir Foto
+                  </label>
+                </div>
+                <div id="fragmento-foto-preview" class="image-preview"></div>
+              </div>
+              <div class="form-group">
+                <label>Ubicación (GPS)</label>
+                <div class="gps-controls">
+                  <button type="button" class="btn-secondary btn-small" id="btn-capture-fragmento">📍 Capturar
+                    GPS</button>
+                  <span class="gps-status" id="fragmento-gps-status"></span>
+                </div>
+                <div class="coords-row">
+                  <div class="coord-input">
+                    <label>Latitud</label>
+                    <input type="number" step="any" name="lat" placeholder="-43.xxx">
+                  </div>
+                  <div class="coord-input">
+                    <label>Longitud</label>
+                    <input type="number" step="any" name="lng" placeholder="-65.xxx">
+                  </div>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Tipo</label>
+                <select name="tipo_vestigio" required>
+                  <option value="">Seleccionar tipo...</option>
+                  <option value="xilopalo">Xilópalo</option>
+                  <option value="vertebrados_fosiles">Vertebrados Fósiles</option>
+                  <option value="invertebrados_fosiles">Invertebrados Fósiles</option>
+                  <option value="icnofosil">Icnofósil</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea name="observaciones" rows="3" placeholder="Notas adicionales (opcional)"></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">Guardar Vestigio</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab: Caminos -->
+      <section id="tab-caminos" class="tab-content">
+        <div class="section-header">
+          <h2>Mapas</h2>
+          <div class="actions">
+            <label for="kml-upload" class="btn-secondary">📂 Cargar KML/KMZ</label>
+            <input type="file" id="kml-upload" accept=".kml,.kmz" hidden>
+          </div>
+        </div>
+
+        <!-- Map Filters Panel -->
+        <div class="map-filters-panel">
+          <div class="filter-header">
+            <h4>Filtros de Visualización</h4>
+            <button id="toggle-filters" class="btn-icon" aria-label="Toggle filters">▼</button>
+          </div>
+          <div class="tracking-control" style="padding: 10px; border-bottom: 1px solid #eee;">
+            <button id="btn-toggle-tracking" class="btn-secondary full-width"
+              style="display:flex; align-items:center; justify-content:center; gap:5px;">
+              <span>◎</span> Iniciar Seguimiento
+            </button>
+            <label class="checkbox-label" style="margin-top: 8px; font-size: 0.9em; justify-content: center;">
+              <input type="checkbox" id="chk-record-path">
+              Grabar recorrido (dibujar línea)
+            </label>
+
+            <!-- Background Warning Banner -->
+            <div id="background-warning" class="background-warning" style="display: none;">
+              <span class="warning-icon">⚠️</span>
+              <div class="warning-text">
+                <strong>¡Mantén la app abierta!</strong>
+                <span>El GPS no funciona con la pantalla bloqueada</span>
+              </div>
+            </div>
+
+            <!-- GPS Status Indicator -->
+            <div id="gps-status-indicator"
+              style="display: none; margin-top: 8px; padding: 8px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 8px; color: white;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 0.8em; opacity: 0.8;">📡 Precisión GPS</span>
+                <span id="gps-accuracy-value"
+                  style="font-weight: bold; padding: 2px 8px; border-radius: 12px; background: #2196F3;">--</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 0.85em;">
+                <span>🚶 <span id="gps-speed-value">-- km/h</span></span>
+                <span>🕐 <span id="gps-last-update">--:--:--</span></span>
+              </div>
+            </div>
+
+            <!-- Path Recording Info -->
+            <div id="path-info"
+              style="display: none; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #0d7377 0%, #14919b 100%); border-radius: 8px; color: white;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                <span>📍 Puntos: <strong id="path-points-count">0</strong></span>
+                <span>📏 <strong id="path-distance">0 m</strong></span>
+              </div>
+              <button id="btn-save-path" class="btn-primary full-width"
+                style="margin-top: 4px; padding: 8px; background: #00E676; color: #000; font-weight: bold;">
+                💾 Guardar Recorrido
+              </button>
+            </div>
+          </div>
+          <div class="filter-content" id="map-filters-content">
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-routes" checked>
+                <span class="icon" style="color: #FF5722;">━━</span> Rutas
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-hallazgos" checked>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#e53935"/></svg>
+                Rescate Pendiente
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-hallazgos-picking" checked>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#43a047"/></svg>
+                Picking
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-fragmentos" checked>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#222"/></svg>
+                Xilópalo
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-fragmentos-vertebrados" checked>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FDD835"/></svg>
+                Vertebrados Fósiles
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-fragmentos-invertebrados" checked>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#1E88E5"/></svg>
+                Invertebrados Fósiles
+              </label>
+            </div>
+            <div class="filter-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-fragmentos-icnofosil" checked>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FB8C00"/></svg>
+                Icnofósil
+              </label>
+            </div>
+            <div class="filter-row">
+              <select id="filter-fragmentos-folder" class="folder-select">
+                <option value="all">Todas las carpetas</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="map-container" class="map-view"></div>
+
+        <!-- Map Legend -->
+        <div class="map-legend">
+          <h4>Leyenda</h4>
+          <div class="legend-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#e53935"/></svg>
+            <span>Rescate Pendiente</span>
+          </div>
+          <div class="legend-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#43a047"/></svg>
+            <span>Picking</span>
+          </div>
+          <div class="legend-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#222"/></svg>
+            <span>Xilópalo</span>
+          </div>
+          <div class="legend-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FDD835"/></svg>
+            <span>Vertebrados Fósiles</span>
+          </div>
+          <div class="legend-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#1E88E5"/></svg>
+            <span>Invertebrados Fósiles</span>
+          </div>
+          <div class="legend-item">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="12" height="18"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FB8C00"/></svg>
+            <span>Icnofósil</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-icon" style="color: #FF5722;">━━</span>
+            <span>Rutas</span>
+          </div>
+        </div>
+
+        <div id="routes-list" class="routes-list">
+          <h4>Rutas Cargadas</h4>
+          <div id="routes-items"></div>
+        </div>
+      </section>
+
+      <!-- Tab: Documentación -->
+      <section id="tab-documentacion" class="tab-content">
+        <div class="section-header">
+          <h2>Documentación</h2>
+        </div>
+
+        <!-- Shared Documents from Admin-->
+        <div class="section" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            <span>📤</span> Documentos Compartidos por Administración
+          </h3>
+          <div id="shared-documents-list" class="data-list">
+            <div class="loading">Cargando documentos compartidos...</div>
+          </div>
+        </div>
+
+        <!-- Partes Diarios Section -->
+        <div class="section" id="partes-diarios-section" style="margin-bottom: 24px;">
+          <h3 style="margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            <span>📋</span> Partes Diarios
+            <span id="count-partes"
+              style="font-size: 0.8em; color: var(--text-muted); font-weight: normal; margin-left: auto;">0
+              partes</span>
+            <button id="btn-exportar-partes" class="btn-secondary btn-small"
+              style="font-size:0.78rem; padding:4px 10px; margin-left:8px;"
+              title="Exportar partes para enviar al admin">
+              📤 Exportar
+            </button>
+          </h3>
+          <div id="partes-diarios-list" class="data-list">
+            <div class="empty-state">No hay partes diarios registrados.</div>
+          </div>
+        </div>
+
+        <!-- Personal Documents -->
+        <div class="section">
+          <h3 style="margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px;">
+            <span>📁</span> Mis Documentos
+          </h3>
+
+          <!-- Document Folders Grid -->
+          <div class="doc-folders-grid" id="doc-folders-root">
+            <!-- Cards for fixed folders -->
+            <div class="doc-folder-card" data-category="Permisos">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>Permisos</h3>
+                <small id="count-permisos">0 archivos</small>
+              </div>
+            </div>
+            <div class="doc-folder-card" data-category="ATS">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>ATS</h3>
+                <small id="count-ats">0 archivos</small>
+              </div>
+            </div>
+            <div class="doc-folder-card" data-category="IPCR">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>IPCR</h3>
+                <small id="count-ipcr">0 archivos</small>
+              </div>
+            </div>
+            <div class="doc-folder-card" data-category="Alta Spot">
+              <span class="folder-icon">📋</span>
+              <div class="doc-folder-info">
+                <h3>Alta Spot</h3>
+                <small id="count-altaspot">0 archivos</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Document List View (Hidden by default) -->
+        <div id="doc-list-view" class="hidden">
+          <div class="section-header" style="margin-bottom: 10px;">
+            <button class="btn-secondary btn-small" id="btn-back-docs">⬅ Volver</button>
+            <h3 id="current-doc-category-title" style="margin: 0;">Categoría</h3>
+            <button class="btn-primary btn-small" id="btn-add-doc">+ Nuevo</button>
+          </div>
+          <div id="doc-items-container" class="data-list">
+            <!-- Doc items injected here -->
+          </div>
+        </div>
+
+        <!-- Add Document Modal -->
+        <div id="doc-form-container" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>Agregar Documento</h3>
+              <button class="btn-close" id="btn-close-doc">&times;</button>
+            </div>
+            <form id="form-doc">
+              <input type="hidden" name="category" id="doc-category-input">
+              <div class="form-group">
+                <label>Nombre / Título</label>
+                <input type="text" name="title" required placeholder="Ej. Permiso 2024">
+              </div>
+              <div class="form-group">
+                <label>Archivo (Solo PDF)</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="file" accept=".pdf" id="doc-file-input">
+                  <label for="doc-file-input" class="file-upload-label">
+                    <span class="icon">📄</span> Seleccionar PDF
+                  </label>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">Guardar</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Floating Action Button: Parte Diario -->
+        <button id="btn-nuevo-parte" class="fab-parte-diario" title="Nuevo Parte Diario">
+          📋 Parte Diario
+        </button>
+
+        <!-- Parte Diario Modal -->
+        <div id="parte-diario-modal" class="form-overlay hidden">
+          <div class="form-card">
+            <div class="form-header">
+              <h3>📋 Nuevo Parte Diario</h3>
+              <button class="btn-close" id="btn-close-parte">&times;</button>
+            </div>
+            <form id="form-parte-diario">
+              <div class="form-group">
+                <label>Fecha</label>
+                <input type="date" name="fecha" id="parte-fecha" required>
+              </div>
+              <div class="form-group">
+                <label>Empresa</label>
+                <input type="text" name="empresa" id="parte-empresa" placeholder="Ej. YPF, Pan American Energy..."
+                  list="parte-empresas-list" autocomplete="off">
+                <datalist id="parte-empresas-list"></datalist>
+              </div>
+              <div class="form-group">
+                <label>Yacimiento</label>
+                <input type="text" name="yacimiento" id="parte-yacimiento" placeholder="Ej. Cerro Dragón, El Trébol..."
+                  list="parte-yacimientos-list" autocomplete="off">
+                <datalist id="parte-yacimientos-list"></datalist>
+              </div>
+              <div class="form-group">
+                <label>Locación</label>
+                <input type="text" name="locacion" id="parte-locacion" placeholder="Ej. CAD-101, Anticlinal 5..."
+                  list="parte-locaciones-list" autocomplete="off">
+                <datalist id="parte-locaciones-list"></datalist>
+              </div>
+              <div class="form-group">
+                <label>Observaciones</label>
+                <textarea name="observaciones" id="parte-observaciones" rows="4"
+                  placeholder="Descripción de las actividades del día..."
+                  style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; resize:vertical; font-family:inherit;"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Foto del Parte</label>
+                <div class="file-upload-wrapper">
+                  <input type="file" name="foto" accept="image/*" capture="environment" id="parte-foto-input">
+                  <label for="parte-foto-input" class="file-upload-label">
+                    <span class="icon">📷</span> Tomar / Seleccionar Foto
+                  </label>
+                </div>
+                <div id="parte-foto-preview" class="image-preview" style="margin-top:10px;"></div>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn-primary full-width">💾 Guardar Parte Diario</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Detail View Modal -->
+    <div id="detail-modal" class="form-overlay hidden">
+      <div class="form-card">
+        <div class="form-header">
+          <h3 id="detail-title">Detalle</h3>
+          <button class="btn-close" id="btn-close-detail">&times;</button>
+        </div>
+        <div id="detail-content" class="detail-content">
+          <!-- Content will be injected here -->
+        </div>
+        <div class="form-actions">
+          <button id="btn-delete-item" class="btn-danger">🗑️ Eliminar</button>
+          <button id="btn-edit-item" class="btn-secondary">✏️ Editar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-target="tab-hallazgos">
+      <span class="icon">📍</span>
+      <span class="label">Hallazgos</span>
+    </button>
+    <button class="nav-item" data-target="tab-rescates">
+      <span class="icon">🦕</span>
+      <span class="label">Rescates</span>
+    </button>
+    <button class="nav-item" data-target="tab-fragmentos">
+      <span class="icon">🦴</span>
+      <span class="label">Vestigios</span>
+    </button>
+    <button class="nav-item" data-target="tab-caminos">
+      <span class="icon">🗺️</span>
+      <span class="label">Mapas</span>
+    </button>
+    <button class="nav-item" data-target="tab-documentacion">
+      <span class="icon">📁</span>
+      <span class="label">Docs</span>
+    </button>
+  </nav>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
+  <script src="js/dexie.js"></script>
+  <script src="js/photo-store.js?v=2.3.0"></script>
+  <script src="js/store.js?v=2.3.0"></script>
+  <script src="js/sync-manager.js?v=2.3.0"></script>
+  <script src="js/export.js?v=2.3.0"></script>
+  <script src="js/ui.js?v=2.3.0"></script>
+  <script src="js/map.js?v=2.3.0"></script>
+  <script src="js/documentation.js?v=2.3.0"></script>
+  <script src="js/partes-diarios.js?v=2.3.0"></script>
+  <script src="js/app.js?v=2.3.0"></script>
+  <script src="js/migrate.js?v=2.3.0"></script>
+
+  <script>
+    // Repair Button Logic
+    document.getElementById('btn-repair').addEventListener('click', async () => {
+      // Check if running on file protocol
+      if (window.location.protocol === 'file:') {
+        if (!confirm('Estás ejecutando la app como archivo local. La reparación solo recargará la página. ¿Continuar?')) return;
+        window.location.reload();
+        return;
+      }
+
+      if (!confirm('¿Reparar la aplicación? Esto actualizará la versión y recargará la página. No se borrarán tus datos.')) return;
+
+      try {
+        // Unregister all SWs
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) {
+            await reg.unregister();
+            console.log('SW Unregistered');
+          }
+        }
+
+        // Clear Caches
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          for (const key of keys) {
+            await caches.delete(key);
+            console.log('Cache deleted:', key);
+          }
+        }
+
+        alert('Reparación completa. La página se recargará.');
+        window.location.reload(true);
+      } catch (e) {
+        console.error(e);
+        alert('Intentando recarga forzada...');
+        window.location.reload(true);
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      if (window.location.protocol !== 'file:') {
+        window.addEventListener('load', () => {
+          // Register at ROOT scope
+          navigator.serviceWorker.register('./service-worker.js')
+            .then(registration => {
+              console.log('SW Registered at root');
+              registration.update();
+            })
+            .catch(err => console.log('SW Registration failed', err));
+        });
+
+        // Refresh page when new SW takes control
+        let refreshing;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshing) return;
+          window.location.reload();
+          refreshing = true;
+        });
+      } else {
+        console.log('Service Worker not supported on file:// protocol. Running in offline-only mode.');
+      }
+    }
+  </script>
+
+  <!-- Modal de Configuración -->
+  <div id="config-modal" style="
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+  ">
+    <div style="
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+    ">
+      <h2 style="margin-top: 0;">⚙️ Configuración</h2>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+          ID de Colector:
+        </label>
+        <input type="text" id="config-collector-id" readonly style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          background: #f5f5f5;
+          font-family: monospace;
+          font-size: 12px;
+        ">
+        <small style="color: #666;">Este ID se genera automáticamente</small>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+          Tu Nombre (opcional):
+        </label>
+        <input type="text" id="config-collector-name" placeholder="Ej: Juan Pérez" style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+        ">
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold;">
+          URL del Servidor:
+        </label>
+        <input type="text" id="config-backend-url" placeholder="http://localhost:3000" style="
+          width: 100%;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+        ">
+        <small style="color: #666;">Cambiar solo si el servidor está en otra dirección</small>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="btn-config-cancel" class="btn-secondary">
+          Cancelar
+        </button>
+        <button id="btn-config-save" class="btn-primary">
+          Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug Log -->
+  <div id="debug-log" style="
+    display: none; /* Hidden by default, toggle via console or if needed */
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    font-family: monospace;
+    font-size: 10px;
+    z-index: 9999;
+    padding: 10px;
+  "></div>
+
+  <script>
+    // Show debug log if on mobile or requested
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      document.getElementById('debug-log').style.display = 'block';
+    }
+  </script>
 </body>
 
 </html>
