@@ -1816,7 +1816,7 @@ class AdminPanel {
                 <h3>${this.escapeHtml(folder.name)}</h3>
                 <div class="folder-stats-preview">
                     <span>📍 ${folder.hallazgos.length} hallazgos</span>
-                    <span>🦴 ${folder.fragmentos.length} fragmentos</span>
+                    <span>🦴 ${folder.fragmentos.length} vestigios</span>
                     <span>👥 ${folder.collectors.length} colectores</span>
                 </div>
                 <div class="folder-actions">
@@ -1926,7 +1926,7 @@ class AdminPanel {
             `;
         } else if (tabName === 'folder-fragmentos') {
             if (folder.fragmentos.length === 0) {
-                content.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No hay fragmentos en esta carpeta</p>';
+                content.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No hay vestigios en esta carpeta</p>';
                 return;
             }
 
