@@ -14,10 +14,6 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
     <link rel="stylesheet" href="css/admin-styles.css">
-    <style>
-        .view { display: none !important; }
-        .view.active { display: block !important; }
-    </style>
 </head>
 
 <body>
@@ -347,38 +343,36 @@
                             <select id="filter-map-folder" class="filter-select">
                                 <option value="">Todas las carpetas</option>
                             </select>
-
-                                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px;">
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-hallazgos-rescate" checked>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#e53935"/></svg>
-                                        Rescate Pendiente</label>
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-hallazgos-picking" checked>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#43a047"/></svg>
-                                        Picking</label>
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-fragmentos-xilopalo" checked>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#222"/></svg>
-                                        Xilópalo</label>
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-fragmentos-vertebrados" checked>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FDD835"/></svg>
-                                        Vertebrados Fósiles</label>
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-fragmentos-invertebrados" checked>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#1E88E5"/></svg>
-                                        Invertebrados Fósiles</label>
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-fragmentos-icnofosil" checked>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FB8C00"/></svg>
-                                        Icnofósil</label>
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-rescates" checked>
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="white" stroke="#888" stroke-width="1.5"/></svg>
-                                        Rescatados</label>
-                                    <label style="display:flex;align-items:center;gap:4px;white-space:nowrap;"><input type="checkbox" id="map-show-routes" checked> Rutas</label>
-                                </div>
+                            <div style="display:inline-block;margin-left:10px;">
+                                <label><input type="checkbox" id="map-show-hallazgos-rescate" checked> 
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#e53935"/></svg>
+                                    Rescate Pendiente</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-hallazgos-picking" checked>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#43a047"/></svg>
+                                    Picking</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-xilopalo" checked>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#222"/></svg>
+                                    Xilópalo</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-vertebrados" checked>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FDD835"/></svg>
+                                    Vertebrados Fósiles</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-invertebrados" checked>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#1E88E5"/></svg>
+                                    Invertebrados Fósiles</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-fragmentos-icnofosil" checked>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#FB8C00"/></svg>
+                                    Icnofósil</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-rescates" checked>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="10" height="15" style="vertical-align:middle;"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="white" stroke="#888" stroke-width="1.5"/></svg>
+                                    Rescates</label>
+                                <label style="margin-left:10px;"><input type="checkbox" id="map-show-routes" checked> Rutas</label>
                             </div>
                         </div>
                     </div>
-                    <div id="admin-map" style="height:600px;width:100%;border-radius:8px;display:none;"></div>
+                    <div id="admin-map" style="height:600px;width:100%;border-radius:8px;"></div>
 
                     <!-- Leyenda -->
-                    <div id="map-legend" style="background:#fff;border-radius:10px;padding:16px;margin-top:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);display:none;">
+                    <div style="background:#fff;border-radius:10px;padding:16px;margin-top:16px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
                         <strong style="font-size:.95rem;">Leyenda</strong>
                         <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;align-items:center;">
                             <div style="display:flex;align-items:center;gap:5px;">
@@ -411,6 +405,7 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
                 <!-- Folders View -->
                 <div id="view-folders" class="view">
@@ -930,6 +925,100 @@
 
     </div>
 
+    <!-- Modal: Edit Rescate -->
+    <div id="modal-edit-rescate" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>✏️ Editar Rescate</h2>
+                <button class="btn-close" onclick="document.getElementById('modal-edit-rescate').style.display='none'">×</button>
+            </div>
+            <form id="form-edit-rescate" class="edit-form">
+                <input type="hidden" id="edit-rescate-id">
+
+                <div class="form-group">
+                    <label>Código</label>
+                    <input type="text" id="edit-rescate-codigo">
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Material</label>
+                    <select id="edit-rescate-tipo">
+                        <option value="">Seleccionar...</option>
+                        <option value="VS">VS</option>
+                        <option value="VS-F">VS-F</option>
+                        <option value="VR">VR</option>
+                        <option value="VR-F">VR-F</option>
+                        <option value="IS">IS</option>
+                        <option value="IS-F">IS-F</option>
+                        <option value="IR">IR</option>
+                        <option value="XS">XS</option>
+                        <option value="XR">XR</option>
+                        <option value="PI">PI</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Localidad</label>
+                    <input type="text" id="edit-rescate-localidad">
+                </div>
+
+                <div class="form-group">
+                    <label>Carpeta</label>
+                    <input type="text" id="edit-rescate-folder">
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha</label>
+                    <input type="date" id="edit-rescate-fecha">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Latitud</label>
+                        <input type="number" id="edit-rescate-lat" step="0.000001">
+                    </div>
+                    <div class="form-group">
+                        <label>Longitud</label>
+                        <input type="number" id="edit-rescate-lng" step="0.000001">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Observaciones</label>
+                    <textarea id="edit-rescate-observaciones" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Foto 1</label>
+                    <div id="edit-rescate-foto1-preview"></div>
+                    <input type="file" id="edit-rescate-foto1-input" accept="image/*">
+                </div>
+
+                <div class="form-group">
+                    <label>Foto 2</label>
+                    <div id="edit-rescate-foto2-preview"></div>
+                    <input type="file" id="edit-rescate-foto2-input" accept="image/*">
+                </div>
+
+                <div class="form-group">
+                    <label>Foto 3</label>
+                    <div id="edit-rescate-foto3-preview"></div>
+                    <input type="file" id="edit-rescate-foto3-input" accept="image/*">
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary"
+                        onclick="document.getElementById('modal-edit-rescate').style.display='none'">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        💾 Guardar Cambios
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal: Edit Fragmento -->
     <div id="modal-edit-fragmento" class="modal">
         <div class="modal-content">
@@ -1019,7 +1108,7 @@
     <!-- Chart.js for statistics -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-    <script src="js/admin-panel.js?v=99"></script>
+    <script src="js/admin-panel.js?v=11"></script>
 
     <!-- Color Picker Modal -->
     <div id="modal-color-picker" class="modal">
