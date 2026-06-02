@@ -281,6 +281,9 @@ class AdminPanel {
         document.getElementById('form-edit-hallazgo')?.addEventListener('submit', (e) => {
             this.handleEditHallazgo(e);
         });
+        document.getElementById('form-edit-rescate')?.addEventListener('submit', (e) => {
+            this.handleEditRescate(e);
+        });
 
         // Setup palette selectors
         this.setupPaletteListeners();
@@ -615,17 +618,6 @@ class AdminPanel {
         });
         document.getElementById(`view-${viewName}`).classList.add('active');
 
-        // Ocultar/mostrar leyenda y mapa según la vista
-        const mapEl = document.getElementById('admin-map');
-        const legendEl = document.getElementById('map-legend');
-        if (viewName === 'map') {
-            if (mapEl) mapEl.style.display = 'block';
-            if (legendEl) legendEl.style.display = 'block';
-        } else {
-            if (mapEl) mapEl.style.display = 'none';
-            if (legendEl) legendEl.style.display = 'none';
-        }
-
         this.currentView = viewName;
 
         // Load data for the view
@@ -647,7 +639,6 @@ class AdminPanel {
                 break;
             case 'map':
                 this.loadMap();
-                setTimeout(() => { if (this.map) this.map.invalidateSize(); }, 100);
                 break;
             case 'folders':
                 this.loadFolders();
@@ -1374,8 +1365,6 @@ class AdminPanel {
                     maxZoom: 19
                 }).addTo(this.map);
 
-                this.routeColors = {}; // { routeId: '#hexcolor' }
-
                 this.mapLayers = {
                     hallazgos: L.layerGroup().addTo(this.map),
                     hallazgosRescate: L.layerGroup().addTo(this.map),
@@ -1543,41 +1532,33 @@ class AdminPanel {
 
             // Add routes as polylines/polygons
             routesData.data.forEach(route => {
-                if (!route.content) return;
+                if (!route.content) return; // Campo correcto: content
 
                 const parsed = this.parseRouteKML(route.content);
                 if (!parsed || parsed.coordinates.length < 2) return;
 
-                const defaultColor = parsed.type === 'Polygon' ? '#9b59b6' : '#3498db';
-                const color = this.routeColors[route.id] || defaultColor;
-
                 let layer;
                 if (parsed.type === 'LineString') {
-                    layer = L.polyline(parsed.coordinates, { color, weight: 3, opacity: 0.8 });
+                    layer = L.polyline(parsed.coordinates, {
+                        color: '#3498db',  // Azul
+                        weight: 3,
+                        opacity: 0.7
+                    });
                 } else if (parsed.type === 'Polygon') {
-                    layer = L.polygon(parsed.coordinates, { color, fillColor: color, fillOpacity: 0.08, weight: 3, interactive: true });
+                    layer = L.polygon(parsed.coordinates, {
+                        color: '#9b59b6',  // Morado
+                        fillColor: '#9b59b6',
+                        fillOpacity: 0.2,
+                        weight: 2
+                    });
                 }
 
                 if (layer) {
-                    layer._routeId = route.id;
-                    layer._routeDefaultColor = defaultColor;
-
-                    const popupId = `route-color-${route.id}`;
                     layer.bindPopup(`
                         <b>${parsed.name}</b><br/>
                         Fecha: ${route.fecha || 'N/A'}<br/>
                         ${route.folder ? `Carpeta: ${route.folder}<br/>` : ''}
-                        ${parsed.description ? `<br/>${parsed.description}<br/>` : ''}
-                        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-                            <label style="font-size:.85rem;font-weight:600;">🎨 Color:</label>
-                            <input type="color" id="${popupId}" value="${color}"
-                                style="width:36px;height:28px;border:none;cursor:pointer;padding:0;"
-                                onchange="window.adminPanel.setRouteColor('${route.id}', this.value)">
-                            <button onclick="window.adminPanel.resetRouteColor('${route.id}', '${defaultColor}')"
-                                style="font-size:.75rem;padding:2px 6px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#f5f5f5;">
-                                Reset
-                            </button>
-                        </div>
+                        ${parsed.description ? `<br/>${parsed.description}` : ''}
                     `);
 
                     this.mapLayers.routes.addLayer(layer);
@@ -1594,28 +1575,6 @@ class AdminPanel {
         } catch (error) {
             console.error('Error updating map:', error);
         }
-    }
-
-    setRouteColor(routeId, color) {
-        this.routeColors[routeId] = color;
-        this.mapLayers.routes.eachLayer(layer => {
-            if (layer._routeId === routeId) {
-                layer.setStyle({ color, fillColor: color });
-                const input = document.getElementById(`route-color-${routeId}`);
-                if (input) input.value = color;
-            }
-        });
-    }
-
-    resetRouteColor(routeId, defaultColor) {
-        delete this.routeColors[routeId];
-        this.mapLayers.routes.eachLayer(layer => {
-            if (layer._routeId === routeId) {
-                layer.setStyle({ color: defaultColor, fillColor: defaultColor });
-                const input = document.getElementById(`route-color-${routeId}`);
-                if (input) input.value = defaultColor;
-            }
-        });
     }
 
     updateMapVisibility() {
@@ -1816,7 +1775,7 @@ class AdminPanel {
                 <h3>${this.escapeHtml(folder.name)}</h3>
                 <div class="folder-stats-preview">
                     <span>📍 ${folder.hallazgos.length} hallazgos</span>
-                    <span>🦴 ${folder.fragmentos.length} vestigios</span>
+                    <span>🦴 ${folder.fragmentos.length} fragmentos</span>
                     <span>👥 ${folder.collectors.length} colectores</span>
                 </div>
                 <div class="folder-actions">
@@ -1926,7 +1885,7 @@ class AdminPanel {
             `;
         } else if (tabName === 'folder-fragmentos') {
             if (folder.fragmentos.length === 0) {
-                content.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No hay vestigios en esta carpeta</p>';
+                content.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No hay fragmentos en esta carpeta</p>';
                 return;
             }
 
@@ -2088,10 +2047,12 @@ class AdminPanel {
                 return;
             }
 
+            this.currentRescates = rawData.data;
+
             tbody.innerHTML = rawData.data.map(r => {
                 const foto = r.foto1 || r.foto2 || r.foto3;
                 const fotoHTML = foto ?
-                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;">` :
+                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${foto}', 'Foto Rescate')">` :
                     '<span style="color:#999;">Sin foto</span>';
 
                 return `
@@ -2103,8 +2064,9 @@ class AdminPanel {
           <td>${r.folder || 'N/A'}</td>
           <td>${r.tipo_material || 'N/A'}</td>
           <td>${r.codigo || 'N/A'}</td>
-          <td>${r.lat && r.lng ? `${r.lat.toFixed(5)}, ${r.lng.toFixed(5)}` : 'N/A'}</td>
+          <td>${r.lat && r.lng ? `${parseFloat(r.lat).toFixed(5)}, ${parseFloat(r.lng).toFixed(5)}` : 'N/A'}</td>
           <td>
+            <button class="btn-icon" onclick="window.adminPanel.editRescate('${r.id}')" title="Editar">✏️</button>
             <button class="btn btn-danger btn-sm" onclick="window.adminPanel.deleteItem('rescates', '${r.id}', 'Rescate')">
               🗑️ Eliminar
             </button>
@@ -2117,6 +2079,84 @@ class AdminPanel {
         } catch (error) {
             console.error('Error loading rescates:', error);
             alert('Error cargando rescates: ' + error.message);
+        }
+    }
+
+    editRescate(rescateId) {
+        try {
+            const rescate = this.currentRescates && this.currentRescates.find(r => String(r.id) === String(rescateId));
+            if (!rescate) { alert('Rescate no encontrado'); return; }
+
+            document.getElementById('edit-rescate-id').value = rescate.id;
+            document.getElementById('edit-rescate-codigo').value = rescate.codigo || '';
+            document.getElementById('edit-rescate-tipo').value = rescate.tipo_material || '';
+            document.getElementById('edit-rescate-localidad').value = rescate.localidad || '';
+            document.getElementById('edit-rescate-folder').value = rescate.folder || '';
+            document.getElementById('edit-rescate-fecha').value = rescate.fecha || '';
+            document.getElementById('edit-rescate-lat').value = rescate.lat || '';
+            document.getElementById('edit-rescate-lng').value = rescate.lng || '';
+            document.getElementById('edit-rescate-observaciones').value = rescate.observaciones || '';
+
+            // Mostrar fotos actuales
+            ['foto1', 'foto2', 'foto3'].forEach(f => {
+                const preview = document.getElementById(`edit-rescate-${f}-preview`);
+                if (preview) {
+                    preview.innerHTML = rescate[f]
+                        ? `<img src="${rescate[f]}" style="width:80px;height:80px;object-fit:cover;border-radius:4px;cursor:pointer;" onclick="window.adminPanel.viewPhoto('${rescate[f]}', 'Foto')"><br><small>Foto actual</small>`
+                        : '';
+                }
+            });
+
+            document.getElementById('modal-edit-rescate').style.display = 'flex';
+        } catch (error) {
+            console.error('Error editing rescate:', error);
+            alert('Error al abrir editor');
+        }
+    }
+
+    async handleEditRescate(e) {
+        e.preventDefault();
+        const rescateId = document.getElementById('edit-rescate-id').value;
+
+        const updatedData = {
+            codigo: document.getElementById('edit-rescate-codigo').value,
+            tipo_material: document.getElementById('edit-rescate-tipo').value,
+            localidad: document.getElementById('edit-rescate-localidad').value,
+            folder: document.getElementById('edit-rescate-folder').value,
+            fecha: document.getElementById('edit-rescate-fecha').value,
+            lat: parseFloat(document.getElementById('edit-rescate-lat').value) || null,
+            lng: parseFloat(document.getElementById('edit-rescate-lng').value) || null,
+            observaciones: document.getElementById('edit-rescate-observaciones').value
+        };
+
+        // Procesar fotos nuevas si las hay
+        for (const f of ['foto1', 'foto2', 'foto3']) {
+            const input = document.getElementById(`edit-rescate-${f}-input`);
+            if (input && input.files[0]) {
+                updatedData[f] = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(input.files[0]);
+                });
+            }
+        }
+
+        try {
+            const response = await this.apiRequest(`/api/admin/rescates/${rescateId}`, {
+                method: 'PUT',
+                body: JSON.stringify(updatedData)
+            });
+
+            if (response.success) {
+                alert('✅ Rescate actualizado exitosamente');
+                document.getElementById('modal-edit-rescate').style.display = 'none';
+                this.loadRescates();
+            } else {
+                alert('❌ Error al actualizar: ' + (response.error || 'Desconocido'));
+            }
+        } catch (error) {
+            console.error('Error updating rescate:', error);
+            alert('❌ Error de conexión al actualizar');
         }
     }
 
