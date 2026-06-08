@@ -1499,8 +1499,13 @@ class AdminPanel {
                 if (!f.lat || !f.lng) return;
 
                 let tipo = f.tipo_vestigio;
-                if (!tipo) {
-                    tipo = (f.observaciones && f.observaciones.toLowerCase().includes('xilopalo')) ? 'xilopalo' : 'vertebrados_fosiles';
+               if (!tipo) {
+                    const obs = f.observaciones?.toLowerCase() || '';
+                    if (obs.includes('xilopalo') || obs.includes('xilópalo')) tipo = 'xilopalo';
+                    else if (obs.includes('invertebrados')) tipo = 'invertebrados_fosiles';
+                    else if (obs.includes('icnofosil') || obs.includes('icnofósil')) tipo = 'icnofosil';
+                    else if (obs.includes('vertebrados')) tipo = 'vertebrados_fosiles';
+                    else tipo = 'vertebrados_fosiles';
                 }
 
                 const color = VESTIGIO_COLORS[tipo] || '#FDD835';
