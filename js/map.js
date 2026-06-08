@@ -256,12 +256,13 @@ class MapManager {
 
             // Determinar tipo: campo tipo_vestigio, o migrar desde observaciones
             let tipo = a.tipo_vestigio;
-            if (!tipo) {
-                if (a.observaciones && a.observaciones.toLowerCase().includes('xilopalo')) {
-                    tipo = 'xilopalo';
-                } else {
-                    tipo = 'vertebrados_fosiles';
-                }
+           if (!tipo) {
+                const obs = a.observaciones?.toLowerCase() || '';
+                if (obs.includes('xilopalo') || obs.includes('xilópalo')) tipo = 'xilopalo';
+                else if (obs.includes('invertebrados')) tipo = 'invertebrados_fosiles';
+                else if (obs.includes('icnofosil') || obs.includes('icnofósil')) tipo = 'icnofosil';
+                else if (obs.includes('vertebrados')) tipo = 'vertebrados_fosiles';
+                else tipo = 'vertebrados_fosiles';
             }
 
             const filterKey = VESTIGIO_FILTER_MAP[tipo] || 'showFragmentos';
