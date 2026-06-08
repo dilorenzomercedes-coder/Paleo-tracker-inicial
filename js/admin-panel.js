@@ -897,13 +897,8 @@ class AdminPanel {
             const normalized = data.data.map(f => {
                 let tipo = f.tipo_vestigio;
                 if (!tipo) {
-                const obs = f.observaciones?.toLowerCase() || '';
-                if (obs.includes('xilopalo') || obs.includes('xilópalo')) tipo = 'xilopalo';
-                else if (obs.includes('invertebrados')) tipo = 'invertebrados_fosiles';
-                else if (obs.includes('icnofosil') || obs.includes('icnofósil')) tipo = 'icnofosil';
-                else if (obs.includes('vertebrados')) tipo = 'vertebrados_fosiles';
-                else tipo = 'vertebrados_fosiles';
-            }
+                    tipo = f.observaciones?.toLowerCase().includes('xilopalo') ? 'xilopalo' : 'vertebrados_fosiles';
+                }
                 return { ...f, _tipo: tipo };
             });
 
@@ -1499,13 +1494,8 @@ class AdminPanel {
                 if (!f.lat || !f.lng) return;
 
                 let tipo = f.tipo_vestigio;
-               if (!tipo) {
-                    const obs = f.observaciones?.toLowerCase() || '';
-                    if (obs.includes('xilopalo') || obs.includes('xilópalo')) tipo = 'xilopalo';
-                    else if (obs.includes('invertebrados')) tipo = 'invertebrados_fosiles';
-                    else if (obs.includes('icnofosil') || obs.includes('icnofósil')) tipo = 'icnofosil';
-                    else if (obs.includes('vertebrados')) tipo = 'vertebrados_fosiles';
-                    else tipo = 'vertebrados_fosiles';
+                if (!tipo) {
+                    tipo = (f.observaciones && f.observaciones.toLowerCase().includes('xilopalo')) ? 'xilopalo' : 'vertebrados_fosiles';
                 }
 
                 const color = VESTIGIO_COLORS[tipo] || '#FDD835';
@@ -2130,7 +2120,7 @@ class AdminPanel {
         }
     }
 
-  async deleteItem(type, id, label) {
+    async deleteItem(type, id, label) {
         if (!confirm(`¿Eliminar este ${label}? Esta acción no se puede deshacer.`)) return;
 
         try {
@@ -2145,6 +2135,7 @@ class AdminPanel {
             alert(`Error al eliminar ${label}: ` + error.message);
         }
     }
+
     async marcarRescatado(hallazgoId) {
         if (!confirm('¿Marcar este hallazgo como RESCATADO? Desaparecerá del mapa de rescates pendientes.')) return;
         try {
@@ -2623,6 +2614,7 @@ class AdminPanel {
     // Edit fragmento
     editFragmento(fragmentoId) {
         try {
+            // Buscar fragmento en los datos actuales
             const fragmento = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(fragmentoId));
 
             if (!fragmento) {
@@ -2630,6 +2622,7 @@ class AdminPanel {
                 return;
             }
 
+            // Prellenar formulario
             document.getElementById('edit-fragmento-id').value = fragmento.id;
             document.getElementById('edit-fragmento-fecha').value = fragmento.fecha || '';
             document.getElementById('edit-fragmento-localidad').value = fragmento.localidad || '';
@@ -2637,8 +2630,8 @@ class AdminPanel {
             document.getElementById('edit-fragmento-lat').value = fragmento.lat || '';
             document.getElementById('edit-fragmento-lng').value = fragmento.lng || '';
             document.getElementById('edit-fragmento-observaciones').value = fragmento.observaciones || '';
-            document.getElementById('edit-fragmento-tipo-vestigio').value = fragmento.tipo_vestigio || fragmento._tipo || '';
 
+            // Abrir modal
             document.getElementById('modal-edit-fragmento').style.display = 'flex';
 
         } catch (error) {
@@ -2647,6 +2640,7 @@ class AdminPanel {
         }
     }
 
+    // Handle edit fragmento form submission
     async handleEditFragmento(e) {
         e.preventDefault();
 
@@ -2658,8 +2652,7 @@ class AdminPanel {
             folder: document.getElementById('edit-fragmento-folder').value,
             lat: parseFloat(document.getElementById('edit-fragmento-lat').value) || null,
             lng: parseFloat(document.getElementById('edit-fragmento-lng').value) || null,
-            observaciones: document.getElementById('edit-fragmento-observaciones').value,
-            tipo_vestigio: document.getElementById('edit-fragmento-tipo-vestigio').value
+            observaciones: document.getElementById('edit-fragmento-observaciones').value
         };
 
         try {
@@ -2671,7 +2664,7 @@ class AdminPanel {
             if (response.success) {
                 alert('✅ Fragmento actualizado exitosamente');
                 document.getElementById('modal-edit-fragmento').style.display = 'none';
-                this.loadFragmentos();
+                this.loadFragmentos(); // Recargar tabla
             } else {
                 alert('❌ Error al actualizar: ' + (response.error || 'Desconocido'));
             }
