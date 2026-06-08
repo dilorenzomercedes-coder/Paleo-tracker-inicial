@@ -2138,7 +2138,9 @@ class AdminPanel {
             alert(`${label} eliminado exitosamente`);
             // Reload the current view
             const view = this.currentView;
-            if (view) this.loadView(view);
+        if (view) {
+            this.loadView(view);
+            if (this.map) await this.updateMap();
         } catch (error) {
             alert(`Error al eliminar ${label}: ` + error.message);
         }
