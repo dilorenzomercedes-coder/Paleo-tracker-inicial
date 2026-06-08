@@ -2130,22 +2130,21 @@ class AdminPanel {
         }
     }
 
-    async deleteItem(type, id, label) {
+  async deleteItem(type, id, label) {
         if (!confirm(`¿Eliminar este ${label}? Esta acción no se puede deshacer.`)) return;
 
         try {
             await this.apiRequest(`/api/admin/${type}/${id}`, { method: 'DELETE' });
             alert(`${label} eliminado exitosamente`);
-            // Reload the current view
             const view = this.currentView;
-        if (view) {
-            this.loadView(view);
-            if (this.map) await this.updateMap();
+            if (view) {
+                this.loadView(view);
+                if (this.map) await this.updateMap();
+            }
         } catch (error) {
             alert(`Error al eliminar ${label}: ` + error.message);
         }
     }
-
     async marcarRescatado(hallazgoId) {
         if (!confirm('¿Marcar este hallazgo como RESCATADO? Desaparecerá del mapa de rescates pendientes.')) return;
         try {
