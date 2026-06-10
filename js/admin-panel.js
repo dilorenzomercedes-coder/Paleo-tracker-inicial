@@ -2630,6 +2630,7 @@ class AdminPanel {
             document.getElementById('edit-fragmento-lat').value = fragmento.lat || '';
             document.getElementById('edit-fragmento-lng').value = fragmento.lng || '';
             document.getElementById('edit-fragmento-observaciones').value = fragmento.observaciones || '';
+            document.getElementById('edit-fragmento-tipo-vestigio').value = fragmento.tipo_vestigio || fragmento._tipo || '';
 
             // Abrir modal
             document.getElementById('modal-edit-fragmento').style.display = 'flex';
@@ -2652,7 +2653,8 @@ class AdminPanel {
             folder: document.getElementById('edit-fragmento-folder').value,
             lat: parseFloat(document.getElementById('edit-fragmento-lat').value) || null,
             lng: parseFloat(document.getElementById('edit-fragmento-lng').value) || null,
-            observaciones: document.getElementById('edit-fragmento-observaciones').value
+            observaciones: document.getElementById('edit-fragmento-observaciones').value,
+            tipo_vestigio: document.getElementById('edit-fragmento-tipo-vestigio').value
         };
 
         try {
