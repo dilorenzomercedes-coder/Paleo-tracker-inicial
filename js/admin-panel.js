@@ -283,6 +283,18 @@ class AdminPanel {
         });
         document.getElementById('form-edit-rescate')?.addEventListener('submit', (e) => {
             this.handleEditRescate(e);
+            document.getElementById('form-edit-hallazgo')?.addEventListener('submit', (e) => {
+            this.handleEditHallazgo(e);
+        });
+        document.getElementById('form-edit-rescate')?.addEventListener('submit', (e) => {
+            this.handleEditRescate(e);
+        });
+        document.getElementById('form-edit-fragmento')?.addEventListener('submit', (e) => {
+            this.handleEditFragmento(e);
+        });
+        // Setup palette selectors
+        this.setupPaletteListeners();
+            
         });
 
         // Setup palette selectors
