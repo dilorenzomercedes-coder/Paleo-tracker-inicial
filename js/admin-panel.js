@@ -2680,27 +2680,22 @@ class AdminPanel {
         }
     }
 
-    // Export to Excel with embedded images
+   // Export to Excel with embedded images
     async exportExcel(type) {
         try {
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet(type === 'hallazgos' ? 'Hallazgos' : 'Vestigios');
 
-            // Always fetch fresh data from API to ensure photos are included
             console.log(`Fetching fresh ${type} data for Excel export...`);
             const response = await this.apiRequest(type === 'hallazgos' ? '/api/admin/hallazgos' : '/api/admin/fragmentos');
             let data = response.data;
-            console.log(`Fetched ${data.length} ${type}, first item has foto:`, !!data[0]?.foto);
 
-            // Get selected folder filter
             const folderFilter = type === 'hallazgos'
                 ? document.getElementById('filter-excel-hallazgos-folder')?.value
                 : document.getElementById('filter-excel-fragmentos-folder')?.value;
 
-            // Filter by folder if selected
             if (folderFilter) {
                 data = data.filter(item => item.folder === folderFilter);
-                console.log(`Filtered to ${data.length} ${type} in folder "${folderFilter}"`);
             }
 
             if (!data || data.length === 0) {
@@ -2708,9 +2703,11 @@ class AdminPanel {
                 return;
             }
 
-            // Configure columns based on type
+            const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
+
             if (type === 'hallazgos') {
                 worksheet.columns = [
+                    { header: 'N°', key: 'numero', width: 6 },
                     { header: 'Código', key: 'codigo', width: 15 },
                     { header: 'Tipo Material', key: 'tipo_material', width: 20 },
                     { header: 'Localidad', key: 'localidad', width: 20 },
@@ -2725,6 +2722,8 @@ class AdminPanel {
                 ];
             } else {
                 worksheet.columns = [
+                    { header: 'N°', key: 'numero', width: 6 },
+                    { header: 'Tipo Vestigio', key: 'tipo_vestigio', width: 20 },
                     { header: 'Localidad', key: 'localidad', width: 20 },
                     { header: 'Carpeta', key: 'folder', width: 15 },
                     { header: 'Latitud', key: 'lat', width: 12 },
@@ -2744,10 +2743,12 @@ class AdminPanel {
                 fgColor: { argb: 'FF4CAF50' }
             };
 
-            // Add data rows
             let rowIndex = 2;
+            let itemNumber = 1;
+
             for (const item of data) {
                 const rowData = type === 'hallazgos' ? {
+                    numero: itemNumber,
                     codigo: item.codigo || '',
                     tipo_material: item.tipo_material || '',
                     localidad: item.localidad || '',
@@ -2759,6 +2760,8 @@ class AdminPanel {
                     collector: item.collector?.name || item.collector?.collectorId || '',
                     fecha: item.fecha || ''
                 } : {
+                    numero: itemNumber,
+                    tipo_vestigio: TIPO_LABELS[item.tipo_vestigio] || item.tipo_vestigio || 'Sin especificar',
                     localidad: item.localidad || '',
                     folder: item.folder || '',
                     lat: item.lat || '',
@@ -2769,39 +2772,31 @@ class AdminPanel {
                 };
 
                 const row = worksheet.addRow(rowData);
-                row.height = 80; // Make rows taller for images
+                row.height = 80;
 
-                // Add image if exists (hallazgos use foto1, fragmentos use foto)
                 const photoField = type === 'hallazgos' ? item.foto1 : item.foto;
                 if (photoField) {
                     try {
-                        console.log(`Processing image for ${type} at row ${rowIndex}, has photo:`, !!photoField);
-                        // Convert base64 to buffer
                         const base64Data = photoField.replace(/^data:image\/\w+;base64,/, '');
                         const imageId = workbook.addImage({
                             base64: base64Data,
                             extension: 'jpeg',
                         });
 
-                        // Add image to cell
-                        const colIndex = type === 'hallazgos' ? 10 : 7; // Photo column (0-indexed)
+                        const colIndex = type === 'hallazgos' ? 11 : 9;
                         worksheet.addImage(imageId, {
                             tl: { col: colIndex, row: rowIndex - 1 },
                             ext: { width: 100, height: 75 }
                         });
-                        console.log(`Image added successfully at col ${colIndex}, row ${rowIndex - 1}`);
                     } catch (error) {
                         console.error('Error adding image to row:', error);
-                        row.getCell(type === 'hallazgos' ? 11 : 8).value = 'Error cargando imagen';
                     }
-                } else {
-                    console.log(`No foto for ${type} at row ${rowIndex}`);
                 }
 
                 rowIndex++;
+                itemNumber++;
             }
 
-            // Generate Excel file
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             const url = window.URL.createObjectURL(blob);
