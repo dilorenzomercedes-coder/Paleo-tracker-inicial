@@ -1350,7 +1350,7 @@ class AdminPanel {
   <div class="header">
     <div>
       <div class="title">📋 Parte Diario</div>
-      <div class="meta">Paleo Heritage · ${fecha} · ${collector}</div>
+      <div class="meta">Paleo Tracker · ${fecha} · ${collector}</div>
     </div>
   </div>
   <img src="${fotoSrc}" class="photo" alt="Foto del parte">
@@ -1362,7 +1362,7 @@ class AdminPanel {
     <div class="label">Colector</div>
     <div class="value">${collector}</div>
   </div>
-  <div class="footer">Generado por Paleo Heritage Admin · ${new Date().toLocaleString()}</div>
+  <div class="footer">Generado por Paleo Tracker Admin · ${new Date().toLocaleString()}</div>
   <script>window.onload = function(){ window.print(); }<\/script>
 </body>
 </html>`);
