@@ -87,7 +87,7 @@ body {
     top: 0;
     left: 0;
     right: 0;
-    height: 64px;
+    height: 80px;        /* ← era 64px */
     background: white;
     border-bottom: 1px solid var(--border-color);
     display: flex;
@@ -97,7 +97,6 @@ body {
     z-index: 100;
     box-shadow: var(--shadow);
 }
-
 .nav-brand {
     display: flex;
     align-items: center;
@@ -105,9 +104,9 @@ body {
 }
 
 .nav-logo {
-    height: 40px;
-    width: auto;        /* ← se adapta al ancho real de la imagen */
-    max-width: 180px;   /* ← evita que se haga gigante */
+    height: 56px;        /* ← era 40px */
+    width: auto;
+    max-width: 240px;
     border-radius: 4px;
     object-fit: contain;
 }
@@ -128,7 +127,7 @@ body {
 .side-nav {
     position: fixed;
     left: 0;
-    top: 64px;
+    top: 80px;           /* ← era 64px */
     bottom: 0;
     width: 240px;
     background: white;
@@ -136,7 +135,6 @@ body {
     overflow-y: auto;
     z-index: 90;
 }
-
 .side-menu {
     padding: 16px 0;
 }
@@ -173,9 +171,9 @@ body {
 /* Main Content */
 .main-content {
     margin-left: 240px;
-    margin-top: 64px;
+    margin-top: 80px;    /* ← era 64px */
     padding: 32px;
-    min-height: calc(100vh - 64px);
+    min-height: calc(100vh - 80px);  /* ← era 64px */
 }
 
 /* Views */
