@@ -266,12 +266,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const targetId = targetBtn.dataset.target;
            ui.switchTab(targetId);
-            if (targetId === 'tab-caminos') {
+        if (targetId === 'tab-caminos') {
                 setTimeout(() => {
                     if (mapManager.map) {
                         mapManager.map.invalidateSize();
-                        populateFolderSelect(filterHallazgosFolder, store.getHallazgos(), mapManager.filters.hallazgosFolder);
-                        populateFolderSelect(filterFragmentosFolder, store.getFragmentos(), mapManager.filters.fragmentosFolder);
+                        populateFolderSelect(document.getElementById('filter-fragmentos-folder'), store.getHallazgos(), mapManager.filters.hallazgosFolder);
+                        populateFolderSelect(document.getElementById('filter-fragmentos-folder'), store.getFragmentos(), mapManager.filters.fragmentosFolder);
                         mapManager.refreshMapData();
                     }
                 }, 100);
