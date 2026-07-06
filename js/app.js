@@ -976,3 +976,35 @@ function populateFolderSelect(selectEl, items, currentValue) {
     }
 
 });
+            const editingId = e.target.dataset.editingId;
+            if (editingId) {
+                store.updateRescate(editingId, data);
+                delete e.target.dataset.editingId;
+            } else {
+                store.addRescate(data);
+            }
+
+            ui.renderRescates();
+            ui.toggleModal('rescates-form-container', false);
+            e.target.reset();
+            ['rescate-foto1-preview', 'rescate-foto2-preview', 'rescate-foto3-preview'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+            const gpsStatus = document.getElementById('rescate-gps-status');
+            if (gpsStatus) gpsStatus.textContent = '';
+        });
+    }
+
+    // Migracion de fotos a IndexedDB al iniciar
+    if (window.photoStore) {
+        window.photoStore.migrateFromLocalStorage().catch(err => console.warn('Error migracion fotos:', err));
+    }
+
+});
+function populateFolderSelect(selectEl, items, currentValue) {
+    if (!selectEl) return;
+    const folders = [...new Set(items.map(i => i.folder).filter(Boolean))].sort();
+    selectEl.innerHTML = '<option value="all">Todas las carpetas</option>' +
+        folders.map(f => `<option value="${f}" ${f === currentValue ? 'selected' : ''}>${f}</option>`).join('');
+}
