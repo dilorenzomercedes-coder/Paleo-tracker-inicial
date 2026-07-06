@@ -265,14 +265,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // alert('Nav clicked: ' + targetBtn.dataset.target);
 
             const targetId = targetBtn.dataset.target;
-            ui.switchTab(targetId);
-
+           ui.switchTab(targetId);
             if (targetId === 'tab-caminos') {
                 setTimeout(() => {
                     if (mapManager.map) {
                         mapManager.map.invalidateSize();
-                        // Refresh to ensure filters are applied if data changed
-                        // Also update folder lists in case new data was added
                         populateFolderSelect(filterHallazgosFolder, store.getHallazgos(), mapManager.filters.hallazgosFolder);
                         populateFolderSelect(filterFragmentosFolder, store.getFragmentos(), mapManager.filters.fragmentosFolder);
                         mapManager.refreshMapData();
@@ -281,6 +278,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+function populateFolderSelect(selectEl, items, currentValue) {
+    if (!selectEl) return;
+    const folders = [...new Set(items.map(i => i.folder).filter(Boolean))].sort();
+    selectEl.innerHTML = '<option value="all">Todas las carpetas</option>' +
+        folders.map(f => `<option value="${f}" ${f === currentValue ? 'selected' : ''}>${f}</option>`).join('');
+}
 
     // --- Modals ---
     const openHallazgoBtn = document.getElementById('btn-new-hallazgo');
