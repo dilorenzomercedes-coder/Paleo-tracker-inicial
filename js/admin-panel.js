@@ -2063,7 +2063,7 @@ class AdminPanel {
     }
 
     updateFolderFilter(data, filterId) {
-        const folders = [...new Set(data.map(item => item.folder).filter(Boolean))];
+    const folders = [...new Set(data.map(item => item.folder?.trim()).filter(Boolean))];
         const select = document.getElementById(filterId);
         if (!select) return;
 
