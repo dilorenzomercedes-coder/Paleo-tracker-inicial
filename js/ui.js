@@ -5,6 +5,43 @@ class UI {
         this.currentFolder = null;
         this.currentDetailItem = null;
         this.currentDetailType = null;
+        this._activeBlobUrls = [];
+    }
+
+    // --- Photo rendering helpers (fix: WebView de Android no renderiza bien data: URIs largas) ---
+    _dataURItoBlob(dataURI) {
+        if (!dataURI || typeof dataURI !== 'string' || !dataURI.startsWith('data:')) return null;
+        try {
+            const [header, base64Data] = dataURI.split(',');
+            const mimeMatch = header.match(/data:(.*?);base64/);
+            const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+            const byteString = atob(base64Data);
+            const arrayBuffer = new ArrayBuffer(byteString.length);
+            const uint8Array = new Uint8Array(arrayBuffer);
+            for (let i = 0; i < byteString.length; i++) {
+                uint8Array[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([uint8Array], { type: mime });
+        } catch (e) {
+            console.error('Error convirtiendo data URI a Blob:', e);
+            return null;
+        }
+    }
+
+    // Devuelve una Blob URL si es una data URI válida; si no, devuelve el valor original tal cual
+    // (por ejemplo IDs viejos de photo-store.js, que quedan como estaban antes)
+    _getPhotoSrc(value) {
+        const blob = this._dataURItoBlob(value);
+        if (!blob) return value || '';
+        const url = URL.createObjectURL(blob);
+        this._activeBlobUrls.push(url);
+        return url;
+    }
+
+    // Libera las Blob URLs anteriores antes de generar nuevas, para no acumular memoria
+    _revokeBlobUrls() {
+        this._activeBlobUrls.forEach(u => URL.revokeObjectURL(u));
+        this._activeBlobUrls = [];
     }
 
     init() {
@@ -46,6 +83,7 @@ class UI {
 
     // --- Detail View ---
     showDetail(item, type) {
+        this._revokeBlobUrls();
         this.currentDetailItem = item;
         this.currentDetailType = type;
 
@@ -67,7 +105,7 @@ class UI {
             if (photos.length > 0) {
                 photosHtml = '<div class="detail-row"><div class="detail-label">Fotografías</div><div class="photos-grid">';
                 photos.forEach(photo => {
-                    photosHtml += `<img src="${photo}" class="detail-photo" alt="Foto del hallazgo">`;
+                    photosHtml += `<img src="${this._getPhotoSrc(photo)}" class="detail-photo" alt="Foto del hallazgo">`;
                 });
                 photosHtml += '</div></div>';
             }
@@ -155,7 +193,7 @@ class UI {
                 ${item.foto ? `
                 <div class="detail-row">
                     <div class="detail-label">Fotografía</div>
-                    <img src="${item.foto}" class="detail-photo" alt="Foto del vestigio">
+                    <img src="${this._getPhotoSrc(item.foto)}" class="detail-photo" alt="Foto del vestigio">
                 </div>
                 ` : ''}
             `;
@@ -164,19 +202,19 @@ class UI {
         this.toggleModal('detail-modal', true);
     }
 
-    deleteItem() {
+    async deleteItem() {
         if (!this.currentDetailItem) return;
 
         if (!confirm('¿Estás seguro de que quieres eliminar este registro?')) return;
 
         if (this.currentDetailType === 'hallazgo') {
-            this.store.deleteHallazgo(this.currentDetailItem.id);
+            await this.store.deleteHallazgo(this.currentDetailItem.id);
             this.renderHallazgos();
         } else if (this.currentDetailType === 'fragmento') {
-            this.store.deleteFragmento(this.currentDetailItem.id);
+            await this.store.deleteFragmento(this.currentDetailItem.id);
             this.renderFragmentos();
         } else if (this.currentDetailType === 'rescate') {
-            this.store.deleteRescate(this.currentDetailItem.id);
+            await this.store.deleteRescate(this.currentDetailItem.id);
             this.renderRescates();
         }
 
@@ -203,8 +241,8 @@ class UI {
     }
 
     // --- Documents UI ---
-    renderDocumentFolders() {
-        const docs = this.store.getDocuments();
+    async renderDocumentFolders() {
+        const docs = await this.store.getDocuments();
         const categories = ['Permisos', 'ATS', 'IPCR', 'Alta Spot'];
 
         categories.forEach(cat => {
@@ -212,21 +250,20 @@ class UI {
             const countEl = document.getElementById(`count-${cat.toLowerCase().replace(' ', '')}`);
             if (countEl) countEl.textContent = `${count} archivos`;
 
-            // Bind click to open folder
             const card = document.querySelector(`.doc-folder-card[data-category="${cat}"]`);
             if (card) {
                 card.onclick = () => this.renderDocumentList(cat);
             }
         });
 
-        // Hide list, show grid
         document.getElementById('doc-folders-root').classList.remove('hidden');
         document.getElementById('doc-list-view').classList.add('hidden');
     }
 
-    renderDocumentList(category) {
+    async renderDocumentList(category) {
         this.currentDocCategory = category;
-        const docs = this.store.getDocuments().filter(d => d.category === category);
+        const allDocs = await this.store.getDocuments();
+        const docs = allDocs.filter(d => d.category === category);
         const container = document.getElementById('doc-items-container');
         const title = document.getElementById('current-doc-category-title');
 
@@ -275,12 +312,12 @@ class UI {
             `;
 
             // Click on card to open/download
-            card.onclick = (e) => {
+            card.onclick = async (e) => {
                 if (e.target.closest('.delete-doc')) {
                     if (confirm('¿Eliminar documento?')) {
-                        this.store.deleteDocument(doc.id);
+                        await this.store.deleteDocument(doc.id);
                         this.renderDocumentList(category);
-                        this.renderDocumentFolders(); // update counts
+                        this.renderDocumentFolders();
                     }
                     return;
                 }
@@ -418,7 +455,7 @@ class UI {
         card.style.cursor = 'pointer';
 
         const imgDisplay = item.foto
-            ? `<img src="${item.foto}" alt="Foto">`
+            ? `<img src="${this._getPhotoSrc(item.foto)}" alt="Foto">`
             : `<div class="img-placeholder"><span>📷</span></div>`;
 
         const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
@@ -440,20 +477,20 @@ class UI {
         return card;
     }
 
-    renderHallazgos() {
-        this._renderList('hallazgos-list', this.store.getHallazgos(), 'hallazgo');
+    async renderHallazgos() {
+        this._renderList('hallazgos-list', await this.store.getHallazgos(), 'hallazgo');
     }
 
-    renderFragmentos() {
-        this._renderList('fragmentos-list', this.store.getFragmentos(), 'fragmento');
+    async renderFragmentos() {
+        this._renderList('fragmentos-list', await this.store.getFragmentos(), 'fragmento');
     }
 
-    renderRescates() {
-        this._renderList('rescates-list', this.store.getRescates(), 'rescate');
+    async renderRescates() {
+        this._renderList('rescates-list', await this.store.getRescates(), 'rescate');
     }
 
-    renderRoutesList() {
-        const routes = this.store.getRoutes();
+    async renderRoutesList() {
+        const routes = await this.store.getRoutes();
         const container = document.getElementById('routes-items');
         if (!container) return;
 
@@ -493,12 +530,8 @@ class UI {
             colorInput.style.background = 'none';
             colorInput.style.cursor = 'pointer';
 
-            colorInput.addEventListener('change', (e) => {
-                this.store.updateRoute(route.id, { color: e.target.value });
-                // Trigger map refresh if needed, but we need access to mapManager.
-                // Since UI doesn't have direct access to mapManager instance easily without passing it or using global event.
-                // For now, let's dispatch a custom event or rely on tab switch refresh.
-                // Better: Dispatch event.
+            colorInput.addEventListener('change', async (e) => {
+                await this.store.updateRoute(route.id, { color: e.target.value });
                 document.dispatchEvent(new CustomEvent('route-updated'));
             });
 
@@ -507,9 +540,9 @@ class UI {
             deleteBtn.innerHTML = '🗑️';
             deleteBtn.className = 'btn-icon';
             deleteBtn.style.color = '#d32f2f';
-            deleteBtn.onclick = () => {
+            deleteBtn.onclick = async () => {
                 if (confirm(`¿Eliminar la ruta "${route.name}"?`)) {
-                    this.store.deleteRoute(route.id);
+                    await this.store.deleteRoute(route.id);
                     this.renderRoutesList();
                     document.dispatchEvent(new CustomEvent('route-updated'));
                 }
@@ -524,8 +557,8 @@ class UI {
         });
     }
 
-    updateFolderLists() {
-        const folders = this.store.getFolders();
+    async updateFolderLists() {
+        const folders = await this.store.getFolders();
         const dataList = document.getElementById('folder-list');
         if (dataList) {
             dataList.innerHTML = folders.map(f => `<option value="${f}">`).join('');
@@ -546,4 +579,20 @@ class UI {
     setRole(role) {
         // Visual toggle handled in app.js via updateRoleUI
     }
+}
+function populateFolderSelect(selectElement, items, currentValue) {
+    if (!selectElement) return;
+    
+    // Obtener carpetas únicas
+    const folders = [...new Set(items.map(i => i.carpeta).filter(Boolean))];
+    
+    // Limpiar y reconstruir opciones
+    selectElement.innerHTML = '<option value="">Todas las carpetas</option>';
+    folders.forEach(folder => {
+        const option = document.createElement('option');
+        option.value = folder;
+        option.textContent = folder;
+        if (folder === currentValue) option.selected = true;
+        selectElement.appendChild(option);
+    });
 }
