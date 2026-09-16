@@ -971,10 +971,11 @@ function populateFolderSelect(selectEl, items, currentValue) {
     }
 
 
-    // Migracion de fotos a IndexedDB al iniciar
-    if (window.photoStore) {
-        window.photoStore.migrateFromLocalStorage().catch(err => console.warn('Error migracion fotos:', err));
-    }
+    // NOTA: se eliminó la migración automática de fotos a IndexedDB (photoStore) que corría
+    // en cada arranque de la app. Esa migración tomaba cualquier foto nueva guardada como
+    // base64 en localStorage y la reemplazaba por un ID de texto en PaleoPhotoDB — pero
+    // ninguna otra parte del código resuelve ese ID de vuelta a una imagen real, así que
+    // rompía la foto de forma permanente en cada reinicio de la app.
 
 });
 function populateFolderSelect(selectEl, items, currentValue) {
