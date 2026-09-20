@@ -8,6 +8,8 @@ class PartesDiariosManager {
         this.BACKEND_URL = localStorage.getItem('backend_url') || 'https://paleo-tracker-backend.onrender.com';
         this.collectorId = localStorage.getItem('collector_id') || 'unknown';
         this.collectorName = localStorage.getItem('collector_name') || '';
+        this.MAX_IMAGE_DIMENSION = 1000;
+        this.IMAGE_QUALITY = 0.5;
         this.init();
     }
 
@@ -75,6 +77,39 @@ class PartesDiariosManager {
         reader.readAsDataURL(file);
     }
 
+    // Comprime una imagen (redimensiona + reduce calidad) igual que se hace para
+    // vestigios y hallazgos, para no llenar el espacio de almacenamiento local.
+    compressImage(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    let { width, height } = img;
+                    if (width > this.MAX_IMAGE_DIMENSION || height > this.MAX_IMAGE_DIMENSION) {
+                        if (width > height) {
+                            height = Math.round((height * this.MAX_IMAGE_DIMENSION) / width);
+                            width = this.MAX_IMAGE_DIMENSION;
+                        } else {
+                            width = Math.round((width * this.MAX_IMAGE_DIMENSION) / height);
+                            height = this.MAX_IMAGE_DIMENSION;
+                        }
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', this.IMAGE_QUALITY));
+                };
+                img.onerror = () => resolve(e.target.result); // si falla, usar original sin comprimir
+                img.src = e.target.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
     async saveParte(form) {
         const submitBtn = form.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
@@ -93,7 +128,7 @@ class PartesDiariosManager {
                 return;
             }
 
-            const foto = await this.readFileAsDataURL(fotoInput.files[0]);
+            const foto = await this.compressImage(fotoInput.files[0]);
             const id = `parte_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
             const parteData = {
@@ -111,7 +146,15 @@ class PartesDiariosManager {
             // Save locally first (always visible to collector)
             const local = this.getLocalPartes();
             local.unshift({ ...parteData, createdAt: new Date().toISOString() });
-            this.saveLocalPartes(local);
+            try {
+                this.saveLocalPartes(local);
+            } catch (storageErr) {
+                if (storageErr.name === 'QuotaExceededError') {
+                    alert('⚠️ Sin espacio de almacenamiento en el celular. Sincronizá y borrá partes/vestigios viejos ya sincronizados para liberar espacio.');
+                    return;
+                }
+                throw storageErr;
+            }
 
             // Try to POST to backend
             const sent = await this.postToBackend(parteData);
@@ -119,7 +162,11 @@ class PartesDiariosManager {
                 // Queue for later sync
                 const pending = this.getPending();
                 pending.push(parteData);
-                this.savePending(pending);
+                try {
+                    this.savePending(pending);
+                } catch (storageErr) {
+                    // Si tampoco entra en la cola pendiente, seguimos igual — ya quedó guardado localmente arriba
+                }
                 alert('Parte guardado localmente. Se enviará al servidor cuando haya conexión.');
             } else {
                 alert('Parte enviado correctamente.');
@@ -129,7 +176,11 @@ class PartesDiariosManager {
             this.renderPartes();
         } catch (err) {
             console.error('Error guardando parte:', err);
-            alert('Error al guardar el parte. Intentá de nuevo.');
+            if (err && err.name === 'QuotaExceededError') {
+                alert('⚠️ Sin espacio de almacenamiento en el celular. Sincronizá y borrá partes/vestigios viejos ya sincronizados para liberar espacio.');
+            } else {
+                alert('Error al guardar el parte. Intentá de nuevo.');
+            }
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '💾 Guardar Parte Diario';
@@ -331,7 +382,7 @@ class PartesDiariosManager {
                 // Solo reemplazar foto si seleccionaron una nueva
                 const newFotoInput = form.querySelector('[name="foto"]');
                 if (newFotoInput.files[0]) {
-                    updatedData.foto = await this.readFileAsDataURL(newFotoInput.files[0]);
+                    updatedData.foto = await this.compressImage(newFotoInput.files[0]);
                 }
 
                 // Actualizar en local
@@ -349,7 +400,11 @@ class PartesDiariosManager {
                 this.renderPartes();
             } catch (err) {
                 console.error('Error editando parte:', err);
-                alert('Error al guardar los cambios.');
+                if (err && err.name === 'QuotaExceededError') {
+                    alert('⚠️ Sin espacio de almacenamiento en el celular. Sincronizá y borrá partes/vestigios viejos ya sincronizados para liberar espacio.');
+                } else {
+                    alert('Error al guardar los cambios.');
+                }
             } finally {
                 submitBtnInner.disabled = false;
                 // Restaurar estado original del modal para próxima vez
