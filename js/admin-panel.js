@@ -1134,7 +1134,47 @@ class AdminPanel {
         const title = `📋 Parte del ${fecha} – ${collector}`;
         const fotoSrc = parte.foto || parte.fotoData;
 
-        this.viewPhoto(fotoSrc, title);
+        // NOTA: no usamos this.viewPhoto() acá a propósito — ese nombre está duplicado
+        // más abajo en esta clase y la segunda definición pisa a la primera, apuntando
+        // a otro modal (#modal-photo) que rompía la apertura del parte diario.
+        // Por eso armamos/mostramos el modal #photo-modal acá mismo, de forma autónoma.
+        let modal = document.getElementById('photo-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'photo-modal';
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="photo-modal-title"></h2>
+                        <button class="btn-close" onclick="window.adminPanel.closeModal('photo-modal')">&times;</button>
+                    </div>
+                    <div style="text-align:center;padding:20px;">
+                        <img id="photo-modal-image" style="max-width:100%;max-height:70vh;border-radius:8px;">
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-primary" id="photo-download-btn">Descargar Foto</button>
+                        <button class="btn btn-secondary" onclick="window.adminPanel.closeModal('photo-modal')">Cerrar</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        document.getElementById('photo-modal-title').textContent = title;
+        document.getElementById('photo-modal-image').src = fotoSrc;
+
+        const downloadBtn = document.getElementById('photo-download-btn');
+        if (downloadBtn) {
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.href = fotoSrc;
+                a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
+                a.click();
+            };
+        }
+
+        this.openModal('photo-modal');
 
         const actions = document.querySelector('#photo-modal .modal-actions');
 
