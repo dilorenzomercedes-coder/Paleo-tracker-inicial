@@ -4070,32 +4070,7 @@ class AdminPanel {
         const parte = this._partesCache.find(p => p.id === parteId);
         if (!parte) return;
 
-        const fecha = parte.fecha
-            ? new Date(parte.fecha + 'T12:00:00').toLocaleDateString('es-AR')
-            : new Date(parte.createdAt).toLocaleDateString('es-AR');
-        const colector = parte.collector?.name || parte.collector?.collectorId || 'Desconocido';
-
-        // Reusar el viewer de fotos de hallazgos si existe, sino mostrar en ventana
-        const photoModal = document.getElementById('photo-modal');
-        if (photoModal) {
-            const img = document.getElementById('photo-modal-img');
-            const title = document.getElementById('photo-modal-title');
-            if (img) img.src = parte.foto || '';
-            if (title) title.textContent = `📋 Parte del ${fecha} — ${colector}`;
-            photoModal.style.display = 'flex';
-        } else {
-            // Fallback: abrir imagen en nueva pestaña
-            if (parte.foto) {
-                const win = window.open();
-                win.document.write(`
-                    <html><head><title>Parte ${fecha}</title></head><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;">
-                        <p style="color:#fff;font-family:sans-serif;margin-bottom:12px;">📋 Parte del ${fecha} — 👤 ${colector}</p>
-                        ${parte.observaciones ? `<p style="color:#aaa;font-family:sans-serif;margin-bottom:16px;">${parte.observaciones}</p>` : ''}
-                        <img src="${parte.foto}" style="max-width:90vw;max-height:85vh;border-radius:8px;">
-                    </body></html>
-                `);
-            }
-        }
+        this._openLightbox(parte);
     }
 
 }
