@@ -1832,54 +1832,6 @@ class AdminPanel {
         }
     }
 
-            const name = xmlDoc.querySelector('Placemark name')?.textContent || 'Ruta';
-            const description = xmlDoc.querySelector('Placemark description')?.textContent || '';
-
-            // Intentar LineString (rutas lineales)
-            const lineString = xmlDoc.querySelector('LineString coordinates');
-            if (lineString) {
-                const coordsText = lineString.textContent.trim();
-                const points = coordsText.split(/\s+/).filter(p => p.length > 0);
-
-                const coordinates = [];
-                points.forEach(point => {
-                    const [lng, lat, alt] = point.split(',').map(Number);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        coordinates.push([lat, lng]); // Leaflet usa [lat, lng]
-                    }
-                });
-
-                if (coordinates.length > 0) {
-                    return { name, description, coordinates, type: 'LineString' };
-                }
-            }
-
-            // Intentar Polygon (áreas cerradas)
-            const polygon = xmlDoc.querySelector('Polygon outerBoundaryIs coordinates');
-            if (polygon) {
-                const coordsText = polygon.textContent.trim();
-                const points = coordsText.split(/\s+/).filter(p => p.length > 0);
-
-                const coordinates = [];
-                points.forEach(point => {
-                    const [lng, lat, alt] = point.split(',').map(Number);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        coordinates.push([lat, lng]);
-                    }
-                });
-
-                if (coordinates.length > 0) {
-                    return { name, description, coordinates, type: 'Polygon' };
-                }
-            }
-
-            return null;
-        } catch (error) {
-            console.error('Error parsing route KML:', error);
-            return null;
-        }
-    }
-
     async loadFolders() {
         try {
             // Cargar todos los hallazgos y fragmentos
