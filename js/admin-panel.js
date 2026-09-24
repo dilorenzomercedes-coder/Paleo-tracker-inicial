@@ -1766,17 +1766,66 @@ class AdminPanel {
         toggleLayer(this.mapLayers.routes, showRoutes);
     }
 
-    parseRouteKML(kmlString) {
+      parseRouteKML(kmlString) {
         try {
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(kmlString, 'text/xml');
 
-            // Verificar errores de parseo
             const parseError = xmlDoc.querySelector('parsererror');
             if (parseError) {
                 console.error('Error parsing KML:', parseError);
-                return null;
+                return [];
             }
+
+            const shapes = [];
+
+            const extractCoords = (coordEl) => {
+                const coordsText = coordEl.textContent.trim();
+                const points = coordsText.split(/\s+/).filter(p => p.length > 0);
+                const coordinates = [];
+                points.forEach(point => {
+                    const [lng, lat] = point.split(',').map(Number);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        coordinates.push([lat, lng]);
+                    }
+                });
+                return coordinates;
+            };
+
+            const placemarks = Array.from(xmlDoc.getElementsByTagName('Placemark'));
+            placemarks.forEach(pm => {
+                const name = pm.getElementsByTagName('name')[0]?.textContent || 'Ruta';
+                const description = pm.getElementsByTagName('description')[0]?.textContent || '';
+
+                const lineStrings = Array.from(pm.getElementsByTagName('LineString'));
+                const polygons = Array.from(pm.getElementsByTagName('Polygon'));
+
+                lineStrings.forEach(ls => {
+                    const coordEl = ls.getElementsByTagName('coordinates')[0];
+                    if (!coordEl) return;
+                    const coordinates = extractCoords(coordEl);
+                    if (coordinates.length > 0) {
+                        shapes.push({ name, description, coordinates, type: 'LineString' });
+                    }
+                });
+
+                polygons.forEach(poly => {
+                    const outerBoundary = poly.getElementsByTagName('outerBoundaryIs')[0];
+                    const coordEl = outerBoundary ? outerBoundary.getElementsByTagName('coordinates')[0] : poly.getElementsByTagName('coordinates')[0];
+                    if (!coordEl) return;
+                    const coordinates = extractCoords(coordEl);
+                    if (coordinates.length > 0) {
+                        shapes.push({ name, description, coordinates, type: 'Polygon' });
+                    }
+                });
+            });
+
+            return shapes;
+        } catch (error) {
+            console.error('Error parsing route KML:', error);
+            return [];
+        }
+    }
 
             const name = xmlDoc.querySelector('Placemark name')?.textContent || 'Ruta';
             const description = xmlDoc.querySelector('Placemark description')?.textContent || '';
