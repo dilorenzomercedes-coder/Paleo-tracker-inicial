@@ -164,6 +164,7 @@ class AdminPanel {
         }
 
         this.setupEventListeners();
+        this.setupLocusImporter();
     }
 
     setupEventListeners() {
@@ -4112,7 +4113,320 @@ class AdminPanel {
 
         this._openLightbox(parte);
     }
+// ==================== IMPORTADOR LOCUS MAP (KMZ) ====================
 
+    // Botón flotante, se crea una sola vez al iniciar el panel
+    setupLocusImporter() {
+        if (document.getElementById('btn-import-locus')) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'btn-import-locus';
+        btn.textContent = '📥 Importar Locus (KMZ)';
+        btn.style.cssText = `
+            position: fixed; bottom: 20px; right: 20px; z-index: 5000;
+            background: #2c5e2e; color: #fff; border: none; border-radius: 30px;
+            padding: 12px 20px; font-weight: 600; font-size: 0.9rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.25); cursor: pointer;
+        `;
+        btn.onclick = () => this._openLocusImportModal();
+        document.body.appendChild(btn);
+    }
+
+    // Carga JSZip dinámicamente si no está ya disponible en la página
+    async _ensureJSZip() {
+        if (window.JSZip) return;
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('No se pudo cargar JSZip'));
+            document.head.appendChild(script);
+        });
+    }
+
+    _openLocusImportModal() {
+        let modal = document.getElementById('modal-import-locus');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'modal-import-locus';
+            modal.className = 'modal-overlay';
+            modal.style.cssText = 'display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:6000; align-items:center; justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:#fff; border-radius:12px; padding:24px; max-width:520px; width:92%; max-height:88vh; overflow-y:auto;">
+                    <h2 style="margin-top:0;">📥 Importar desde Locus Map (KMZ)</h2>
+                    <div style="display:flex; flex-direction:column; gap:14px;">
+                        <div>
+                            <label style="font-weight:600; font-size:.85rem; color:#555;">Archivo KMZ</label>
+                            <input type="file" id="locus-file-input" accept=".kmz" style="width:100%; margin-top:4px;">
+                        </div>
+                        <div>
+                            <label style="font-weight:600; font-size:.85rem; color:#555;">Localidad</label>
+                            <input type="text" id="locus-localidad" class="form-control" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                        </div>
+                        <div>
+                            <label style="font-weight:600; font-size:.85rem; color:#555;">Carpeta / Lugar</label>
+                            <input type="text" id="locus-folder" class="form-control" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                        </div>
+                        <div>
+                            <label style="font-weight:600; font-size:.85rem; color:#555;">Tipo de Vestigio</label>
+                            <select id="locus-tipo" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                                <option value="xilopalo">Xilópalo</option>
+                                <option value="vertebrados_fosiles">Vertebrados Fósiles</option>
+                                <option value="invertebrados_fosiles" selected>Invertebrados Fósiles</option>
+                                <option value="icnofosil">Icnofósil</option>
+                            </select>
+                        </div>
+                        <div id="locus-status" style="font-size:.85rem; color:#666; min-height:20px;"></div>
+                        <div id="locus-progress-bar-wrap" style="display:none; background:#eee; border-radius:6px; overflow:hidden; height:10px;">
+                            <div id="locus-progress-bar" style="background:#2c5e2e; height:100%; width:0%; transition:width .2s;"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:20px;">
+                        <button class="btn btn-secondary" id="btn-locus-cancel">Cancelar</button>
+                        <button class="btn btn-primary" id="btn-locus-analizar">🔍 Analizar Archivo</button>
+                        <button class="btn btn-success" id="btn-locus-confirmar" style="display:none;">✅ Confirmar Importación</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('btn-locus-cancel').onclick = () => { modal.style.display = 'none'; };
+
+            document.getElementById('btn-locus-analizar').onclick = () => this._analizarLocusKMZ();
+            document.getElementById('btn-locus-confirmar').onclick = () => this._confirmarImportacionLocus();
+        }
+        modal.style.display = 'flex';
+        // Reset de estado cada vez que se abre
+        document.getElementById('locus-status').textContent = '';
+        document.getElementById('btn-locus-confirmar').style.display = 'none';
+        document.getElementById('btn-locus-analizar').style.display = 'inline-block';
+        document.getElementById('locus-progress-bar-wrap').style.display = 'none';
+        this._locusParsedPoints = null;
+        this._locusZip = null;
+    }
+
+    // Lee el KMZ (ZIP), extrae doc.kml y parsea todos los Placemark
+    async _analizarLocusKMZ() {
+        const statusEl = document.getElementById('locus-status');
+        const fileInput = document.getElementById('locus-file-input');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            statusEl.textContent = '⚠️ Por favor seleccioná un archivo KMZ.';
+            statusEl.style.color = '#c0392b';
+            return;
+        }
+
+        try {
+            statusEl.style.color = '#666';
+            statusEl.textContent = '⏳ Cargando librería ZIP...';
+            await this._ensureJSZip();
+
+            statusEl.textContent = '⏳ Descomprimiendo KMZ (puede tardar según el tamaño del archivo)...';
+            const zip = await window.JSZip.loadAsync(file);
+
+            // Buscar doc.kml en cualquier nivel dentro del zip
+            let kmlEntry = zip.file('doc.kml');
+            if (!kmlEntry) {
+                const matches = zip.file(/\.kml$/i);
+                if (matches && matches.length > 0) kmlEntry = matches[0];
+            }
+            if (!kmlEntry) {
+                throw new Error('No se encontró ningún archivo .kml dentro del KMZ.');
+            }
+
+            statusEl.textContent = '⏳ Leyendo puntos...';
+            const kmlText = await kmlEntry.async('text');
+
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+            const placemarks = Array.from(xmlDoc.getElementsByTagName('Placemark'));
+
+            if (placemarks.length === 0) {
+                throw new Error('El archivo KML no contiene ningún punto (Placemark).');
+            }
+
+            const points = [];
+            placemarks.forEach(pm => {
+                const nameEl = pm.getElementsByTagName('name')[0];
+                const nameText = nameEl ? nameEl.textContent.trim() : '';
+
+                const coordEl = pm.getElementsByTagName('coordinates')[0];
+                if (!coordEl) return; // sin coordenadas, se ignora
+                const coordParts = coordEl.textContent.trim().split(',');
+                const lng = parseFloat(coordParts[0]);
+                const lat = parseFloat(coordParts[1]);
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                // Referencia a la foto (Locus la guarda en ExtendedData > lc:attachment)
+                let attachmentPath = null;
+                const extData = pm.getElementsByTagName('ExtendedData')[0];
+                if (extData) {
+                    // Buscamos cualquier tag cuyo nombre local sea "attachment" (con o sin namespace)
+                    const allChildren = extData.getElementsByTagName('*');
+                    for (const child of allChildren) {
+                        if (child.localName === 'attachment' || child.tagName.endsWith(':attachment')) {
+                            attachmentPath = child.textContent.trim();
+                            break;
+                        }
+                    }
+                }
+
+                // Fecha: preferimos gx:TimeStamp, si no está, la sacamos del nombre
+                let fecha = '';
+                const timeEls = pm.getElementsByTagName('*');
+                for (const el of timeEls) {
+                    if (el.localName === 'when') {
+                        fecha = el.textContent.trim().slice(0, 10); // YYYY-MM-DD
+                        break;
+                    }
+                }
+                if (!fecha) {
+                    const dateMatch = nameText.match(/^\d{4}-\d{2}-\d{2}/);
+                    if (dateMatch) fecha = dateMatch[0];
+                }
+                if (!fecha) fecha = new Date().toISOString().slice(0, 10);
+
+                points.push({ nombre: nameText, fecha, lat, lng, attachmentPath });
+            });
+
+            const conFoto = points.filter(p => p.attachmentPath).length;
+
+            this._locusParsedPoints = points;
+            this._locusZip = zip;
+
+            statusEl.style.color = '#2c5e2e';
+            statusEl.textContent = `✅ ${points.length} puntos encontrados (${conFoto} con foto asociada). Revisá los datos de arriba y confirmá para importar.`;
+
+            document.getElementById('btn-locus-analizar').style.display = 'none';
+            document.getElementById('btn-locus-confirmar').style.display = 'inline-block';
+
+        } catch (err) {
+            console.error('Error analizando KMZ:', err);
+            statusEl.style.color = '#c0392b';
+            statusEl.textContent = '❌ Error: ' + err.message;
+        }
+    }
+
+    // Comprime una imagen base64 (mismo criterio que se usa en el resto de la app)
+    _compressBase64Image(base64) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const MAX_DIM = 1000;
+                let { width, height } = img;
+                if (width > MAX_DIM || height > MAX_DIM) {
+                    if (width > height) {
+                        height = Math.round((height * MAX_DIM) / width);
+                        width = MAX_DIM;
+                    } else {
+                        width = Math.round((width * MAX_DIM) / height);
+                        height = MAX_DIM;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6));
+            };
+            img.onerror = () => resolve(base64); // si falla, usamos la original sin comprimir
+            img.src = base64;
+        });
+    }
+
+    // Sube todos los puntos parseados al backend, uno por uno
+    async _confirmarImportacionLocus() {
+        const statusEl = document.getElementById('locus-status');
+        const progressWrap = document.getElementById('locus-progress-bar-wrap');
+        const progressBar = document.getElementById('locus-progress-bar');
+        const btnConfirmar = document.getElementById('btn-locus-confirmar');
+
+        const localidad = document.getElementById('locus-localidad').value.trim();
+        const folder = document.getElementById('locus-folder').value.trim();
+        const tipo_vestigio = document.getElementById('locus-tipo').value;
+
+        if (!localidad) {
+            statusEl.style.color = '#c0392b';
+            statusEl.textContent = '⚠️ Completá el campo Localidad antes de confirmar.';
+            return;
+        }
+        if (!this._locusParsedPoints || !this._locusZip) {
+            statusEl.style.color = '#c0392b';
+            statusEl.textContent = '⚠️ Primero analizá un archivo.';
+            return;
+        }
+
+        btnConfirmar.disabled = true;
+        progressWrap.style.display = 'block';
+
+        const points = this._locusParsedPoints;
+        const zip = this._locusZip;
+        let ok = 0, fail = 0;
+        const collectorId = 'import-locus';
+        const collectorName = `Importación Locus (${folder || localidad})`;
+
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            statusEl.style.color = '#666';
+            statusEl.textContent = `Importando ${i + 1} / ${points.length}...`;
+            progressBar.style.width = `${Math.round(((i + 1) / points.length) * 100)}%`;
+
+            try {
+                let fotoBase64 = null;
+                if (p.attachmentPath) {
+                    const photoEntry = zip.file(p.attachmentPath);
+                    if (photoEntry) {
+                        const rawBase64 = await photoEntry.async('base64');
+                        // Detectar extensión para el mime type
+                        const ext = p.attachmentPath.split('.').pop().toLowerCase();
+                        const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+                        const dataUri = `data:${mime};base64,${rawBase64}`;
+                        fotoBase64 = await this._compressBase64Image(dataUri);
+                    }
+                }
+
+                const fragmentoData = {
+                    id: `locus_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 5)}`,
+                    fecha: p.fecha,
+                    localidad,
+                    folder,
+                    lat: p.lat,
+                    lng: p.lng,
+                    foto: fotoBase64,
+                    tipo_vestigio,
+                    observaciones: p.nombre || '',
+                    collectorId,
+                    collectorName
+                };
+
+                const resp = await fetch(`${this.API_URL}/api/collector/fragmentos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(fragmentoData)
+                });
+
+                if (resp.ok) {
+                    ok++;
+                } else {
+                    fail++;
+                    console.error('Fallo al importar punto', i, await resp.text());
+                }
+            } catch (err) {
+                fail++;
+                console.error('Error importando punto', i, err);
+            }
+        }
+
+        statusEl.style.color = fail === 0 ? '#2c5e2e' : '#e67e22';
+        statusEl.textContent = `✅ Importación finalizada: ${ok} creados correctamente${fail > 0 ? `, ${fail} con error (revisá la consola)` : ''}.`;
+        btnConfirmar.disabled = false;
+
+        // Refrescar la vista de vestigios si está abierta
+        if (this.currentView === 'fragmentos') {
+            this.loadFragmentos();
+        }
+    }
 }
 
 // Initialize the admin panel
