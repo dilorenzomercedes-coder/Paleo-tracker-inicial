@@ -1588,47 +1588,52 @@ class AdminPanel {
                 });
             }
 
-            // Add routes as polylines/polygons
+                       // Add routes as polylines/polygons (un archivo de ruta puede tener varias formas adentro)
             routesData.data.forEach(route => {
                 if (!route.content) return;
 
-                const parsed = this.parseRouteKML(route.content);
-                if (!parsed || parsed.coordinates.length < 2) return;
+                const shapes = this.parseRouteKML(route.content);
+                if (!shapes || shapes.length === 0) return;
 
-                const defaultColor = parsed.type === 'Polygon' ? '#9b59b6' : '#3498db';
-                const color = this.routeColors[route.id] || defaultColor;
+                shapes.forEach((parsed, shapeIdx) => {
+                    if (!parsed.coordinates || parsed.coordinates.length < 2) return;
 
-                let layer;
-                if (parsed.type === 'LineString') {
-                    layer = L.polyline(parsed.coordinates, { color, weight: 3, opacity: 0.8 });
-                } else if (parsed.type === 'Polygon') {
-                    layer = L.polygon(parsed.coordinates, { color, fillColor: color, fillOpacity: 0.08, weight: 3, interactive: true });
-                }
+                    const shapeId = `${route.id}_${shapeIdx}`;
+                    const defaultColor = parsed.type === 'Polygon' ? '#9b59b6' : '#3498db';
+                    const color = this.routeColors[shapeId] || defaultColor;
 
-                if (layer) {
-                    layer._routeId = route.id;
-                    layer._routeDefaultColor = defaultColor;
+                    let layer;
+                    if (parsed.type === 'LineString') {
+                        layer = L.polyline(parsed.coordinates, { color, weight: 3, opacity: 0.8 });
+                    } else if (parsed.type === 'Polygon') {
+                        layer = L.polygon(parsed.coordinates, { color, fillColor: color, fillOpacity: 0.08, weight: 3, interactive: true });
+                    }
 
-                    const popupId = `route-color-${route.id}`;
-                    layer.bindPopup(`
-                        <b>${parsed.name}</b><br/>
-                        Fecha: ${route.fecha || 'N/A'}<br/>
-                        ${route.folder ? `Carpeta: ${route.folder}<br/>` : ''}
-                        ${parsed.description ? `<br/>${parsed.description}<br/>` : ''}
-                        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
-                            <label style="font-size:.85rem;font-weight:600;">🎨 Color:</label>
-                            <input type="color" id="${popupId}" value="${color}"
-                                style="width:36px;height:28px;border:none;cursor:pointer;padding:0;"
-                                onchange="window.adminPanel.setRouteColor('${route.id}', this.value)">
-                            <button onclick="window.adminPanel.resetRouteColor('${route.id}', '${defaultColor}')"
-                                style="font-size:.75rem;padding:2px 6px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#f5f5f5;">
-                                Reset
-                            </button>
-                        </div>
-                    `);
+                    if (layer) {
+                        layer._routeId = shapeId;
+                        layer._routeDefaultColor = defaultColor;
 
-                    this.mapLayers.routes.addLayer(layer);
-                }
+                        const popupId = `route-color-${shapeId}`;
+                        layer.bindPopup(`
+                            <b>${parsed.name}</b><br/>
+                            Fecha: ${route.fecha || 'N/A'}<br/>
+                            ${route.folder ? `Carpeta: ${route.folder}<br/>` : ''}
+                            ${parsed.description ? `<br/>${parsed.description}<br/>` : ''}
+                            <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+                                <label style="font-size:.85rem;font-weight:600;">🎨 Color:</label>
+                                <input type="color" id="${popupId}" value="${color}"
+                                    style="width:36px;height:28px;border:none;cursor:pointer;padding:0;"
+                                    onchange="window.adminPanel.setRouteColor('${shapeId}', this.value)">
+                                <button onclick="window.adminPanel.resetRouteColor('${shapeId}', '${defaultColor}')"
+                                    style="font-size:.75rem;padding:2px 6px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#f5f5f5;">
+                                    Reset
+                                </button>
+                            </div>
+                        `);
+
+                        this.mapLayers.routes.addLayer(layer);
+                    }
+                });
             });
 
             // Update folder filter
