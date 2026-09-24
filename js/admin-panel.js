@@ -4387,7 +4387,7 @@ class AdminPanel {
                 }
 
                 const fragmentoData = {
-                    id: `locus_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 5)}`,
+                                      id: `locus_${(p.attachmentPath || p.nombre || i).replace(/[^a-zA-Z0-9]/g, '_')}`,
                     fecha: p.fecha,
                     localidad,
                     folder,
