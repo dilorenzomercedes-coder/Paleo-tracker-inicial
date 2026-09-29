@@ -1,3 +1,14 @@
+// Solo devuelve la foto si es una imagen real (base64 o URL). Los IDs "photo_..."
+// son referencias a IndexedDB del celular que las cargó: la imagen NO está en el servidor,
+// así que no se intentan cargar (evita cientos de 404 contra GitHub Pages).
+function validFotoSrc(v) {
+    if (!v || typeof v !== 'string') return null;
+    return (v.startsWith('data:') || v.startsWith('http') || v.startsWith('blob:')) ? v : null;
+}
+function isFotoSoloCelular(v) {
+    return typeof v === 'string' && v.startsWith('photo_');
+}
+
 // Admin Panel JavaScript
 
 // Filter Manager for advanced filtering
@@ -833,7 +844,7 @@ class AdminPanel {
             }
 
             tbody.innerHTML = filteredData.map(h => {
-                const foto = h.foto1 || h.foto2 || h.foto3;
+                const foto = validFotoSrc(h.foto1 || h.foto2 || h.foto3);
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${h.id}', 'hallazgo')">` :
                     '<span style="color:#999;">Sin foto</span>';
@@ -930,10 +941,12 @@ class AdminPanel {
             }
 
             tbody.innerHTML = filtered.map(f => {
-                const foto = f.foto;
+                const foto = validFotoSrc(f.foto);
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')">` :
-                    '<span style="color:#999;">Sin foto</span>';
+                    (isFotoSoloCelular(f.foto)
+                        ? `<span style="color:#b36b00;font-size:.8rem;" title="${f.foto}">📱 Foto solo en el celular</span>`
+                        : '<span style="color:#999;">Sin foto</span>');
 
                 const tipoLabel = TIPO_LABELS[f._tipo] || f._tipo;
                 const tipoColor = TIPO_COLORS[f._tipo] || '#888';
@@ -1445,7 +1458,7 @@ class AdminPanel {
                 if (!h.lat || !h.lng) return;
                 if (h.accion === 'rescatado') return;
 
-                const foto = h.foto1 || h.foto2 || h.foto3;
+                const foto = validFotoSrc(h.foto1 || h.foto2 || h.foto3);
                 const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
                 const esRescate = h.accion === 'rescate' || h.accion === 'rescate pendiente';
                 const color = esRescate ? '#e53935' : '#43a047';
@@ -1484,7 +1497,7 @@ class AdminPanel {
 
                 const color = VESTIGIO_COLORS[tipo] || '#FDD835';
                 const tipoLabel = TIPO_LABELS[tipo] || tipo;
-                const foto = f.foto;
+                const foto = validFotoSrc(f.foto);
                 const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
                 const layerKey = TIPO_LAYER_MAP[tipo] || 'fragmentosVertebrados';
 
@@ -1507,7 +1520,7 @@ class AdminPanel {
             if (rescatesData?.data) {
                 rescatesData.data.forEach(r => {
                     if (!r.lat || !r.lng) return;
-                    const foto = r.foto1 || r.foto2 || r.foto3;
+                    const foto = validFotoSrc(r.foto1 || r.foto2 || r.foto3);
                     const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
                     const pinRescateSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
                         <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="white" stroke="#888" stroke-width="1.5"/>
@@ -1973,7 +1986,7 @@ class AdminPanel {
                     </thead>
                     <tbody>
                         ${folder.hallazgos.map(h => {
-                const foto = h.foto1 || h.foto2 || h.foto3;
+                const foto = validFotoSrc(h.foto1 || h.foto2 || h.foto3);
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:50px;height:50px;object-fit:cover;border-radius:4px;">` :
                     '<span style="color:#999;">-</span>';
@@ -2162,7 +2175,7 @@ class AdminPanel {
             this.currentRescates = rawData.data;
 
             tbody.innerHTML = rawData.data.map(r => {
-                const foto = r.foto1 || r.foto2 || r.foto3;
+                const foto = validFotoSrc(r.foto1 || r.foto2 || r.foto3);
                 const fotoHTML = foto ?
                     `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhoto('${foto}', 'Foto Rescate')">` :
                     '<span style="color:#999;">Sin foto</span>';
@@ -2360,13 +2373,13 @@ class AdminPanel {
             // Not implemented for hallazgo individual download yet, but preparing structure
             item = this.currentHallazgos && this.currentHallazgos.find(h => String(h.id) === String(id));
             if (item) {
-                foto = item.foto1 || item.foto2 || item.foto3;
+                foto = validFotoSrc(item.foto1 || item.foto2 || item.foto3);
                 filename = `hallazgo_${item.codigo}.jpg`;
             }
         } else if (type === 'fragmento') {
             item = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(id));
             if (item) {
-                foto = item.foto;
+                foto = validFotoSrc(item.foto);
                 filename = `fragmento_${item.folder || 'img'}_${item.fecha || 'date'}.jpg`;
             }
         }
