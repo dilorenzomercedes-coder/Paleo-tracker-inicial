@@ -5,6 +5,7 @@ function validFotoSrc(v) {
     if (!v || typeof v !== 'string') return null;
     return (v.startsWith('data:') || v.startsWith('http') || v.startsWith('blob:')) ? v : null;
 }
+const FOTO_PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 function isFotoSoloCelular(v) {
     return typeof v === 'string' && v.startsWith('photo_');
 }
@@ -601,6 +602,46 @@ class AdminPanel {
         }
     }
 
+    // ===== Fotos de vestigios bajo demanda =====
+    // La lista de vestigios llega sin fotos (?light=1) y con fotoStatus: 'ok' | 'celular' | null.
+    // Si el backend todavía no soporta light, la lista trae la foto y se usa como antes.
+    fragTieneFoto(f) {
+        return f.fotoStatus !== undefined ? f.fotoStatus === 'ok' : !!validFotoSrc(f.foto);
+    }
+
+    fragFotoSoloCelular(f) {
+        return f.fotoStatus !== undefined ? f.fotoStatus === 'celular' : isFotoSoloCelular(f.foto);
+    }
+
+    getFragmentoFoto(id) {
+        const local = (this.currentFragmentos || []).find(x => String(x.id) === String(id));
+        if (local && validFotoSrc(local.foto)) return Promise.resolve(local.foto);
+        this._fotoCache = this._fotoCache || new Map();
+        if (this._fotoCache.has(id)) return this._fotoCache.get(id);
+        const p = this.apiRequest(`/api/admin/fragmentos/${encodeURIComponent(id)}/foto`, { cache: 'default' })
+            .then(r => validFotoSrc(r.foto))
+            .catch(err => { console.warn('No se pudo cargar la foto', id, err.message); this._fotoCache.delete(id); return null; });
+        this._fotoCache.set(id, p);
+        return p;
+    }
+
+    _lazyLoadFragmentoThumbs(root) {
+        const imgs = root.querySelectorAll('img[data-frag-foto]');
+        const load = async (img) => {
+            const src = await this.getFragmentoFoto(img.dataset.fragFoto);
+            if (src) img.src = src;
+            else img.outerHTML = '<span style="color:#999;">Sin foto</span>';
+        };
+        if (this._thumbObserver) this._thumbObserver.disconnect();
+        if (!('IntersectionObserver' in window)) { imgs.forEach(load); return; }
+        this._thumbObserver = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (e.isIntersecting) { this._thumbObserver.unobserve(e.target); load(e.target); }
+            });
+        }, { rootMargin: '300px' });
+        imgs.forEach(img => this._thumbObserver.observe(img));
+    }
+
     async downloadFile(endpoint, filename) {
         const url = `${this.API_URL}${endpoint}`;
 
@@ -723,7 +764,7 @@ class AdminPanel {
             // Fetch all data for charts
             const [hallazgosRes, fragmentosRes] = await Promise.all([
                 this.apiRequest('/api/admin/hallazgos'),
-                this.apiRequest('/api/admin/fragmentos')
+                this.apiRequest('/api/admin/fragmentos?light=1')
             ]);
 
             const hallazgos = hallazgosRes.data;
@@ -904,7 +945,7 @@ class AdminPanel {
             if (collector) params.append('collector', collector);
             if (folder) params.append('folder', folder);
 
-            const data = await this.apiRequest(`/api/admin/fragmentos?${params}`);
+            const data = await this.apiRequest(`/api/admin/fragmentos?light=1&${params}`);
             const tbody = document.getElementById('fragmentos-table-body');
 
             const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
@@ -943,11 +984,11 @@ class AdminPanel {
             }
 
             tbody.innerHTML = filtered.map(f => {
-                const foto = validFotoSrc(f.foto);
+                const foto = this.fragTieneFoto(f);
                 const fotoHTML = foto ?
-                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')">` :
-                    (isFotoSoloCelular(f.foto)
-                        ? `<span style="color:#b36b00;font-size:.8rem;" title="${f.foto}">📱 Foto solo en el celular</span>`
+                    `<img data-frag-foto="${f.id}" src="${FOTO_PLACEHOLDER}" alt="" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;background:#eee;" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')">` :
+                    (this.fragFotoSoloCelular(f)
+                        ? `<span style="color:#b36b00;font-size:.8rem;" title="La foto quedó en el celular que la cargó y no llegó al servidor">📱 Foto solo en el celular</span>`
                         : '<span style="color:#999;">Sin foto</span>');
 
                 const tipoLabel = TIPO_LABELS[f._tipo] || f._tipo;
@@ -971,6 +1012,9 @@ class AdminPanel {
         </tr>
       `;
             }).join('');
+
+            // Las miniaturas se piden de a una, solo cuando aparecen en pantalla
+            this._lazyLoadFragmentoThumbs(tbody);
 
             this.updateFolderFilter(data.data, 'filter-fragmentos-folder');
         } catch (error) {
@@ -1444,7 +1488,7 @@ class AdminPanel {
             // Load and display data
             const [hallazgosData, fragmentosData, routesData, rescatesData] = await Promise.all([
                 this.apiRequest(`/api/admin/hallazgos?${params}`),
-                this.apiRequest(`/api/admin/fragmentos?${params}`),
+                this.apiRequest(`/api/admin/fragmentos?light=1&${params}`),
                 this.apiRequest(`/api/admin/routes?${params}`),
                 this.apiRequest(`/api/admin/rescates?${params}`)
             ]);
@@ -1499,8 +1543,8 @@ class AdminPanel {
 
                 const color = VESTIGIO_COLORS[tipo] || '#FDD835';
                 const tipoLabel = TIPO_LABELS[tipo] || tipo;
-                const foto = validFotoSrc(f.foto);
-                const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
+                const tieneFoto = this.fragTieneFoto(f);
+                const fotoHTML = tieneFoto ? `<br/><img data-popup-frag-foto="${f.id}" src="${FOTO_PLACEHOLDER}" style="max-width:180px;max-height:140px;min-width:80px;min-height:60px;margin-top:5px;border-radius:6px;background:#eee;">` : '';
                 const layerKey = TIPO_LAYER_MAP[tipo] || 'fragmentosVertebrados';
 
                 const marker = L.marker([f.lat, f.lng], {
@@ -1513,6 +1557,15 @@ class AdminPanel {
                     Localidad: ${f.localidad || 'N/A'}
                     ${fotoHTML}
                 `);
+
+                if (tieneFoto) {
+                    marker.on('popupopen', async (e) => {
+                        const el = e.popup.getElement()?.querySelector('img[data-popup-frag-foto]');
+                        if (!el || el.dataset.loaded) return;
+                        const src = await this.getFragmentoFoto(f.id);
+                        if (src) { el.src = src; el.dataset.loaded = '1'; el.onload = () => e.popup.update(); }
+                    });
+                }
 
                 this.mapLayers[layerKey].addLayer(marker);
                 this.mapLayers.fragmentos.addLayer(marker);
@@ -1792,7 +1845,7 @@ class AdminPanel {
             // Cargar todos los hallazgos y fragmentos
             const [hallazgosData, fragmentosData] = await Promise.all([
                 this.apiRequest('/api/admin/hallazgos'),
-                this.apiRequest('/api/admin/fragmentos')
+                this.apiRequest('/api/admin/fragmentos?light=1')
             ]);
 
             // Agrupar por carpeta
@@ -2366,7 +2419,7 @@ class AdminPanel {
     }
 
     // Download photo by ID
-    downloadPhotoById(id, type) {
+    async downloadPhotoById(id, type) {
         let item;
         let filename;
         let foto;
@@ -2381,7 +2434,7 @@ class AdminPanel {
         } else if (type === 'fragmento') {
             item = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(id));
             if (item) {
-                foto = validFotoSrc(item.foto);
+                foto = validFotoSrc(item.foto) || await this.getFragmentoFoto(item.id);
                 filename = `fragmento_${item.folder || 'img'}_${item.fecha || 'date'}.jpg`;
             }
         }
@@ -2751,7 +2804,7 @@ class AdminPanel {
             // Get all hallazgos and fragmentos to extract folders
             const [hallazgosData, fragmentosData] = await Promise.all([
                 this.apiRequest('/api/admin/hallazgos'),
-                this.apiRequest('/api/admin/fragmentos')
+                this.apiRequest('/api/admin/fragmentos?light=1')
             ]);
 
             // Store data for Excel export (with photos)
@@ -2796,7 +2849,7 @@ class AdminPanel {
     }
 
     // View photo by ID in modal
-    viewPhotoById(id, type) {
+    async viewPhotoById(id, type) {
         try {
             // Find the item in cached data
             const data = type === 'hallazgo' ? this.currentHallazgos : this.currentFragmentos;
@@ -2808,7 +2861,9 @@ class AdminPanel {
             }
 
             // Get the photo (hallazgos have foto1/2/3, fragmentos have foto)
-            const photo = type === 'hallazgo' ? (item.foto1 || item.foto2 || item.foto3) : item.foto;
+            const photo = type === 'hallazgo'
+                ? (item.foto1 || item.foto2 || item.foto3)
+                : (validFotoSrc(item.foto) || await this.getFragmentoFoto(item.id));
 
             if (!photo) {
                 alert('Este elemento no tiene foto');
