@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paleo-tracker-v22';
+const CACHE_NAME = 'paleo-tracker-v23';
 const TILES_CACHE = 'map-tiles-v1';
 
 const ASSETS = [
@@ -90,8 +90,10 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Default - just fetch
-    event.respondWith(fetch(event.request));
+    // Default: NO interceptar (API del backend en onrender.com y otros dominios).
+    // Si el SW hace de intermediario y su fetch falla, la página recibe "Failed to fetch".
+    // Dejando que el navegador lo maneje directo se elimina ese punto de falla.
+    return;
 });
 
 // Handle map tile requests - Cache first, then network
