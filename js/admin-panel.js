@@ -580,7 +580,9 @@ class AdminPanel {
         };
 
         try {
-            const response = await fetch(url, { ...options, headers });
+            // cache: 'no-store' → Chrome no intenta guardar respuestas grandes en su caché de disco
+            // (evita net::ERR_CACHE_WRITE_FAILURE → "Failed to fetch" con la lista de vestigios)
+            const response = await fetch(url, { cache: 'no-store', ...options, headers });
 
             if (response.status === 401) {
                 this.logout();
