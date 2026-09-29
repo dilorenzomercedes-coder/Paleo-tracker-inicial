@@ -1504,12 +1504,18 @@ class AdminPanel {
                 <circle cx="12" cy="11" r="4.5" fill="rgba(255,255,255,0.35)"/>
             </svg>`;
 
+            // Items del mapa por tipo, para abrir el visor de fotos desde el popup
+            this._mapItems = { hallazgo: new Map(), fragmento: new Map(), rescate: new Map() };
+            const fotoPopupHTML = (tipo, id, fotos) => fotos.length ? `<br/>
+                <img src="${fotos[0]}" title="Ver en grande" onclick="window.adminPanel.viewPhotoById('${id}', '${tipo}')" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;cursor:zoom-in;">
+                <br/><a href="#" onclick="window.adminPanel.viewPhotoById('${id}', '${tipo}');return false;" style="font-size:.8rem;">🔍 Ver ${fotos.length > 1 ? `las ${fotos.length} fotos` : 'foto en grande'}</a>` : '';
+
             hallazgosData.data.forEach(h => {
                 if (!h.lat || !h.lng) return;
                 if (h.accion === 'rescatado') return;
 
-                const foto = validFotoSrc(h.foto1 || h.foto2 || h.foto3);
-                const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
+                this._mapItems.hallazgo.set(String(h.id), h);
+                const fotoHTML = fotoPopupHTML('hallazgo', h.id, [h.foto1, h.foto2, h.foto3].map(validFotoSrc).filter(Boolean));
                 const esRescate = h.accion === 'rescate' || h.accion === 'rescate pendiente';
                 const color = esRescate ? '#e53935' : '#43a047';
                 const accionLabel = esRescate ? '🔴 Rescate Pendiente' : '🟢 Picking';
@@ -1548,7 +1554,9 @@ class AdminPanel {
                 const color = VESTIGIO_COLORS[tipo] || '#FDD835';
                 const tipoLabel = TIPO_LABELS[tipo] || tipo;
                 const tieneFoto = this.fragTieneFoto(f);
-                const fotoHTML = tieneFoto ? `<br/><img data-popup-frag-foto="${f.id}" src="${FOTO_PLACEHOLDER}" style="max-width:180px;max-height:140px;min-width:80px;min-height:60px;margin-top:5px;border-radius:6px;background:#eee;">` : '';
+                this._mapItems.fragmento.set(String(f.id), f);
+                const fotoHTML = tieneFoto ? `<br/><img data-popup-frag-foto="${f.id}" src="${FOTO_PLACEHOLDER}" title="Ver en grande" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento')" style="max-width:180px;max-height:140px;min-width:80px;min-height:60px;margin-top:5px;border-radius:6px;background:#eee;cursor:zoom-in;">
+                    <br/><a href="#" onclick="window.adminPanel.viewPhotoById('${f.id}', 'fragmento');return false;" style="font-size:.8rem;">🔍 Ver foto en grande</a>` : '';
                 const layerKey = TIPO_LAYER_MAP[tipo] || 'fragmentosVertebrados';
 
                 const marker = L.marker([f.lat, f.lng], {
@@ -1579,8 +1587,8 @@ class AdminPanel {
             if (rescatesData?.data) {
                 rescatesData.data.forEach(r => {
                     if (!r.lat || !r.lng) return;
-                    const foto = validFotoSrc(r.foto1 || r.foto2 || r.foto3);
-                    const fotoHTML = foto ? `<br/><img src="${foto}" style="max-width:180px;max-height:140px;margin-top:5px;border-radius:6px;">` : '';
+                    this._mapItems.rescate.set(String(r.id), r);
+                    const fotoHTML = fotoPopupHTML('rescate', r.id, [r.foto1, r.foto2, r.foto3].map(validFotoSrc).filter(Boolean));
                     const pinRescateSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="16" height="24" style="display:block;">
                         <path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="white" stroke="#888" stroke-width="1.5"/>
                         <circle cx="12" cy="11" r="4.5" fill="rgba(0,0,0,0.12)"/>
@@ -2855,9 +2863,11 @@ class AdminPanel {
     // View photo by ID in modal
     async viewPhotoById(id, type) {
         try {
-            // Find the item in cached data
-            const data = type === 'hallazgo' ? this.currentHallazgos : this.currentFragmentos;
-            const item = data.find(i => i.id === id);
+            // Buscar el item en la tabla cargada o, si se abrió desde el mapa, en los items del mapa
+            const data = (type === 'hallazgo' ? this.currentHallazgos
+                : type === 'rescate' ? this.currentRescates
+                : this.currentFragmentos) || [];
+            const item = data.find(i => String(i.id) === String(id)) || this._mapItems?.[type]?.get(String(id));
 
             if (!item) {
                 alert('No se encontró el elemento');
@@ -2865,7 +2875,7 @@ class AdminPanel {
             }
 
             // Hallazgos pueden tener hasta 3 fotos (foto1/2/3); vestigios tienen una sola (foto)
-            const fotos = type === 'hallazgo'
+            const fotos = (type === 'hallazgo' || type === 'rescate')
                 ? [item.foto1, item.foto2, item.foto3].map(validFotoSrc).filter(Boolean)
                 : [validFotoSrc(item.foto) || await this.getFragmentoFoto(item.id)].filter(Boolean);
 
@@ -2874,7 +2884,7 @@ class AdminPanel {
                 return;
             }
 
-            const titulo = type === 'hallazgo' ? `Foto ${item.codigo || item.id}` : `Foto ${item.localidad || item.id}`;
+            const titulo = type !== 'fragmento' ? `Foto ${item.codigo || item.id}` : `Foto ${item.localidad || item.id}`;
             const imgEl = document.getElementById('photo-viewer-image');
             const downloadBtn = document.getElementById('btn-download-photo');
 
@@ -2891,7 +2901,7 @@ class AdminPanel {
                 imgEl.src = fotos[idx];
                 document.getElementById('photo-viewer-title').textContent =
                     fotos.length > 1 ? `${titulo} (${idx + 1} de ${fotos.length})` : titulo;
-                downloadBtn.onclick = () => this.downloadPhoto(fotos[idx], type, { ...item, codigo: `${item.codigo || item.id}${fotos.length > 1 ? '_' + (idx + 1) : ''}` });
+                downloadBtn.onclick = () => this.downloadPhoto(fotos[idx], type === 'rescate' ? 'hallazgo' : type, { ...item, codigo: `${item.codigo || item.id}${fotos.length > 1 ? '_' + (idx + 1) : ''}` });
                 strip.querySelectorAll('img').forEach((t, k) => {
                     t.style.outline = k === idx ? '3px solid #2c5e2e' : 'none';
                 });
@@ -2903,8 +2913,10 @@ class AdminPanel {
             strip.querySelectorAll('img').forEach(t => { t.onclick = () => mostrar(Number(t.dataset.idx)); });
             mostrar(0);
 
-            // Show modal
-            document.getElementById('modal-photo-viewer').style.display = 'flex';
+            // Show modal (z-index alto para que quede por encima del mapa)
+            const visor = document.getElementById('modal-photo-viewer');
+            visor.style.zIndex = '5000';
+            visor.style.display = 'flex';
         } catch (error) {
             console.error('Error viewing photo:', error);
             alert('Error al ver la foto');
