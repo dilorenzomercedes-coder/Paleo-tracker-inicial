@@ -4067,7 +4067,7 @@ class AdminPanel {
 
         const btn = document.createElement('button');
         btn.id = 'btn-import-locus';
-        btn.textContent = '📥 Importar Locus (KMZ)';
+        btn.textContent = '📥 Importar KMZ (Locus / Clino)';
         btn.style.cssText = `
             position: fixed; bottom: 20px; right: 20px; z-index: 5000;
             background: #2c5e2e; color: #fff; border: none; border-radius: 30px;
@@ -4099,7 +4099,7 @@ class AdminPanel {
             modal.style.cssText = 'display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:6000; align-items:center; justify-content:center;';
             modal.innerHTML = `
                 <div style="background:#fff; border-radius:12px; padding:24px; max-width:520px; width:92%; max-height:88vh; overflow-y:auto;">
-                    <h2 style="margin-top:0;">📥 Importar desde Locus Map (KMZ)</h2>
+                    <h2 style="margin-top:0;">📥 Importar KMZ (Locus Map / Clino)</h2>
                     <div style="display:flex; flex-direction:column; gap:14px;">
                         <div>
                             <label style="font-weight:600; font-size:.85rem; color:#555;">Archivo KMZ</label>
@@ -4192,48 +4192,127 @@ class AdminPanel {
                 throw new Error('El archivo KML no contiene ningún punto (Placemark).');
             }
 
-            const points = [];
-            placemarks.forEach(pm => {
-                const nameEl = pm.getElementsByTagName('name')[0];
-                const nameText = nameEl ? nameEl.textContent.trim() : '';
-
+            // ---- Helpers comunes a Locus y Clino ----
+            const getWhen = (pm) => {
+                for (const el of pm.getElementsByTagName('*')) {
+                    if (el.localName === 'when') return el.textContent.trim();
+                }
+                return '';
+            };
+            // Fecha local (Argentina) a partir del timestamp UTC; si no hay hora, se usa tal cual
+            const whenToFecha = (when, nameText) => {
+                if (when) {
+                    if (when.length > 10) {
+                        const d = new Date(when);
+                        if (!isNaN(d)) return d.toLocaleDateString('sv-SE'); // YYYY-MM-DD en hora local
+                    }
+                    return when.slice(0, 10);
+                }
+                const m = (nameText || '').match(/^\d{4}-\d{2}-\d{2}/);
+                return m ? m[0] : new Date().toISOString().slice(0, 10);
+            };
+            const getCoords = (pm) => {
                 const coordEl = pm.getElementsByTagName('coordinates')[0];
-                if (!coordEl) return; // sin coordenadas, se ignora
-                const coordParts = coordEl.textContent.trim().split(',');
-                const lng = parseFloat(coordParts[0]);
-                const lat = parseFloat(coordParts[1]);
-                if (isNaN(lat) || isNaN(lng)) return;
+                if (!coordEl) return null;
+                const parts = coordEl.textContent.trim().split(',');
+                const lng = parseFloat(parts[0]);
+                const lat = parseFloat(parts[1]);
+                return (isNaN(lat) || isNaN(lng)) ? null : { lat, lng };
+            };
+            const getName = (el) => {
+                const n = Array.from(el.children).find(c => c.localName === 'name');
+                return n ? n.textContent.trim() : '';
+            };
+            const getDescription = (pm) => {
+                const d = Array.from(pm.children).find(c => c.localName === 'description');
+                return d ? d.textContent : '';
+            };
+            // Foto dentro de la descripción: <img src="IMG_xxx.jpeg"> (formato Clino / Google Earth)
+            const imgFromDescription = (desc) => {
+                const m = (desc || '').match(/<img[^>]+src=["']([^"']+)["']/i);
+                return m ? m[1].trim() : null;
+            };
+            // Texto de la nota sin la imagen ni los datos automáticos de brújula
+            const notaFromDescription = (desc) => (desc || '')
+                .replace(/<[^>]*>/g, ' ')
+                .split(/\r?\n/)
+                .map(l => l.trim())
+                .filter(l => l && !/^(Heading|Declination|Automatically created)/i.test(l))
+                .join(' ')
+                .replace(/\s+/g, ' ')
+                .trim();
 
-                // Referencia a la foto (Locus la guarda en ExtendedData > lc:attachment)
-                let attachmentPath = null;
-                const extData = pm.getElementsByTagName('ExtendedData')[0];
-                if (extData) {
-                    // Buscamos cualquier tag cuyo nombre local sea "attachment" (con o sin namespace)
-                    const allChildren = extData.getElementsByTagName('*');
-                    for (const child of allChildren) {
-                        if (child.localName === 'attachment' || child.tagName.endsWith(':attachment')) {
-                            attachmentPath = child.textContent.trim();
-                            break;
+            const points = [];
+            const esClino = kmlText.includes('Locality placemark') ||
+                placemarks.some(pm => getName(pm) === 'Image' && imgFromDescription(getDescription(pm)));
+            this._importSource = esClino ? 'clino' : 'locus';
+
+            if (esClino) {
+                // Clino: cada "Locality N" es una carpeta con el punto de la localidad + uno o más placemarks "Image".
+                // Se importa un vestigio por cada foto; si la localidad no tiene foto, se importa el punto solo.
+                const folders = Array.from(xmlDoc.getElementsByTagName('Folder'));
+                const usados = new Set();
+                folders.forEach(folder => {
+                    const localidadNombre = getName(folder);
+                    const pms = Array.from(folder.getElementsByTagName('Placemark'));
+                    pms.forEach(pm => usados.add(pm));
+                    const conImagen = pms.filter(pm => imgFromDescription(getDescription(pm)));
+                    const origen = conImagen.length ? conImagen : pms.slice(0, 1);
+                    origen.forEach(pm => {
+                        const c = getCoords(pm);
+                        if (!c) return;
+                        const nota = notaFromDescription(getDescription(pm));
+                        points.push({
+                            nombre: [localidadNombre, nota].filter(Boolean).join(' · '),
+                            fecha: whenToFecha(getWhen(pm), ''),
+                            lat: c.lat, lng: c.lng,
+                            attachmentPath: imgFromDescription(getDescription(pm))
+                        });
+                    });
+                });
+                // Placemarks sueltos fuera de carpetas (por las dudas)
+                placemarks.filter(pm => !usados.has(pm)).forEach(pm => {
+                    const c = getCoords(pm);
+                    if (!c) return;
+                    points.push({
+                        nombre: getName(pm),
+                        fecha: whenToFecha(getWhen(pm), getName(pm)),
+                        lat: c.lat, lng: c.lng,
+                        attachmentPath: imgFromDescription(getDescription(pm))
+                    });
+                });
+            } else {
+                placemarks.forEach(pm => {
+                    const nameText = getName(pm);
+                    const c = getCoords(pm);
+                    if (!c) return; // sin coordenadas, se ignora
+
+                    // Referencia a la foto (Locus la guarda en ExtendedData > lc:attachment)
+                    let attachmentPath = null;
+                    const extData = pm.getElementsByTagName('ExtendedData')[0];
+                    if (extData) {
+                        for (const child of extData.getElementsByTagName('*')) {
+                            if (child.localName === 'attachment' || child.tagName.endsWith(':attachment')) {
+                                attachmentPath = child.textContent.trim();
+                                break;
+                            }
                         }
                     }
-                }
+                    if (!attachmentPath) attachmentPath = imgFromDescription(getDescription(pm));
 
-                // Fecha: preferimos gx:TimeStamp, si no está, la sacamos del nombre
-                let fecha = '';
-                const timeEls = pm.getElementsByTagName('*');
-                for (const el of timeEls) {
-                    if (el.localName === 'when') {
-                        fecha = el.textContent.trim().slice(0, 10); // YYYY-MM-DD
-                        break;
-                    }
-                }
-                if (!fecha) {
-                    const dateMatch = nameText.match(/^\d{4}-\d{2}-\d{2}/);
-                    if (dateMatch) fecha = dateMatch[0];
-                }
-                if (!fecha) fecha = new Date().toISOString().slice(0, 10);
+                    // Se mantiene el criterio original de fecha para Locus (no cambia los IDs ya importados)
+                    const when = getWhen(pm);
+                    points.push({ nombre: nameText, fecha: when ? when.slice(0, 10) : whenToFecha('', nameText), lat: c.lat, lng: c.lng, attachmentPath });
+                });
+            }
 
-                points.push({ nombre: nameText, fecha, lat, lng, attachmentPath });
+            // Verificar que cada foto referenciada exista dentro del KMZ (acepta rutas en subcarpetas)
+            points.forEach(p => {
+                if (!p.attachmentPath) return;
+                if (zip.file(p.attachmentPath)) return;
+                const base = p.attachmentPath.split('/').pop();
+                const match = zip.file(new RegExp('(^|/)' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'));
+                p.attachmentPath = match && match.length ? match[0].name : null;
             });
 
             const conFoto = points.filter(p => p.attachmentPath).length;
@@ -4242,7 +4321,7 @@ class AdminPanel {
             this._locusZip = zip;
 
             statusEl.style.color = '#2c5e2e';
-            statusEl.textContent = `✅ ${points.length} puntos encontrados (${conFoto} con foto asociada). Revisá los datos de arriba y confirmá para importar.`;
+            statusEl.textContent = `✅ Formato ${esClino ? 'Clino' : 'Locus'}: ${points.length} puntos encontrados (${conFoto} con foto asociada). Revisá los datos de arriba y confirmá para importar.`;
 
             document.getElementById('btn-locus-analizar').style.display = 'none';
             document.getElementById('btn-locus-confirmar').style.display = 'inline-block';
@@ -4310,7 +4389,8 @@ class AdminPanel {
         const zip = this._locusZip;
         let ok = 0, fail = 0;
         const collectorId = 'import-locus';
-        const collectorName = `Importación Locus (${folder || localidad})`;
+        const origenImport = this._importSource === 'clino' ? 'Clino' : 'Locus';
+        const collectorName = `Importación ${origenImport} (${folder || localidad})`;
 
         for (let i = 0; i < points.length; i++) {
             const p = points[i];
@@ -4333,7 +4413,7 @@ class AdminPanel {
                 }
 
                 const fragmentoData = {
-                                      id: `locus_${(p.attachmentPath || p.nombre || i).replace(/[^a-zA-Z0-9]/g, '_')}`,
+                                      id: `${this._importSource === 'clino' ? 'clino' : 'locus'}_${String(p.attachmentPath || p.nombre || i).replace(/[^a-zA-Z0-9]/g, '_')}`,
                     fecha: p.fecha,
                     localidad,
                     folder,
