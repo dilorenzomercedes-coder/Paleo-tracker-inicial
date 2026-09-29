@@ -4406,6 +4406,33 @@ class AdminPanel {
     }
 
     // Sube todos los puntos parseados al backend, uno por uno
+    // POST de importación con pausa entre puntos y reintentos.
+    // La base (plan de 256 MB de RAM) puede reiniciarse bajo carga; si responde 5xx o se corta,
+    // espera y reintenta en vez de dar el punto por perdido.
+    async _postImportacion(tipo, data, statusEl) {
+        const url = `${this.API_URL}/api/collector/${tipo}`;
+        const esperas = [0, 5000, 15000, 30000];
+        let ultima;
+        for (let intento = 0; intento < esperas.length; intento++) {
+            if (esperas[intento]) {
+                if (statusEl) statusEl.textContent = `⏳ El servidor está ocupado, reintentando en ${esperas[intento] / 1000} s...`;
+                await new Promise(r => setTimeout(r, esperas[intento]));
+            }
+            try {
+                ultima = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (ultima.ok || ultima.status < 500) break; // éxito o error "real" (4xx): no reintentar
+            } catch (err) {
+                ultima = { ok: false, text: async () => String(err) };
+            }
+        }
+        await new Promise(r => setTimeout(r, 400)); // respiro para la base entre punto y punto
+        return ultima;
+    }
+
     // Lee una foto del KMZ y la devuelve comprimida como data URI
     async _fotoDesdeZip(path) {
         if (!path || !this._locusZip) return null;
@@ -4485,11 +4512,7 @@ class AdminPanel {
                     collectorName
                 };
 
-                const resp = await fetch(`${this.API_URL}/api/collector/hallazgos`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(hallazgoData)
-                });
+                const resp = await this._postImportacion('hallazgos', hallazgoData, statusEl);
                 if (resp.ok) ok++;
                 else { fail++; console.error('Fallo al importar hallazgo', i, await resp.text()); }
             } catch (err) {
@@ -4574,11 +4597,7 @@ class AdminPanel {
                     collectorName
                 };
 
-                const resp = await fetch(`${this.API_URL}/api/collector/fragmentos`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(fragmentoData)
-                });
+                const resp = await this._postImportacion('fragmentos', fragmentoData, statusEl);
 
                 if (resp.ok) {
                     ok++;
