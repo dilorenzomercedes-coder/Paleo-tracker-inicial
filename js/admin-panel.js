@@ -1066,68 +1066,8 @@ class AdminPanel {
     }
 
     // ── Partes Diarios (local storage, read from collector device key) ──────
-    async loadPartesAdmin() {
-        const grid = document.getElementById('partes-diarios-admin-grid');
-        const collectorFilter = document.getElementById('filter-partes-collector');
-        if (!grid) return;
+    // ── Partes Diarios (local storage, read from collector device key) ──────
 
-        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:#888;">Cargando partes...</div>';
-
-        try {
-            const resp = await this.apiRequest('/api/admin/partes-diarios');
-            let partes = resp.data || [];
-
-            // Populate collector filter
-            if (collectorFilter) {
-                const collectors = [...new Set(partes.map(p => p.collector?.name || p.collector?.collectorId).filter(Boolean))];
-                const currentVal = collectorFilter.value;
-                collectorFilter.innerHTML = '<option value="">Todos los colectores</option>' +
-                    collectors.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
-                collectorFilter.onchange = () => this.loadPartesAdmin();
-            }
-
-            // Apply filter
-            const selectedCollector = collectorFilter ? collectorFilter.value : '';
-            const filtered = selectedCollector
-                ? partes.filter(p => (p.collector?.name || p.collector?.collectorId) === selectedCollector)
-                : partes;
-
-            if (filtered.length === 0) {
-                grid.innerHTML = '<div style="grid-column:1/-1; color:#888; text-align:center; padding:60px 20px; border:2px dashed #ddd; border-radius:12px;">No hay partes diarios. Los colectores los envían desde la app.</div>';
-                return;
-            }
-
-            // Render thumbnail grid
-            grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(200px, 1fr))';
-            grid.style.gap = '16px';
-            grid.innerHTML = '';
-
-            filtered.forEach(parte => {
-                const thumb = document.createElement('div');
-                thumb.style.cssText = `
-                    position:relative; border-radius:10px; overflow:hidden;
-                    cursor:pointer; aspect-ratio:1;
-                    box-shadow:0 2px 8px rgba(0,0,0,0.12);
-                    background:#f0f0f0;
-                    transition:transform 0.15s, box-shadow 0.15s;
-                `;
-                thumb.innerHTML = `
-                    <img src="${parte.foto}" alt="Parte ${parte.fecha}"
-                        style="width:100%; height:100%; object-fit:cover; display:block;">
-                `;
-                thumb.addEventListener('mouseenter', () => { thumb.style.transform = 'scale(1.03)'; thumb.style.boxShadow = '0 6px 20px rgba(0,0,0,0.2)'; });
-                thumb.addEventListener('mouseleave', () => { thumb.style.transform = ''; thumb.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)'; });
-                thumb.addEventListener('click', () => this._openLightbox(parte));
-                grid.appendChild(thumb);
-            });
-        } catch (err) {
-            console.error('Error cargando partes diarios:', err);
-            grid.innerHTML = '<div style="grid-column:1/-1;color:#e74c3c;text-align:center;padding:40px;">Error al cargar partes. Verificá la conexión con el servidor.</div>';
-        }
-    }
-
-
-    _setupLightbox() { /* unused – we reuse photo-modal like Hallazgos */ }
 
     _openLightbox(parte) {
         const fecha = this.formatParteDate(parte.fecha);
@@ -2263,45 +2203,6 @@ class AdminPanel {
         alert('Función de visualización de documento en desarrollo');
     }
 
-    viewPhoto(src, title) {
-        // Create modal if it doesn't exist
-        let modal = document.getElementById('photo-modal');
-        if (!modal) {
-            modal = document.createElement('div');
-            modal.id = 'photo-modal';
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2 id="photo-modal-title"></h2>
-                        <button class="btn-close" onclick="window.adminPanel.closeModal('photo-modal')">&times;</button>
-                    </div>
-                    <div style="text-align:center;padding:20px;">
-                        <img id="photo-modal-image" style="max-width:100%;max-height:70vh;border-radius:8px;">
-                    </div>
-                    <div class="modal-actions">
-                        <button class="btn btn-primary" id="photo-download-btn">Descargar Foto</button>
-                        <button class="btn btn-secondary" onclick="window.adminPanel.closeModal('photo-modal')">Cerrar</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        document.getElementById('photo-modal-title').textContent = title;
-        document.getElementById('photo-modal-image').src = src;
-
-        document.getElementById('photo-download-btn').onclick = () => {
-            const a = document.createElement('a');
-            a.href = src;
-            a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.jpg`;
-            a.click();
-        };
-
-        this.openModal('photo-modal');
-    }
-
-
     fileToBase64(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -2309,6 +2210,17 @@ class AdminPanel {
             reader.onerror = reject;
             reader.readAsDataURL(file);
         });
+    }
+
+    // View photo in modal (usado por las miniaturas de Rescates)
+    viewPhoto(base64, title) {
+        const modal = document.getElementById('modal-photo');
+        const img = document.getElementById('modal-photo-img');
+        const caption = document.getElementById('modal-photo-caption');
+
+        img.src = base64;
+        caption.textContent = title;
+        modal.style.display = 'block';
     }
 
     openModal(modalId) {
@@ -2438,44 +2350,6 @@ class AdminPanel {
         }
     }
 
-    // View photo by ID (more efficient than passing base64 in HTML)
-    viewPhotoById(id, type) {
-        let item;
-        let title;
-        let foto;
-
-        if (type === 'hallazgo') {
-            item = this.currentHallazgos && this.currentHallazgos.find(h => String(h.id) === String(id));
-            if (item) {
-                foto = item.foto1 || item.foto2 || item.foto3;
-                title = item.codigo || 'Hallazgo';
-            }
-        } else if (type === 'fragmento') {
-            item = this.currentFragmentos && this.currentFragmentos.find(f => String(f.id) === String(id));
-            if (item) {
-                foto = item.foto;
-                title = `Fragmento - ${item.folder}`;
-            }
-        }
-
-        if (foto) {
-            this.viewPhoto(foto, title);
-        } else {
-            alert('Foto no encontrada');
-        }
-    }
-
-    // View photo in modal
-    viewPhoto(base64, title) {
-        const modal = document.getElementById('modal-photo');
-        const img = document.getElementById('modal-photo-img');
-        const caption = document.getElementById('modal-photo-caption');
-
-        img.src = base64;
-        caption.textContent = title;
-        modal.style.display = 'block';
-    }
-
     // Download photo by ID
     downloadPhotoById(id, type) {
         let item;
@@ -2498,7 +2372,30 @@ class AdminPanel {
         }
 
         if (foto) {
-            this.downloadPhoto(foto, filename);
+            // Convertimos y descargamos acá mismo (antes dependía de una downloadPhoto
+            // de 2 argumentos que se eliminó al limpiar duplicados; downloadPhoto ahora
+            // espera 3 argumentos con otro propósito, así que esto queda autocontenido)
+            try {
+                const base64Data = foto.split(',')[1];
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error downloading photo:', error);
+                alert('Error al descargar la foto');
+            }
         } else {
             alert('Foto no encontrada para descargar');
         }
@@ -2631,33 +2528,6 @@ class AdminPanel {
         } catch (error) {
             console.error('Error updating hallazgo:', error);
             alert('❌ Error de conexión al actualizar');
-        }
-    }
-
-    // Download individual photo
-    downloadPhoto(base64Data, filename) {
-        try {
-            // Convert base64 to blob
-            const byteCharacters = atob(base64Data.split(',')[1]);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'image/jpeg' });
-
-            // Create download link
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('Error downloading photo:', error);
-            alert('Error al descargar la foto');
         }
     }
 
