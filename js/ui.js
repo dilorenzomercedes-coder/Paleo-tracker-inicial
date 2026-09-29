@@ -454,8 +454,10 @@ class UI {
         card.className = 'data-card';
         card.style.cursor = 'pointer';
 
-        const imgDisplay = item.foto
-            ? `<img src="${this._getPhotoSrc(item.foto)}" alt="Foto">`
+        // Vestigios usan 'foto'; hallazgos y rescates usan foto1/foto2/foto3
+        const fotoPreview = item.foto || item.foto1 || item.foto2 || item.foto3;
+        const imgDisplay = fotoPreview
+            ? `<img src="${this._getPhotoSrc(fotoPreview)}" alt="Foto">`
             : `<div class="img-placeholder"><span>📷</span></div>`;
 
         const TIPO_LABELS = { xilopalo: 'Xilópalo', vertebrados_fosiles: 'Vertebrados Fósiles', invertebrados_fosiles: 'Invertebrados Fósiles', icnofosil: 'Icnofósil' };
