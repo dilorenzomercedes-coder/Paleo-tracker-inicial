@@ -4114,6 +4114,41 @@ class AdminPanel {
                             <input type="text" id="locus-folder" class="form-control" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
                         </div>
                         <div>
+                            <label style="font-weight:600; font-size:.85rem; color:#555;">Importar como</label>
+                            <select id="locus-destino" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                                <option value="fragmentos" selected>Vestigios</option>
+                                <option value="hallazgos">Hallazgos</option>
+                            </select>
+                        </div>
+                        <div id="locus-campos-hallazgo" style="display:none; flex-direction:column; gap:14px;">
+                            <div>
+                                <label style="font-weight:600; font-size:.85rem; color:#555;">Tipo de material</label>
+                                <select id="locus-hz-tipo" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                                    <option value="VS">VS</option><option value="VS-F">VS-F</option>
+                                    <option value="VR">VR</option><option value="VR-F">VR-F</option>
+                                    <option value="IS">IS</option><option value="IS-F">IS-F</option>
+                                    <option value="IR">IR</option><option value="XS">XS</option>
+                                    <option value="XR">XR</option><option value="PI">PI</option>
+                                    <option value="Huella">Huella</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-weight:600; font-size:.85rem; color:#555;">Acción</label>
+                                <select id="locus-hz-accion" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                                    <option value="picking">Picking</option>
+                                    <option value="rescate">Rescate pendiente</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-weight:600; font-size:.85rem; color:#555;">Formación (opcional)</label>
+                                <input type="text" id="locus-hz-formacion" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                            </div>
+                            <div>
+                                <label style="font-weight:600; font-size:.85rem; color:#555;">Prefijo de código (opcional)</label>
+                                <input type="text" id="locus-hz-prefijo" placeholder="Ej. CM-  → CM-001, CM-002… (vacío = nombre del punto)" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
+                            </div>
+                        </div>
+                        <div id="locus-campo-tipo-vestigio">
                             <label style="font-weight:600; font-size:.85rem; color:#555;">Tipo de Vestigio</label>
                             <select id="locus-tipo" style="width:100%; margin-top:4px; padding:8px; border:1px solid #ddd; border-radius:6px;">
                                 <option value="xilopalo">Xilópalo</option>
@@ -4139,6 +4174,11 @@ class AdminPanel {
             document.getElementById('btn-locus-cancel').onclick = () => { modal.style.display = 'none'; };
 
             document.getElementById('btn-locus-analizar').onclick = () => this._analizarLocusKMZ();
+            document.getElementById('locus-destino').onchange = (e) => {
+                const esHz = e.target.value === 'hallazgos';
+                document.getElementById('locus-campos-hallazgo').style.display = esHz ? 'flex' : 'none';
+                document.getElementById('locus-campo-tipo-vestigio').style.display = esHz ? 'none' : 'block';
+            };
             document.getElementById('btn-locus-confirmar').onclick = () => this._confirmarImportacionLocus();
         }
         modal.style.display = 'flex';
@@ -4266,7 +4306,10 @@ class AdminPanel {
                             nombre: [localidadNombre, nota].filter(Boolean).join(' · '),
                             fecha: whenToFecha(getWhen(pm), ''),
                             lat: c.lat, lng: c.lng,
-                            attachmentPath: imgFromDescription(getDescription(pm))
+                            attachmentPath: imgFromDescription(getDescription(pm)),
+                            grupo: folder.getAttribute('id') || localidadNombre,
+                            grupoNombre: localidadNombre,
+                            nota
                         });
                     });
                 });
@@ -4321,7 +4364,9 @@ class AdminPanel {
             this._locusZip = zip;
 
             statusEl.style.color = '#2c5e2e';
-            statusEl.textContent = `✅ Formato ${esClino ? 'Clino' : 'Locus'}: ${points.length} puntos encontrados (${conFoto} con foto asociada). Revisá los datos de arriba y confirmá para importar.`;
+            const nLocalidades = esClino ? new Set(points.map(p => p.grupo)).size : points.length;
+            statusEl.textContent = `✅ Formato ${esClino ? 'Clino' : 'Locus'}: ${points.length} puntos encontrados (${conFoto} con foto asociada)` +
+                (esClino ? `, ${nLocalidades} localidades` : '') + '. Revisá los datos de arriba y confirmá para importar.';
 
             document.getElementById('btn-locus-analizar').style.display = 'none';
             document.getElementById('btn-locus-confirmar').style.display = 'inline-block';
@@ -4361,6 +4406,105 @@ class AdminPanel {
     }
 
     // Sube todos los puntos parseados al backend, uno por uno
+    // Lee una foto del KMZ y la devuelve comprimida como data URI
+    async _fotoDesdeZip(path) {
+        if (!path || !this._locusZip) return null;
+        const entry = this._locusZip.file(path);
+        if (!entry) return null;
+        const raw = await entry.async('base64');
+        const ext = path.split('.').pop().toLowerCase();
+        const mime = ext === 'png' ? 'image/png' : 'image/jpeg';
+        return this._compressBase64Image(`data:${mime};base64,${raw}`);
+    }
+
+    // Importa los puntos del KMZ como HALLAZGOS.
+    // Clino: un hallazgo por localidad, con hasta 3 fotos. Locus: un hallazgo por punto.
+    async _confirmarImportacionHallazgos(localidad, folder) {
+        const statusEl = document.getElementById('locus-status');
+        const progressWrap = document.getElementById('locus-progress-bar-wrap');
+        const progressBar = document.getElementById('locus-progress-bar');
+        const btnConfirmar = document.getElementById('btn-locus-confirmar');
+
+        const tipo_material = document.getElementById('locus-hz-tipo').value;
+        const accion = document.getElementById('locus-hz-accion').value;
+        const formacion = document.getElementById('locus-hz-formacion').value.trim();
+        const prefijo = document.getElementById('locus-hz-prefijo').value.trim();
+
+        // Agrupar: en Clino por localidad; en Locus cada punto es su propio grupo
+        const grupos = [];
+        const porClave = new Map();
+        this._locusParsedPoints.forEach((p, i) => {
+            const clave = p.grupo || `p${i}`;
+            if (!porClave.has(clave)) {
+                const g = { clave, nombre: p.grupoNombre || p.nombre, fecha: p.fecha, lat: p.lat, lng: p.lng, fotos: [], notas: [] };
+                porClave.set(clave, g);
+                grupos.push(g);
+            }
+            const g = porClave.get(clave);
+            if (p.attachmentPath) g.fotos.push(p.attachmentPath);
+            const nota = p.grupo ? p.nota : '';
+            if (nota) g.notas.push(nota);
+        });
+        // Orden cronológico en Clino (el KML viene de la última a la primera localidad)
+        if (this._importSource === 'clino') grupos.reverse();
+
+        btnConfirmar.disabled = true;
+        progressWrap.style.display = 'block';
+
+        const collectorId = 'import-locus';
+        const origenImport = this._importSource === 'clino' ? 'Clino' : 'Locus';
+        const collectorName = `Importación ${origenImport} (${folder || localidad})`;
+        const conMasDe3 = grupos.filter(g => g.fotos.length > 3).length;
+        let ok = 0, fail = 0;
+
+        for (let i = 0; i < grupos.length; i++) {
+            const g = grupos[i];
+            statusEl.style.color = '#666';
+            statusEl.textContent = `Importando hallazgo ${i + 1} / ${grupos.length}...`;
+            progressBar.style.width = `${Math.round(((i + 1) / grupos.length) * 100)}%`;
+
+            try {
+                const [foto1, foto2, foto3] = await Promise.all(
+                    [0, 1, 2].map(k => this._fotoDesdeZip(g.fotos[k]))
+                );
+                const codigo = prefijo ? `${prefijo}${String(i + 1).padStart(3, '0')}` : g.nombre;
+                const hallazgoData = {
+                    id: `hz_${this._importSource || 'locus'}_${String(g.fotos[0] || g.clave || g.nombre || i).replace(/[^a-zA-Z0-9]/g, '_')}`,
+                    fecha: g.fecha,
+                    localidad,
+                    folder,
+                    codigo,
+                    tipo_material,
+                    formacion,
+                    accion,
+                    lat: g.lat,
+                    lng: g.lng,
+                    foto1, foto2, foto3,
+                    observaciones: [g.nombre !== codigo ? g.nombre : '', ...g.notas].filter(Boolean).join(' · '),
+                    collectorId,
+                    collectorName
+                };
+
+                const resp = await fetch(`${this.API_URL}/api/collector/hallazgos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(hallazgoData)
+                });
+                if (resp.ok) ok++;
+                else { fail++; console.error('Fallo al importar hallazgo', i, await resp.text()); }
+            } catch (err) {
+                fail++;
+                console.error('Error importando hallazgo', i, err);
+            }
+        }
+
+        statusEl.style.color = fail === 0 ? '#2c5e2e' : '#e67e22';
+        statusEl.textContent = `✅ Importación finalizada: ${ok} hallazgos creados${fail > 0 ? `, ${fail} con error (revisá la consola y volvé a confirmar)` : ''}.` +
+            (conMasDe3 ? ` Atención: ${conMasDe3} localidades tenían más de 3 fotos; se guardaron solo las 3 primeras.` : '');
+        btnConfirmar.disabled = false;
+        if (this.currentView === 'hallazgos') this.loadHallazgos();
+    }
+
     async _confirmarImportacionLocus() {
         const statusEl = document.getElementById('locus-status');
         const progressWrap = document.getElementById('locus-progress-bar-wrap');
@@ -4380,6 +4524,10 @@ class AdminPanel {
             statusEl.style.color = '#c0392b';
             statusEl.textContent = '⚠️ Primero analizá un archivo.';
             return;
+        }
+
+        if (document.getElementById('locus-destino')?.value === 'hallazgos') {
+            return this._confirmarImportacionHallazgos(localidad, folder);
         }
 
         btnConfirmar.disabled = true;
