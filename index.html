@@ -16,6 +16,7 @@
           <strong>Error:</strong> ${msg}<br>
           <small>${url}:${line}</small>
         </div>`;
+        log.style.display = 'block'; // Solo se muestra cuando REALMENTE hay un error que mostrar
       }
       console.error(msg, url, line);
     };
@@ -25,6 +26,7 @@
         log.innerHTML += `<div style="color:orange; border-bottom:1px solid #ccc; padding:4px;">
           <strong>Promise Rejection:</strong> ${event.reason}
         </div>`;
+        log.style.display = 'block'; // Solo se muestra cuando REALMENTE hay un error que mostrar
       }
       console.error(event.reason);
     };
@@ -980,26 +982,42 @@
 
   <!-- Debug Log -->
   <div id="debug-log" style="
-    display: none; /* Hidden by default, toggle via console or if needed */
+    display: none; /* Oculto siempre por defecto — solo se activa desde window.onerror/onunhandledrejection cuando hay algo real que mostrar */
     position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;
     max-height: 150px;
     overflow-y: auto;
-    background: rgba(0,0,0,0.8);
+    background: rgba(0,0,0,0.9);
     color: white;
     font-family: monospace;
     font-size: 10px;
     z-index: 9999;
     padding: 10px;
-  "></div>
+    padding-top: 36px;
+  ">
+    <button onclick="document.getElementById('debug-log').style.display='none';"
+      style="
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: #c0392b;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+      ">✕ Cerrar</button>
+  </div>
 
   <script>
-    // Show debug log if on mobile or requested
-    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      document.getElementById('debug-log').style.display = 'block';
-    }
+    // NOTA: este panel ya NO se activa automáticamente al abrir la app en Android/iPhone.
+    // Antes se mostraba siempre (tenga o no errores), tapando el menú de abajo y bloqueando
+    // el uso de la app. Ahora solo aparece cuando window.onerror u onunhandledrejection
+    // detectan un error real, y se puede cerrar con el botón "✕ Cerrar".
   </script>
 </body>
 
