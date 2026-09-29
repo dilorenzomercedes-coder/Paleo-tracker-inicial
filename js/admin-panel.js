@@ -887,9 +887,13 @@ class AdminPanel {
             }
 
             tbody.innerHTML = filteredData.map(h => {
-                const foto = validFotoSrc(h.foto1 || h.foto2 || h.foto3);
+                const fotosH = [h.foto1, h.foto2, h.foto3].map(validFotoSrc).filter(Boolean);
+                const foto = fotosH[0];
                 const fotoHTML = foto ?
-                    `<img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${h.id}', 'hallazgo')">` :
+                    `<div style="position:relative;display:inline-block;">
+                        <img src="${foto}" alt="Foto" style="width:60px;height:60px;object-fit:cover;cursor:pointer;border-radius:4px;" onclick="window.adminPanel.viewPhotoById('${h.id}', 'hallazgo')">
+                        ${fotosH.length > 1 ? `<span style="position:absolute;right:2px;bottom:2px;background:rgba(0,0,0,.7);color:#fff;font-size:.7rem;padding:1px 5px;border-radius:8px;">📷 ${fotosH.length}</span>` : ''}
+                    </div>` :
                     '<span style="color:#999;">Sin foto</span>';
 
                 const esRescatePendiente = h.accion === 'rescate' || h.accion === 'rescate pendiente';
@@ -2860,25 +2864,44 @@ class AdminPanel {
                 return;
             }
 
-            // Get the photo (hallazgos have foto1/2/3, fragmentos have foto)
-            const photo = type === 'hallazgo'
-                ? (item.foto1 || item.foto2 || item.foto3)
-                : (validFotoSrc(item.foto) || await this.getFragmentoFoto(item.id));
+            // Hallazgos pueden tener hasta 3 fotos (foto1/2/3); vestigios tienen una sola (foto)
+            const fotos = type === 'hallazgo'
+                ? [item.foto1, item.foto2, item.foto3].map(validFotoSrc).filter(Boolean)
+                : [validFotoSrc(item.foto) || await this.getFragmentoFoto(item.id)].filter(Boolean);
 
-            if (!photo) {
+            if (fotos.length === 0) {
                 alert('Este elemento no tiene foto');
                 return;
             }
 
-            // Set modal content
-            document.getElementById('photo-viewer-title').textContent = type === 'hallazgo'
-                ? `Foto ${item.codigo || item.id}`
-                : `Foto ${item.localidad || item.id}`;
-            document.getElementById('photo-viewer-image').src = photo;
-
-            // Set download handler
+            const titulo = type === 'hallazgo' ? `Foto ${item.codigo || item.id}` : `Foto ${item.localidad || item.id}`;
+            const imgEl = document.getElementById('photo-viewer-image');
             const downloadBtn = document.getElementById('btn-download-photo');
-            downloadBtn.onclick = () => this.downloadPhoto(photo, type, item);
+
+            // Tira de miniaturas debajo de la foto grande (se crea una sola vez)
+            let strip = document.getElementById('photo-viewer-strip');
+            if (!strip) {
+                strip = document.createElement('div');
+                strip.id = 'photo-viewer-strip';
+                strip.style.cssText = 'display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;';
+                imgEl.parentElement.appendChild(strip);
+            }
+
+            const mostrar = (idx) => {
+                imgEl.src = fotos[idx];
+                document.getElementById('photo-viewer-title').textContent =
+                    fotos.length > 1 ? `${titulo} (${idx + 1} de ${fotos.length})` : titulo;
+                downloadBtn.onclick = () => this.downloadPhoto(fotos[idx], type, { ...item, codigo: `${item.codigo || item.id}${fotos.length > 1 ? '_' + (idx + 1) : ''}` });
+                strip.querySelectorAll('img').forEach((t, k) => {
+                    t.style.outline = k === idx ? '3px solid #2c5e2e' : 'none';
+                });
+            };
+
+            strip.innerHTML = fotos.length > 1
+                ? fotos.map((f, k) => `<img src="${f}" data-idx="${k}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;cursor:pointer;">`).join('')
+                : '';
+            strip.querySelectorAll('img').forEach(t => { t.onclick = () => mostrar(Number(t.dataset.idx)); });
+            mostrar(0);
 
             // Show modal
             document.getElementById('modal-photo-viewer').style.display = 'flex';
