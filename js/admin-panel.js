@@ -602,6 +602,27 @@ class AdminPanel {
         }
     }
 
+    // Devuelve la foto como data URI base64: si ya lo es, tal cual; si es un link (R2), la descarga
+    async _fotoComoDataURL(src) {
+        if (!src || typeof src !== 'string') return null;
+        if (src.startsWith('data:')) return src;
+        if (!src.startsWith('http')) return null;
+        try {
+            const resp = await fetch(src);
+            if (!resp.ok) return null;
+            const blob = await resp.blob();
+            return await new Promise((resolve) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.onerror = () => resolve(null);
+                r.readAsDataURL(blob);
+            });
+        } catch (err) {
+            console.warn('No se pudo descargar la foto', err);
+            return null;
+        }
+    }
+
     // ===== Fotos de vestigios bajo demanda =====
     // La lista de vestigios llega sin fotos (?light=1) y con fotoStatus: 'ok' | 'celular' | null.
     // Si el backend todavía no soporta light, la lista trae la foto y se usa como antes.
@@ -645,21 +666,46 @@ class AdminPanel {
     async downloadFile(endpoint, filename) {
         const url = `${this.API_URL}${endpoint}`;
 
+        // Aviso mientras el servidor arma el archivo (puede tardar con muchas fotos)
+        let aviso = document.getElementById('aviso-descarga');
+        if (!aviso) {
+            aviso = document.createElement('div');
+            aviso.id = 'aviso-descarga';
+            aviso.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2c5e2e;color:#fff;padding:12px 20px;border-radius:8px;z-index:7000;box-shadow:0 4px 12px rgba(0,0,0,.3);font-size:.9rem;';
+            document.body.appendChild(aviso);
+        }
+        aviso.textContent = `⏳ Preparando ${filename}... puede tardar un par de minutos, no cierres la página.`;
+        aviso.style.display = 'block';
+
         try {
             const response = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${this.token}` }
+                headers: { 'Authorization': `Bearer ${this.token}` },
+                cache: 'no-store' // archivos grandes: que Chrome no intente guardarlos en su caché (ERR_CACHE_WRITE_FAILURE)
             });
 
-            if (!response.ok) throw new Error('Error al descargar archivo');
+            if (response.status === 401) {
+                this.logout();
+                throw new Error('Sesión expirada');
+            }
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `El servidor respondió ${response.status}`);
+            }
 
             const blob = await response.blob();
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = filename;
+            document.body.appendChild(link);
             link.click();
-            URL.revokeObjectURL(link.href);
+            link.remove();
+            // Liberar recién después de que el navegador arrancó la descarga
+            setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+            aviso.textContent = `✅ ${filename} descargado (${(blob.size / 1048576).toFixed(1)} MB)`;
+            setTimeout(() => { aviso.style.display = 'none'; }, 4000);
         } catch (error) {
             console.error('Download error:', error);
+            aviso.style.display = 'none';
             alert('Error al descargar: ' + error.message);
         }
     }
@@ -2399,7 +2445,8 @@ class AdminPanel {
                 row.height = 60; // Make row taller for image
 
                 // Handle Image
-                const fotoBase64 = type === 'hallazgos' ? (item.foto1 || item.foto2 || item.foto3) : item.foto;
+                // Puede venir en base64 (viejo) o como link de R2: se convierte a base64 para Excel
+                const fotoBase64 = await this._fotoComoDataURL(type === 'hallazgos' ? (item.foto1 || item.foto2 || item.foto3) : item.foto);
 
                 if (fotoBase64 && fotoBase64.startsWith('data:image')) {
                     try {
@@ -2456,6 +2503,7 @@ class AdminPanel {
             // de 2 argumentos que se eliminó al limpiar duplicados; downloadPhoto ahora
             // espera 3 argumentos con otro propósito, así que esto queda autocontenido)
             try {
+                foto = await this._fotoComoDataURL(foto);
                 const base64Data = foto.split(',')[1];
                 const byteCharacters = atob(base64Data);
                 const byteNumbers = new Array(byteCharacters.length);
@@ -2924,8 +2972,9 @@ class AdminPanel {
     }
 
     // Download individual photo
-    downloadPhoto(photoBase64, type, item) {
+    async downloadPhoto(photoBase64, type, item) {
         try {
+            photoBase64 = await this._fotoComoDataURL(photoBase64);
             // Create filename
             const filename = type === 'hallazgo'
                 ? `hallazgo_${item.codigo || item.id}_${item.fecha || 'sin_fecha'}.jpg`
