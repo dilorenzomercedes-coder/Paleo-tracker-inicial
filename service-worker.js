@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paleo-tracker-v23';
+const CACHE_NAME = 'paleo-tracker-v24';
 const TILES_CACHE = 'map-tiles-v1';
 
 const ASSETS = [
