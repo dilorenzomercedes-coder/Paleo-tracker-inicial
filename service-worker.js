@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paleo-tracker-v25';
+const CACHE_NAME = 'paleo-tracker-v26';
 const TILES_CACHE = 'map-tiles-v1';
 
 const ASSETS = [
@@ -170,7 +170,7 @@ async function guardarPaginaCompleta(cache, request, response) {
         }
         for (const u of urls) {
             if (await cache.match(u)) continue;
-            const r = await fetch(u);
+            const r = await fetch(u, { cache: 'no-cache' });
             if (!r.ok) return false;
             await cache.put(u, r);
         }
@@ -191,7 +191,9 @@ async function handleAppRequest(request) {
     const cached = await cache.match(request);
 
     const esPagina = request.mode === 'navigate' || request.url.endsWith('.html') || request.url.endsWith('/');
-    const actualizar = fetch(request)
+    // cache: 'no-cache' → siempre pregunta a GitHub si hay versión nueva (si no cambió, la respuesta es mínima).
+    // Sin esto, el celular podía devolver por hasta 10 minutos la página vieja que tenía guardada.
+    const actualizar = fetch(esPagina ? request.url : request, { cache: 'no-cache', credentials: 'same-origin' })
         .then(async networkResponse => {
             if (networkResponse && networkResponse.ok) {
                 if (esPagina) {
