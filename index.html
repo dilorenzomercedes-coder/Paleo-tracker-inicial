@@ -21,6 +21,12 @@
       console.error(msg, url, line);
     };
     window.onunhandledrejection = function (event) {
+      // Fallas de red esperables sin señal (buscar actualización de la app, sincronizar): no mostrar cartel
+      const motivo = String(event.reason && (event.reason.message || event.reason));
+      if (/ServiceWorker|Failed to fetch|NetworkError|Load failed|network/i.test(motivo)) {
+        console.warn('Sin conexión (ignorado):', motivo);
+        return;
+      }
       const log = document.getElementById('debug-log');
       if (log) {
         log.innerHTML += `<div style="color:orange; border-bottom:1px solid #ccc; padding:4px;">
@@ -831,8 +837,8 @@
   <!-- Simple KML parser for Leaflet (we might need to vendor this or use a CDN if available, for now I'll add a placeholder or simple logic) -->
   <script src="./js/dexie.js"></script>
   <script src="./js/photo-store.js?v=2.4.0"></script>
-  <script src="./js/store.js?v=2.4.0"></script>
-  <script src="./js/sync-manager.js?v=2.3.0"></script>
+  <script src="./js/store.js?v=2.4.2"></script>
+  <script src="./js/sync-manager.js?v=2.4.2"></script>
   <script src="./js/export.js?v=2.3.0"></script>
   <script src="./js/ui.js?v=2.4.0"></script>
   <script src="./js/map.js?v=2.4.0"></script>
@@ -888,7 +894,7 @@
           navigator.serviceWorker.register('./service-worker.js')
             .then(registration => {
               console.log('SW Registered at root');
-              registration.update();
+              registration.update().catch(() => { /* sin señal: se reintenta la próxima vez */ });
             })
             .catch(err => console.log('SW Registration failed', err));
         });
