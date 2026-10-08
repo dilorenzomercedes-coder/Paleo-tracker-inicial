@@ -184,6 +184,99 @@ class Store {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
+    // ===== Fotos (guardadas en IndexedDB vía window.fotoStore) =====
+    _camposFoto(item) {
+        return ['foto', 'foto1', 'foto2', 'foto3'].filter(c => item && c in item);
+    }
+
+    // Saca valores de foto inválidos: File vacío del formulario, "{}", "" (evita pisar la foto al editar)
+    _limpiarCamposFoto(obj) {
+        if (!obj || typeof obj !== 'object') return obj;
+        for (const c of ['foto', 'foto1', 'foto2', 'foto3']) {
+            if (!(c in obj)) continue;
+            const v = obj[c];
+            if (typeof v !== 'string' || v === '' || v === '{}' || v === '[object File]') delete obj[c];
+        }
+        return obj;
+    }
+
+    _borrarFotosDe(item, salvo = {}) {
+        if (!item || !window.fotoStore) return;
+        for (const c of this._camposFoto(item)) {
+            const v = item[c];
+            if (window.fotoStore.esRef(v) && !Object.values(salvo).includes(v)) window.fotoStore.borrar(v);
+        }
+    }
+
+    // Copia del item con las fotos en base64 (para mandar al servidor o exportar).
+    // Si una foto no está en este celular, se omite ese campo y se avisa por consola.
+    async _conFotosResueltas(item, faltantes = []) {
+        const copia = { ...item };
+        for (const c of this._camposFoto(copia)) {
+            const v = copia[c];
+            if (window.fotoStore && window.fotoStore.esRef(v)) {
+                const data = await window.fotoStore.aDataURL(v);
+                if (data) copia[c] = data;
+                else { delete copia[c]; faltantes.push(`${item.id}.${c}`); }
+            } else if (typeof v !== 'string' || v === '{}' || v === '') {
+                delete copia[c];
+            }
+        }
+        return copia;
+    }
+
+    /**
+     * Mueve a IndexedDB las fotos que todavía están en base64 dentro de localStorage.
+     * Es seguro correrla varias veces: solo toca las que siguen en base64, y una foto
+     * solo se reemplaza por la referencia DESPUÉS de quedar guardada en IndexedDB.
+     */
+    async migrarFotosAIndexedDB() {
+        if (!window.fotoStore) return 0;
+        const db = await window.fotoStore.ready;
+        if (!db) return 0;
+        let movidas = 0;
+        for (const key of [this.STORAGE_KEY_HALLAZGOS, this.STORAGE_KEY_FRAGMENTOS, this.STORAGE_KEY_RESCATES]) {
+            // Foto por foto se guarda en IndexedDB; cada tanda se aplica sobre la lista
+            // RELEÍDA de localStorage, para no pisar puntos que se carguen o sincronicen mientras tanto.
+            const pendientes = [];
+            for (const item of this._getData(key)) {
+                for (const c of this._camposFoto(item)) {
+                    const v = item[c];
+                    if (v === '{}' || v === '' || (typeof v === 'string' && v.startsWith('data:image'))) {
+                        pendientes.push({ id: item.id, campo: c, valor: v });
+                    }
+                }
+            }
+            for (let i = 0; i < pendientes.length; i += 10) {
+                const tanda = pendientes.slice(i, i + 10);
+                for (const p of tanda) {
+                    p.ref = (p.valor === '{}' || p.valor === '') ? null : await window.fotoStore.guardar(p.valor);
+                }
+                const list = this._getData(key);
+                let cambios = 0;
+                for (const p of tanda) {
+                    const item = list.find(x => x.id === p.id);
+                    if (!item || item[p.campo] !== p.valor) continue; // cambió mientras tanto: no tocar
+                    if (p.ref === null) { delete item[p.campo]; cambios++; }
+                    else if (p.ref !== p.valor) { item[p.campo] = p.ref; cambios++; movidas++; }
+                }
+                if (cambios) this._saveData(key, list);
+            }
+        }
+        if (movidas) console.log(`FotoStore: ${movidas} fotos movidas de localStorage a IndexedDB`);
+        return movidas;
+    }
+
+    // Datos para exportar (KML / backup) con las fotos en base64
+    async getAllDataForExportConFotos() {
+        const data = this.getAllDataForExport();
+        return {
+            hallazgos: await Promise.all(data.hallazgos.map(i => this._conFotosResueltas(i))),
+            fragmentos: await Promise.all(data.fragmentos.map(i => this._conFotosResueltas(i))),
+            routes: data.routes
+        };
+    }
+
     // Compress image before storing
     async compressImage(base64String) {
         if (!base64String || !base64String.startsWith('data:image')) {
@@ -264,6 +357,7 @@ class Store {
         hallazgo.id = this._generateId();
         hallazgo.timestamp = new Date().toISOString();
         hallazgo.synced = false;
+        this._limpiarCamposFoto(hallazgo);
         list.push(hallazgo);
         this._saveData(this.STORAGE_KEY_HALLAZGOS, list);
         return hallazgo;
@@ -273,6 +367,8 @@ class Store {
         const list = this.getHallazgos();
         const index = list.findIndex(h => h.id === id);
         if (index !== -1) {
+            this._limpiarCamposFoto(updatedData);
+            this._borrarFotosDe(list[index], { ...list[index], ...updatedData });
             list[index] = { ...list[index], ...updatedData };
             this._saveData(this.STORAGE_KEY_HALLAZGOS, list);
             return list[index];
@@ -282,6 +378,7 @@ class Store {
 
     deleteHallazgo(id) {
         const list = this.getHallazgos();
+        this._borrarFotosDe(list.find(h => h.id === id));
         const filtered = list.filter(h => h.id !== id);
         this._saveData(this.STORAGE_KEY_HALLAZGOS, filtered);
     }
@@ -296,6 +393,7 @@ class Store {
         fragmento.id = this._generateId();
         fragmento.timestamp = new Date().toISOString();
         fragmento.synced = false;
+        this._limpiarCamposFoto(fragmento);
         list.push(fragmento);
         this._saveData(this.STORAGE_KEY_FRAGMENTOS, list);
         return fragmento;
@@ -305,6 +403,8 @@ class Store {
         const list = this.getFragmentos();
         const index = list.findIndex(a => a.id === id);
         if (index !== -1) {
+            this._limpiarCamposFoto(updatedData);
+            this._borrarFotosDe(list[index], { ...list[index], ...updatedData });
             list[index] = { ...list[index], ...updatedData };
             this._saveData(this.STORAGE_KEY_FRAGMENTOS, list);
             return list[index];
@@ -314,6 +414,7 @@ class Store {
 
     deleteFragmento(id) {
         const list = this.getFragmentos();
+        this._borrarFotosDe(list.find(a => a.id === id));
         const filtered = list.filter(a => a.id !== id);
         this._saveData(this.STORAGE_KEY_FRAGMENTOS, filtered);
     }
@@ -415,6 +516,7 @@ class Store {
         rescate.id = `r_${this._generateId()}`;
         rescate.timestamp = new Date().toISOString();
         rescate.synced = false;
+        this._limpiarCamposFoto(rescate);
         list.push(rescate);
         this._saveData(this.STORAGE_KEY_RESCATES, list);
         return rescate;
@@ -424,6 +526,8 @@ class Store {
         const list = this.getRescates();
         const index = list.findIndex(r => r.id === id);
         if (index !== -1) {
+            this._limpiarCamposFoto(updatedData);
+            this._borrarFotosDe(list[index], { ...list[index], ...updatedData });
             list[index] = { ...list[index], ...updatedData };
             this._saveData(this.STORAGE_KEY_RESCATES, list);
             return list[index];
@@ -433,6 +537,7 @@ class Store {
 
     deleteRescate(id) {
         const list = this.getRescates();
+        this._borrarFotosDe(list.find(r => r.id === id));
         const filtered = list.filter(r => r.id !== id);
         this._saveData(this.STORAGE_KEY_RESCATES, filtered);
     }
@@ -586,7 +691,11 @@ class Store {
 
         for (const { key, storageKey, data, url } of endpoints) {
             for (const item of data) {
-                const cleanItem = this._deepClean({ ...item });
+                // Las fotos guardadas en IndexedDB se convierten a base64 ANTES de enviarlas:
+                // al servidor nunca le llega una referencia "idb:..." sin la imagen.
+                const faltantes = [];
+                const cleanItem = await this._conFotosResueltas(this._deepClean({ ...item }), faltantes);
+                if (faltantes.length) console.warn(`Sync ${key}: fotos no encontradas en este celular`, faltantes);
 
                 try {
                     const resp = await fetch(url, {

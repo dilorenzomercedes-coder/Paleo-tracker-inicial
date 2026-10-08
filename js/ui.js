@@ -31,6 +31,8 @@ class UI {
     // Devuelve una Blob URL si es una data URI válida; si no, devuelve el valor original tal cual
     // (por ejemplo IDs viejos de photo-store.js, que quedan como estaban antes)
     _getPhotoSrc(value) {
+        // Foto guardada en IndexedDB: se carga sola (ver fotoStore.src / observar)
+        if (window.fotoStore && window.fotoStore.esRef(value)) return window.fotoStore.src(value);
         const blob = this._dataURItoBlob(value);
         if (!blob) return value || '';
         const url = URL.createObjectURL(blob);
@@ -96,11 +98,12 @@ class UI {
             // Generate photos HTML
             let photosHtml = '';
             // Check for modern format (foto1, foto2, foto3) or legacy format (foto)
+            const fotoOk = v => window.fotoStore ? window.fotoStore.esFotoValida(v) : !!v;
             const photos = [];
-            if (item.foto1) photos.push(item.foto1);
-            if (item.foto2) photos.push(item.foto2);
-            if (item.foto3) photos.push(item.foto3);
-            if (item.foto && !item.foto1) photos.push(item.foto); // Backward compatibility
+            if (fotoOk(item.foto1)) photos.push(item.foto1);
+            if (fotoOk(item.foto2)) photos.push(item.foto2);
+            if (fotoOk(item.foto3)) photos.push(item.foto3);
+            if (fotoOk(item.foto) && !fotoOk(item.foto1)) photos.push(item.foto); // Backward compatibility
 
             if (photos.length > 0) {
                 photosHtml = '<div class="detail-row"><div class="detail-label">Fotografías</div><div class="photos-grid">';
@@ -385,7 +388,7 @@ class UI {
             const previewId = formId === 'form-hallazgo' ? 'hallazgo-foto-preview' : 'fragmento-foto-preview';
             const preview = document.getElementById(previewId);
             if (preview) {
-                preview.innerHTML = `<img src="${data.foto}" alt="Preview">`;
+                preview.innerHTML = `<img src="${this._getPhotoSrc(data.foto)}" alt="Preview">`;
             }
         }
     }
@@ -455,7 +458,8 @@ class UI {
         card.style.cursor = 'pointer';
 
         // Vestigios usan 'foto'; hallazgos y rescates usan foto1/foto2/foto3
-        const fotoPreview = item.foto || item.foto1 || item.foto2 || item.foto3;
+        const fotoPreview = [item.foto, item.foto1, item.foto2, item.foto3]
+            .find(v => window.fotoStore ? window.fotoStore.esFotoValida(v) : !!v);
         const imgDisplay = fotoPreview
             ? `<img src="${this._getPhotoSrc(fotoPreview)}" alt="Foto">`
             : `<div class="img-placeholder"><span>📷</span></div>`;

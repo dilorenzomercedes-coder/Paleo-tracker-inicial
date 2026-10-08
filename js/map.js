@@ -226,7 +226,7 @@ class MapManager {
             if (h.accion) popupContent += `<br><span>${h.accion}</span>`;
             if (h.folder) popupContent += `<br><span class="popup-folder">📁 ${h.folder}</span>`;
             if (h.localidad) popupContent += `<br><span class="popup-location">📍 ${h.localidad}</span>`;
-            if (h.foto1) popupContent += `<div class="popup-photo"><img src="${h.foto1}" alt="Foto" style="max-width:150px;border-radius:6px;margin-top:6px;"></div>`;
+            if (h.foto1) popupContent += `<div class="popup-photo"><img src="${window.fotoStore ? window.fotoStore.src(h.foto1) : h.foto1}" alt="Foto" style="max-width:150px;border-radius:6px;margin-top:6px;"></div>`;
             popupContent += `</div>`;
 
             L.marker([h.lat, h.lng], {
@@ -281,7 +281,7 @@ class MapManager {
             if (a.localidad) popupContent += `<span class="popup-location">📍 ${a.localidad}</span>`;
             if (a.folder) popupContent += `<br><span class="popup-folder">📁 ${a.folder}</span>`;
             if (a.observaciones) popupContent += `<br><span class="popup-obs">${a.observaciones}</span>`;
-            if (a.foto) popupContent += `<div class="popup-photo"><img src="${a.foto}" alt="Foto" style="max-width:150px;border-radius:6px;margin-top:6px;"></div>`;
+            if (a.foto) popupContent += `<div class="popup-photo"><img src="${window.fotoStore ? window.fotoStore.src(a.foto) : a.foto}" alt="Foto" style="max-width:150px;border-radius:6px;margin-top:6px;"></div>`;
             popupContent += `</div>`;
 
             L.marker([a.lat, a.lng], {

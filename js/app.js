@@ -4,6 +4,23 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('App DOMContentLoaded');
     const store = new Store();
     const ui = new UI(store);
+    window.store = store; // accesibles desde la consola para diagnóstico
+    window.ui = ui;
+
+    // Fotos en IndexedDB: al arrancar, se mueven las fotos que todavía estén en base64
+    // dentro de localStorage. A diferencia del intento anterior (que rompió fotos), ahora
+    // toda la app sabe convertir la referencia "idb:..." en la foto real: al mostrarla
+    // (fotoStore.src), al sincronizar (store._conFotosResueltas) y al exportar.
+    store.migrarFotosAIndexedDB()
+        .then(n => {
+            if (n > 0) {
+                ui.renderHallazgos();
+                ui.renderFragmentos();
+                ui.renderRescates();
+            }
+        })
+        .catch(err => console.error('Error moviendo fotos a IndexedDB:', err));
+
     const syncManager = new SyncManager(store);
     const documentationManager = new DocumentationManager(store);
     window.documentationManager = documentationManager;
@@ -354,19 +371,19 @@ function populateFolderSelect(selectEl, items, currentValue) {
             const foto1Input = document.getElementById('hallazgo-foto1');
             if (foto1Input && foto1Input.files[0]) {
                 const base64 = await toBase64(foto1Input.files[0]);
-                data.foto1 = await store.compressImage(base64);
+                data.foto1 = await window.fotoStore.guardar(await store.compressImage(base64));
             }
 
             const foto2Input = document.getElementById('hallazgo-foto2');
             if (foto2Input && foto2Input.files[0]) {
                 const base64 = await toBase64(foto2Input.files[0]);
-                data.foto2 = await store.compressImage(base64);
+                data.foto2 = await window.fotoStore.guardar(await store.compressImage(base64));
             }
 
             const foto3Input = document.getElementById('hallazgo-foto3');
             if (foto3Input && foto3Input.files[0]) {
                 const base64 = await toBase64(foto3Input.files[0]);
-                data.foto3 = await store.compressImage(base64);
+                data.foto3 = await window.fotoStore.guardar(await store.compressImage(base64));
             }
 
             // Check if we're editing
@@ -407,7 +424,7 @@ function populateFolderSelect(selectEl, items, currentValue) {
             const fileInput = document.getElementById('fragmento-foto');
             if (fileInput && fileInput.files[0]) {
                 const base64 = await toBase64(fileInput.files[0]);
-                data.foto = await store.compressImage(base64);
+                data.foto = await window.fotoStore.guardar(await store.compressImage(base64));
             }
 
             // Check if we're editing
@@ -737,7 +754,7 @@ function populateFolderSelect(selectEl, items, currentValue) {
     }
 
     if (confirmExportBtn) {
-        confirmExportBtn.addEventListener('click', () => {
+        confirmExportBtn.addEventListener('click', async () => {
             const selectedFolders = Array.from(exportFolderList.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
 
@@ -746,7 +763,8 @@ function populateFolderSelect(selectEl, items, currentValue) {
                 return;
             }
 
-            const allData = store.getAllDataForExport();
+            // Las fotos guardadas en IndexedDB se convierten a base64 para el KML
+            const allData = await store.getAllDataForExportConFotos();
 
             // Filter data based on selected folders
             const filteredData = {
@@ -773,8 +791,8 @@ function populateFolderSelect(selectEl, items, currentValue) {
     const restoreInput = document.getElementById('restore-file-input');
 
     if (btnBackup) {
-        btnBackup.addEventListener('click', () => {
-            const data = store.getAllDataForExport();
+        btnBackup.addEventListener('click', async () => {
+            const data = await store.getAllDataForExportConFotos();
             const jsonString = JSON.stringify(data, null, 2);
             const filename = `paleo_backup_${new Date().toISOString().slice(0, 10)}.json`;
 
@@ -946,7 +964,7 @@ function populateFolderSelect(selectEl, items, currentValue) {
                 const input = document.getElementById(`rescate-${field}`);
                 if (input && input.files[0]) {
                     const base64 = await toBase64(input.files[0]);
-                    data[field] = await store.compressImage(base64);
+                    data[field] = await window.fotoStore.guardar(await store.compressImage(base64));
                 }
             }
 
@@ -971,11 +989,7 @@ function populateFolderSelect(selectEl, items, currentValue) {
     }
 
 
-    // NOTA: se eliminó la migración automática de fotos a IndexedDB (photoStore) que corría
-    // en cada arranque de la app. Esa migración tomaba cualquier foto nueva guardada como
-    // base64 en localStorage y la reemplazaba por un ID de texto en PaleoPhotoDB — pero
-    // ninguna otra parte del código resuelve ese ID de vuelta a una imagen real, así que
-    // rompía la foto de forma permanente en cada reinicio de la app.
+
 
 });
 function populateFolderSelect(selectEl, items, currentValue) {
