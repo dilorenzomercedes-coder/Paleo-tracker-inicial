@@ -5,6 +5,7 @@ class PartesDiariosManager {
     constructor() {
         this.LOCAL_KEY = 'partes_diarios_local';   // local copy (own partes, for display)
         this.PENDING_KEY = 'partes_diarios_pending'; // offline queue
+        this.OPS_KEY = 'partes_diarios_ops';         // ediciones/borrados que no llegaron al servidor
         this.BACKEND_URL = localStorage.getItem('backend_url') || 'https://paleo-tracker-backend.onrender.com';
         this.collectorId = localStorage.getItem('collector_id') || 'unknown';
         this.collectorName = localStorage.getItem('collector_name') || '';
@@ -26,6 +27,18 @@ class PartesDiariosManager {
     savePending(items) {
         localStorage.setItem(this.PENDING_KEY, JSON.stringify(items));
     }
+    getOps() {
+        try { return JSON.parse(localStorage.getItem(this.OPS_KEY) || '[]'); } catch { return []; }
+    }
+    saveOps(ops) {
+        localStorage.setItem(this.OPS_KEY, JSON.stringify(ops));
+    }
+    // Guarda una edición o borrado para reintentar cuando haya conexión (solo vale la última por parte)
+    _encolarOp(tipo, id) {
+        const ops = this.getOps().filter(o => o.id !== id);
+        ops.push({ tipo, id });
+        try { this.saveOps(ops); } catch { /* sin espacio: se pierde el reintento, el dato local queda bien */ }
+    }
 
     // ─── UI ─────────────────────────────────────────────────────────
     init() {
@@ -39,6 +52,8 @@ class PartesDiariosManager {
         this.renderPartes();
         // Try to flush any pending offline partes
         this.flushPending();
+        // Al recuperar señal, reintentar lo pendiente
+        window.addEventListener('online', () => this.flushPending());
     }
 
     openModal() {
@@ -217,6 +232,51 @@ class PartesDiariosManager {
         if (remaining.length < pending.length) {
             console.log(`${pending.length - remaining.length} partes pendientes enviados al servidor.`);
         }
+        await this.flushOps();
+    }
+
+    // Reintenta ediciones y borrados que no llegaron al servidor
+    async flushOps() {
+        const ops = this.getOps();
+        if (ops.length === 0) return;
+        const restantes = [];
+        for (const op of ops) {
+            let ok;
+            if (op.tipo === 'delete') {
+                ok = await this._enviarDelete(op.id);
+            } else {
+                const parte = this.getLocalPartes().find(p => p.id === op.id);
+                ok = parte ? await this._enviarPut(op.id, parte) : true; // si ya no existe, no hay nada que mandar
+            }
+            if (!ok) restantes.push(op);
+        }
+        this.saveOps(restantes);
+    }
+
+    async _enviarPut(parteId, parteData) {
+        try {
+            const resp = await fetch(`${this.BACKEND_URL}/api/collector/partes-diarios/${parteId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...parteData, collectorId: this.collectorId, collectorName: this.collectorName })
+            });
+            return resp.ok || resp.status === 403; // 403: es de otro colector, no tiene sentido reintentar
+        } catch {
+            return false;
+        }
+    }
+
+    async _enviarDelete(parteId) {
+        try {
+            const resp = await fetch(`${this.BACKEND_URL}/api/collector/partes-diarios/${parteId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ collectorId: this.collectorId })
+            });
+            return resp.ok || resp.status === 404 || resp.status === 403; // 404: ya no estaba en el servidor
+        } catch {
+            return false;
+        }
     }
 
     renderPartes() {
@@ -316,15 +376,9 @@ class PartesDiariosManager {
     }
 
     async deleteFromBackend(parteId) {
-        try {
-            await fetch(`${this.BACKEND_URL}/api/collector/partes-diarios/${parteId}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ collectorId: this.collectorId })
-            });
-        } catch {
-            // Silencioso — el dato local ya fue eliminado
-        }
+        // El dato local ya fue eliminado; si el servidor no responde, queda para reintentar
+        const ok = await this._enviarDelete(parteId);
+        if (!ok) this._encolarOp('delete', parteId);
     }
 
     editParte(parte) {
@@ -392,6 +446,12 @@ class PartesDiariosManager {
                     list[index] = { ...list[index], ...updatedData };
                     this.saveLocalPartes(list);
                 }
+                const pend = this.getPending();
+                const iPend = pend.findIndex(p => p.id === parte.id);
+                if (iPend !== -1) {
+                    pend[iPend] = { ...pend[iPend], ...updatedData };
+                    this.savePending(pend);
+                }
 
                 // Intentar actualizar en backend
                 this.putToBackend(parte.id, { ...list.find(p => p.id === parte.id) });
@@ -417,15 +477,9 @@ class PartesDiariosManager {
     }
 
     async putToBackend(parteId, parteData) {
-        try {
-            await fetch(`${this.BACKEND_URL}/api/collector/partes-diarios/${parteId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...parteData, collectorId: this.collectorId, collectorName: this.collectorName })
-            });
-        } catch {
-            // Silencioso — el dato local ya fue actualizado
-        }
+        // El dato local ya fue actualizado; si el servidor no responde, queda para reintentar
+        const ok = await this._enviarPut(parteId, parteData);
+        if (!ok) this._encolarOp('put', parteId);
     }
 
     formatDate(dateStr) {
