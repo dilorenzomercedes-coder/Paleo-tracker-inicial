@@ -1,4 +1,4 @@
-const CACHE_NAME = 'paleo-tracker-v24';
+const CACHE_NAME = 'paleo-tracker-v25';
 const TILES_CACHE = 'map-tiles-v1';
 
 const ASSETS = [
@@ -156,38 +156,76 @@ async function handleCDNRequest(request) {
     }
 }
 
-// Handle app requests - Network first with cache fallback
-async function handleAppRequest(request) {
-    const cache = await caches.open(CACHE_NAME);
-
+// Baja todos los .js/.css locales que usa la página y recién después guarda la página
+async function guardarPaginaCompleta(cache, request, response) {
     try {
-        // Try network first for fresh content
-        const networkResponse = await fetch(request);
-        if (networkResponse.ok) {
-            // Update cache with new version
-            cache.put(request, networkResponse.clone());
+        const html = await response.clone().text();
+        const base = new URL(request.url);
+        const urls = new Set();
+        const re = /(?:src|href)="([^"]+\.(?:js|css)(?:\?[^"]*)?)"/g;
+        let m;
+        while ((m = re.exec(html)) !== null) {
+            const u = new URL(m[1], base);
+            if (u.origin === base.origin) urls.add(u.href);
         }
-        return networkResponse;
-    } catch (error) {
-        // Network failed, use cached version
-        const cachedResponse = await cache.match(request);
-        if (cachedResponse) {
-            return cachedResponse;
+        for (const u of urls) {
+            if (await cache.match(u)) continue;
+            const r = await fetch(u);
+            if (!r.ok) return false;
+            await cache.put(u, r);
         }
-
-        // If requesting a page, return index.html (SPA behavior)
-        if (request.mode === 'navigate') {
-            const indexResponse = await cache.match('./index.html');
-            if (indexResponse) {
-                return indexResponse;
-            }
-        }
-
-        return new Response('Offline - Resource not available', {
-            status: 503,
-            statusText: 'Service Unavailable'
-        });
+        await cache.put(request, response);
+        return true;
+    } catch (e) {
+        return false;
     }
+}
+
+// Archivos de la app: primero la copia guardada (abre al instante, con o sin señal)
+// y en segundo plano se busca la versión nueva en GitHub para la próxima vez que se abra.
+// Los .js llevan "?v=..." en index.html: cuando cambia la versión, se bajan como archivos nuevos.
+async function handleAppRequest(request) {
+    if (request.method !== 'GET') return fetch(request);
+
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
+
+    const esPagina = request.mode === 'navigate' || request.url.endsWith('.html') || request.url.endsWith('/');
+    const actualizar = fetch(request)
+        .then(async networkResponse => {
+            if (networkResponse && networkResponse.ok) {
+                if (esPagina) {
+                    // La página nueva se guarda SOLO si se pudieron bajar todos sus archivos (.js, .css):
+                    // así nunca queda una página nueva apuntando a archivos que no están en el celular.
+                    const ok = await guardarPaginaCompleta(cache, request, networkResponse.clone());
+                    if (!ok) console.log('[SW] Actualización incompleta, se mantiene la versión anterior');
+                } else {
+                    await cache.put(request, networkResponse.clone());
+                }
+            }
+            return networkResponse;
+        })
+        .catch(() => null);
+
+    if (cached) {
+        // Responder ya con lo guardado; la actualización sigue sola en segundo plano
+        return cached;
+    }
+
+    // No estaba guardado (primera vez o archivo nuevo): esperar a la red
+    const networkResponse = await actualizar;
+    if (networkResponse) return networkResponse;
+
+    // Sin red y sin copia: para la página principal, devolver index.html guardado
+    if (request.mode === 'navigate') {
+        const indexResponse = await cache.match('./index.html') || await cache.match('./');
+        if (indexResponse) return indexResponse;
+    }
+
+    return new Response('Offline - Resource not available', {
+        status: 503,
+        statusText: 'Service Unavailable'
+    });
 }
 
 // Background Sync - se dispara automáticamente cuando recupera conexión
