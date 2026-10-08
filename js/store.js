@@ -644,14 +644,16 @@ class Store {
     }
 
     getSyncStats() {
+        // Solo cuenta lo que todavía NO se subió al servidor (antes contaba todos los registros)
+        const sinSubir = list => list.filter(i => i && i.synced === false).length;
         return {
             pending: {
-                hallazgos: this.getHallazgos().length,
-                fragmentos: this.getFragmentos().length,
-                routes: this.getRoutes().length,
-                documents: this.getDocuments().length,
-                rescates: this.getRescates().length,
-                partes: this._getData('partes_diarios_local').length
+                hallazgos: sinSubir(this.getHallazgos()),
+                fragmentos: sinSubir(this.getFragmentos()),
+                routes: sinSubir(this.getRoutes()),
+                documents: sinSubir(this.getDocuments()),
+                rescates: sinSubir(this.getRescates()),
+                partes: sinSubir(this._getData('partes_diarios_local')) + this._getData('partes_diarios_pending').length
             }
         };
     }

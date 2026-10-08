@@ -101,7 +101,7 @@ class SyncManager {
                 // Contar items pendientes
                 const stats = this.store.getSyncStats();
                 const totalPending = stats.pending.hallazgos + stats.pending.fragmentos +
-                    stats.pending.routes + stats.pending.documents + (stats.pending.partes || 0);
+                    stats.pending.routes + stats.pending.documents + (stats.pending.rescates || 0) + (stats.pending.partes || 0);
 
                 if (totalPending === 0) {
                     // No hay nada que sincronizar
